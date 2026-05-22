@@ -1,0 +1,403 @@
+import React, { useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Image, Alert, AlertButton } from 'react-native';
+import Swipeable from 'react-native-gesture-handler/Swipeable';
+import { CustomerClient, useFiadoStore } from '../store';
+import { formatCurrency, sendWhatsappReminder } from '../utils';
+import { theme } from '../theme';
+import { Ionicons } from '@expo/vector-icons';
+
+const isEmoji = (str?: string) => {
+  if (!str) return false;
+  return str.length <= 4 && !str.includes('/') && !str.startsWith('data:');
+};
+
+export interface CustomerRowProps {
+  customer: CustomerClient;
+  onPress: () => void;
+  onSwipeLeft: () => void; // Payment
+  onSwipeRight: () => void; // Add Debt
+  pixKey?: string;
+}
+
+export const CustomerRow: React.FC<CustomerRowProps> = ({
+  customer,
+  onPress,
+  onSwipeLeft,
+  onSwipeRight,
+  pixKey,
+}) => {
+  const swipeableRef = useRef<Swipeable>(null);
+  const { deleteCustomer, deleteHistoryItem } = useFiadoStore();
+  const isZero = customer.total_debt === 0;
+
+  // Verifica atraso crítico (> 15 dias)
+  const isAtrasado = customer.history.some(
+    (h) => h.type === 'debt' && (Date.now() - new Date(h.created_at).getTime()) / 86400000 > 15
+  );
+
+  const lastItem = customer.history.length > 0 ? customer.history[0].description : 'Sem lançamentos';
+
+  const handleWhatsappPress = () => {
+    sendWhatsappReminder({
+      customerName: customer.full_name,
+      totalDebt: customer.total_debt,
+      lastItems: customer.history.map((h) => ({ description: h.description, amount: h.amount })),
+      phone: customer.phone,
+      pixKey,
+    });
+  };
+
+  const handleMorePress = () => {
+    const lastTx = customer.history.find(
+      (h) => h.type === 'debt' || h.type === 'payment'
+    );
+
+    const options: AlertButton[] = [
+      {
+        text: 'Excluir Cadastro Permanentemente',
+        style: 'destructive',
+        onPress: () => {
+          Alert.alert(
+            'Excluir Cliente',
+            `Deseja realmente excluir "${customer.full_name}" permanentemente?\n\nTodo o histórico de anotações será perdido e excluído do servidor.`,
+            [
+              { text: 'Cancelar', style: 'cancel' },
+              {
+                text: 'Sim, Excluir',
+                style: 'destructive',
+                onPress: () => {
+                  deleteCustomer(customer.id);
+                },
+              },
+            ]
+          );
+        },
+      },
+    ];
+
+    if (lastTx) {
+      options.unshift({
+        text: 'Estornar Último Lançamento',
+        style: 'default',
+        onPress: () => {
+          Alert.alert(
+            'Confirmar Estorno',
+            `Deseja remover "${lastTx.description}" de ${formatCurrency(lastTx.amount)}?`,
+            [
+              { text: 'Não', style: 'cancel' },
+              {
+                text: 'Sim, Estornar',
+                style: 'destructive',
+                onPress: () => {
+                  deleteHistoryItem(customer.id, lastTx.id);
+                },
+              },
+            ]
+          );
+        },
+      });
+    }
+
+    options.push({
+      text: 'Cancelar',
+      style: 'cancel',
+      onPress: () => {},
+    });
+
+    Alert.alert('Opções do Cliente', customer.full_name, options);
+  };
+
+  const renderLeftActions = (progress: any, dragX: any) => {
+    const scale = dragX.interpolate({
+      inputRange: [0, 80],
+      outputRange: [0, 1],
+      extrapolate: 'clamp',
+    });
+    return (
+      <TouchableOpacity
+        style={styles.leftAction}
+        onPress={() => {
+          swipeableRef.current?.close();
+          onSwipeRight();
+        }}
+        activeOpacity={0.8}
+      >
+        <Animated.Text style={[styles.actionText, { transform: [{ scale }] }]}>
+          Lançar Fiado
+        </Animated.Text>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderRightActions = (progress: any, dragX: any) => {
+    const scale = dragX.interpolate({
+      inputRange: [-80, 0],
+      outputRange: [1, 0],
+      extrapolate: 'clamp',
+    });
+    return (
+      <TouchableOpacity
+        style={styles.rightAction}
+        onPress={() => {
+          swipeableRef.current?.close();
+          onSwipeLeft();
+        }}
+        activeOpacity={0.8}
+      >
+        <Animated.Text style={[styles.actionText, { transform: [{ scale }] }]}>
+          Receber
+        </Animated.Text>
+      </TouchableOpacity>
+    );
+  };
+
+  return (
+    <Swipeable
+      ref={swipeableRef}
+      renderLeftActions={renderLeftActions}
+      renderRightActions={renderRightActions}
+      friction={2}
+    >
+      <View style={styles.cardContainer}>
+        <TouchableOpacity style={styles.mainArea} onPress={onPress} activeOpacity={0.7}>
+          <View style={styles.leftInfo}>
+            <View
+              style={[
+                styles.statusAvatar,
+                { backgroundColor: isZero ? '#d1fae5' : isAtrasado ? '#fee2e2' : '#fef9c3' },
+              ]}
+            >
+              {customer.picture ? (
+                isEmoji(customer.picture) ? (
+                  <Text style={styles.avatarEmoji}>{customer.picture}</Text>
+                ) : (
+                  <Image source={{ uri: customer.picture }} style={styles.avatarImage} />
+                )
+              ) : (
+                <Ionicons
+                  name="person"
+                  size={16}
+                  color={isZero ? '#065f46' : isAtrasado ? '#991b1b' : '#854d0e'}
+                />
+              )}
+            </View>
+
+            <View style={styles.textColumn}>
+              <Text style={styles.nameText} numberOfLines={1}>
+                {customer.full_name}
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                <Ionicons name="time-outline" size={11} color={theme.colors.textMuted} />
+                <Text style={[styles.lastItemText, { marginTop: 0 }]} numberOfLines={1}>
+                  {lastItem}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.debtColumn}>
+            <Text style={[styles.debtAmount, isZero && styles.debtZero]}>
+              {formatCurrency(customer.total_debt)}
+            </Text>
+            <View
+              style={[
+                styles.badge,
+                { backgroundColor: isZero ? '#d1fae5' : isAtrasado ? '#fee2e2' : '#ffedd5' },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.badgeText,
+                  { color: isZero ? '#065f46' : isAtrasado ? '#991b1b' : '#c2410c' },
+                ]}
+              >
+                {isZero ? 'Quitado' : isAtrasado ? 'Atrasado' : 'Devendo'}
+              </Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+
+        {/* Botoes de Ação Direta no Card mantendo o spacing rhythm e hierarchy original */}
+        <View style={styles.actionsRow}>
+          <TouchableOpacity style={styles.btnCardAdd} onPress={onSwipeRight} activeOpacity={0.7}>
+            <Ionicons name="add" size={14} color={theme.colors.accent} />
+            <Text style={styles.btnTextAdd}>Fiado</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.btnCardReceive} onPress={onSwipeLeft} activeOpacity={0.7}>
+            <Ionicons name="checkmark" size={14} color={theme.colors.primaryDark} />
+            <Text style={styles.btnTextReceive}>Receber</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.btnWhatsapp} onPress={handleWhatsappPress} activeOpacity={0.7}>
+            <Ionicons name="logo-whatsapp" size={16} color="#ffffff" />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.btnMore} onPress={handleMorePress} activeOpacity={0.7}>
+            <Ionicons name="ellipsis-horizontal" size={18} color={theme.colors.textMuted} />
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Swipeable>
+  );
+};
+
+const styles = StyleSheet.create({
+  cardContainer: {
+    backgroundColor: theme.colors.card,
+    borderRadius: theme.borderRadius.md,
+    marginVertical: 6,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    ...theme.shadows.sm,
+  },
+  mainArea: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+  },
+  leftInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 12,
+  },
+  statusAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  avatarEmoji: {
+    fontSize: 16,
+  },
+  textColumn: {
+    flex: 1,
+  },
+  nameText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.colors.textMain,
+    marginBottom: 2,
+  },
+  lastItemText: {
+    fontSize: 12,
+    color: theme.colors.textMuted,
+  },
+  debtColumn: {
+    alignItems: 'flex-end',
+  },
+  debtAmount: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: theme.colors.accent,
+    fontFamily: 'Outfit',
+  },
+  debtZero: {
+    color: theme.colors.primary,
+  },
+  badge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: theme.borderRadius.full,
+    marginTop: 4,
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.inputBg,
+    padding: 8,
+    alignItems: 'center',
+  },
+  btnCardAdd: {
+    flex: 1,
+    backgroundColor: '#ffedd5',
+    paddingVertical: 8,
+    borderRadius: theme.borderRadius.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    marginRight: 6,
+  },
+  btnTextAdd: {
+    color: theme.colors.accent,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  btnCardReceive: {
+    flex: 1,
+    backgroundColor: '#d1fae5',
+    paddingVertical: 8,
+    borderRadius: theme.borderRadius.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    marginRight: 6,
+  },
+  btnTextReceive: {
+    color: theme.colors.primaryDark,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  btnWhatsapp: {
+    backgroundColor: theme.colors.whatsapp,
+    width: 36,
+    height: 36,
+    borderRadius: theme.borderRadius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnMore: {
+    backgroundColor: theme.colors.inputBg,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    width: 36,
+    height: 36,
+    borderRadius: theme.borderRadius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 6,
+  },
+  whatsappIcon: {
+    fontSize: 16,
+    color: '#ffffff',
+  },
+  leftAction: {
+    backgroundColor: theme.colors.accent,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    paddingLeft: 20,
+    flex: 1,
+    marginVertical: 6,
+    borderRadius: theme.borderRadius.md,
+  },
+  rightAction: {
+    backgroundColor: theme.colors.success,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    paddingRight: 20,
+    flex: 1,
+    marginVertical: 6,
+    borderRadius: theme.borderRadius.md,
+  },
+  actionText: {
+    color: '#ffffff',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  avatarImage: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+  },
+});

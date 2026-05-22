@@ -1,0 +1,11 @@
+{
+  "name": "@controle-fiado/api",
+  "version": "1.0.0",
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "private": true,
+  "dependencies": {
+    "@supabase/supabase-js": "^2.43.0",
+    "@controle-fiado/types": "*"
+  }
+}
