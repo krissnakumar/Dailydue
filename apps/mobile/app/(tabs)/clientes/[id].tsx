@@ -38,6 +38,7 @@ export default function CustomerDetailScreen() {
     deleteCustomer,
     editHistoryItem,
     deleteHistoryItem,
+    openNovoFiado,
   } = useFiadoStore();
 
   const customer = customers.find((c) => c.id === id);
@@ -206,15 +207,15 @@ export default function CustomerDetailScreen() {
     const cepDigits = (editCep || '').replace(/\D/g, '');
 
     if (!name || name.length < 2) {
-      Alert.alert('Erro', 'Informe um nome válido (mínimo 2 caracteres).');
+      Alert.alert('Ops!', 'Faltou o nome do cliente. 😊');
       return;
     }
     if (phoneDigits && !(phoneDigits.length === 10 || phoneDigits.length === 11)) {
-      Alert.alert('Erro', 'WhatsApp inválido. Use DDD + número (10 ou 11 dígitos).');
+      Alert.alert('Ops!', 'Confira o número do WhatsApp. 📱');
       return;
     }
     if (cepDigits && cepDigits.length !== 8) {
-      Alert.alert('Erro', 'CEP inválido. Use 8 dígitos (apenas números).');
+      Alert.alert('Ops!', 'Confira o número do CEP. 📍');
       return;
     }
 
@@ -235,7 +236,7 @@ export default function CustomerDetailScreen() {
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert('Permissão', 'Permita acesso à galeria para escolher uma foto.');
+        Alert.alert('Acesso Negado', 'Precisamos de permissão para escolher a foto. 🖼️');
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -249,7 +250,7 @@ export default function CustomerDetailScreen() {
       if (!asset?.uri) return;
       setEditPicture(asset.uri);
     } catch {
-      Alert.alert('Erro', 'Não foi possível selecionar a foto.');
+      Alert.alert('Ops!', 'Não foi possível carregar a imagem. 😅');
     }
   };
 
@@ -316,7 +317,7 @@ export default function CustomerDetailScreen() {
     <View style={styles.wrapper}>
       {/* Cabeçalho da Visão Interna */}
       <Animated.View
-        entering={FadeInDown.duration(500).springify().damping(15)}
+        entering={FadeInDown.duration(0)}
         style={[styles.headerContainer, { paddingTop: Math.max(insets.top, 16) }]}
       >
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
@@ -380,7 +381,7 @@ export default function CustomerDetailScreen() {
 
       {/* Cartão de Dívida Total Destacada */}
       <Animated.View
-        entering={FadeInDown.delay(100).duration(500).springify().damping(15)}
+        entering={FadeInDown.delay(0).duration(0)}
         style={styles.summaryBoxWrapper}
       >
         <View style={styles.summaryCard}>
@@ -391,14 +392,14 @@ export default function CustomerDetailScreen() {
 
       {/* Sticky Quick Actions Row Preservando a Hierarquia Visual */}
       <Animated.View
-        entering={FadeInDown.delay(150).duration(500).springify().damping(15)}
+        entering={FadeInDown.delay(0).duration(0)}
         style={styles.stickyActions}
       >
         <Text style={styles.quickLabel}>Ações Rápidas</Text>
         <View style={styles.gridActionsRow}>
           <TouchableOpacity
             style={[styles.btnActionFiado, styles.rowCenter]}
-            onPress={() => router.push(`/novo-fiado?customerId=${customer.id}`)}
+            onPress={() => openNovoFiado(customer.id)}
             activeOpacity={0.7}
           >
             <Ionicons name="add-circle-outline" size={14} color={theme.colors.accent} style={{ marginRight: 4 }} />
@@ -442,7 +443,7 @@ export default function CustomerDetailScreen() {
       {/* Scrollable Timeline (Folha de Caderno) */}
       <ScrollView contentContainerStyle={styles.timelineScroll} showsVerticalScrollIndicator={false}>
         <Animated.View
-          entering={FadeInDown.delay(200).duration(500).springify().damping(15)}
+          entering={FadeInDown.delay(0).duration(0)}
           style={styles.timelineHeader}
         >
           <Text style={styles.timelineTitle}>Linha do Tempo (Histórico)</Text>
@@ -473,7 +474,7 @@ export default function CustomerDetailScreen() {
               return (
                 <Animated.View
                   key={item.id || String(index)}
-                  entering={FadeInRight.delay(250 + index * 60).duration(450).springify().damping(15)}
+                  entering={FadeInRight.delay(0).duration(0)}
                   style={styles.timelineNode}
                 >
                   <View

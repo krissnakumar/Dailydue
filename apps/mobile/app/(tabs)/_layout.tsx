@@ -3,105 +3,113 @@ import { Tabs, useRouter } from 'expo-router';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { theme } from '../../src/theme';
 import { Ionicons } from '@expo/vector-icons';
+import { useFiadoStore } from '../../src/store';
+import { NovoFiadoPopup } from '../../src/components/NovoFiadoPopup';
+import { NovoClientePopup } from '../../src/components/NovoClientePopup';
 
 export default function TabsLayout() {
   const router = useRouter();
+  const { openNovoFiado } = useFiadoStore();
 
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: theme.colors.textMuted,
-        tabBarLabelStyle: styles.label,
-      }}
-    >
-      <Tabs.Screen
-        name="home"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'home' : 'home-outline'} size={20} color={color} />
-          ),
+    <>
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          tabBarStyle: styles.tabBar,
+          tabBarActiveTintColor: theme.colors.primary,
+          tabBarInactiveTintColor: theme.colors.textMuted,
+          tabBarLabelStyle: styles.label,
         }}
-      />
-      <Tabs.Screen
-        name="home-details"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="clientes"
-        options={{
-          title: 'Clientes',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'people' : 'people-outline'} size={21} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="relatorios"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="novo-fiado"
-        options={{
-          title: 'Fiado',
-          tabBarLabel: ({ focused }) => (
-            <Text style={[styles.centerLabel, focused && { color: theme.colors.accent }]}>
-              Fiado
-            </Text>
-          ),
-          tabBarButton: ({ delayLongPress, ...props }) => (
-            <TouchableOpacity
-              {...(props as any)}
-              activeOpacity={0.8}
-              onPress={() => router.push('/novo-fiado')}
-              style={styles.centerButtonWrapper}
-            >
-              <View style={styles.centerButton}>
-                <Ionicons name="add" size={24} color={theme.colors.accent} style={{ marginTop: 1 }} />
-              </View>
-              <Text style={styles.centerText}>Fiado</Text>
-            </TouchableOpacity>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="cobrancas"
-        options={{
-          title: 'Cobranças',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline'} size={20} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="pagamentos"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="subscription"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="config"
-        options={{
-          title: 'Config',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'settings' : 'settings-outline'} size={20} color={color} />
-          ),
-        }}
-      />
-    </Tabs>
+      >
+        <Tabs.Screen
+          name="home"
+          options={{
+            title: 'Home',
+            tabBarIcon: ({ color, focused }) => (
+              <Ionicons name={focused ? 'home' : 'home-outline'} size={20} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="home-details"
+          options={{
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="clientes"
+          options={{
+            title: 'Clientes',
+            tabBarIcon: ({ color, focused }) => (
+              <Ionicons name={focused ? 'people' : 'people-outline'} size={21} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="relatorios"
+          options={{
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="novo-fiado"
+          options={{
+            title: 'Fiado',
+            tabBarLabel: ({ focused }) => (
+              <Text style={[styles.centerLabel, focused && { color: theme.colors.accent }]}>
+                Fiado
+              </Text>
+            ),
+            tabBarButton: ({ delayLongPress, ...props }) => (
+              <TouchableOpacity
+                {...(props as any)}
+                activeOpacity={0.8}
+                onPress={() => openNovoFiado()}
+                style={styles.centerButtonWrapper}
+              >
+                <View style={styles.centerButton}>
+                  <Ionicons name="add" size={24} color={theme.colors.accent} style={{ marginTop: 1 }} />
+                </View>
+                <Text style={styles.centerText}>Fiado</Text>
+              </TouchableOpacity>
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="cobrancas"
+          options={{
+            title: 'Cobranças',
+            tabBarIcon: ({ color, focused }) => (
+              <Ionicons name={focused ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline'} size={20} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="pagamentos"
+          options={{
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="subscription"
+          options={{
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="config"
+          options={{
+            title: 'Config',
+            tabBarIcon: ({ color, focused }) => (
+              <Ionicons name={focused ? 'settings' : 'settings-outline'} size={20} color={color} />
+            ),
+          }}
+        />
+      </Tabs>
+      <NovoFiadoPopup />
+      <NovoClientePopup />
+    </>
   );
 }
 

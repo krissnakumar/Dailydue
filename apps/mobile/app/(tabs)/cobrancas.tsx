@@ -104,7 +104,7 @@ export default function CobrancasScreen() {
       <Header showTotal={false} title="Painel de Cobranças" />
 
       <Animated.View
-        entering={FadeInDown.duration(500).springify().damping(15)}
+        entering={FadeInDown.duration(0)}
         style={styles.summaryContainer}
       >
         <View style={styles.summaryItem}>
@@ -119,7 +119,7 @@ export default function CobrancasScreen() {
       </Animated.View>
 
       <Animated.View
-        entering={FadeInDown.delay(100).duration(500).springify().damping(15)}
+        entering={FadeInDown.delay(0).duration(0)}
         style={styles.tabsRow}
       >
         {[
@@ -149,7 +149,7 @@ export default function CobrancasScreen() {
       </Animated.View>
 
       <Animated.View
-        entering={FadeInDown.delay(150).duration(500).springify().damping(15)}
+        entering={FadeInDown.delay(0).duration(0)}
         style={styles.batchBox}
       >
         <View style={styles.batchIconBox}>
@@ -184,7 +184,7 @@ export default function CobrancasScreen() {
             return (
               <Animated.View
                 key={c.id}
-                entering={FadeInDown.delay(200 + idx * 50).duration(400).springify().damping(15)}
+                entering={FadeInDown.delay(0).duration(0)}
               >
                 <TouchableOpacity
                   style={[styles.clientCard, isAtrasado && styles.clientCardAtrasado]}

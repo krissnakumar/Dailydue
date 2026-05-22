@@ -6,8 +6,18 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
+import { LogBox } from 'react-native';
 import { useFiadoStore } from '../src/store';
 import { supabase } from '@controle-fiado/api';
+
+LogBox.ignoreLogs([
+  'Network request failed',
+  'Failed to fetch',
+  '[TypeError: Network request failed]',
+  'TypeError: Network request failed',
+  'Invalid Refresh Token',
+  'AuthApiError'
+]);
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -21,7 +31,7 @@ const queryClient = new QueryClient({
 });
 
 export default function RootLayout() {
-  const { user, attemptBackgroundSync, setUser, refreshCustomerPictureUrls } = useFiadoStore();
+  const { user, attemptBackgroundSync, setUser, refreshCustomerPictureUrls, loadSupabaseData } = useFiadoStore();
   const segments = useSegments();
   const router = useRouter();
   const navigationState = useRootNavigationState();
@@ -29,7 +39,7 @@ export default function RootLayout() {
   // Expo Router can fire auth effects before the Stack navigator is
   // fully mounted, causing "navigate before mounting" errors.
   const mounted = useRef(false);
-  const authChecked = useRef(false);
+  const [authChecked, setAuthChecked] = React.useState(false);
   const splashHidden = useRef(false);
 
   useEffect(() => {
@@ -39,10 +49,15 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      useFiadoStore.setState({ customers: [], syncQueue: [] });
+      return;
+    }
     if (user.id === 'usr_offline') return;
+    
     refreshCustomerPictureUrls();
-  }, [user?.id, refreshCustomerPictureUrls]);
+    loadSupabaseData();
+  }, [user?.id, refreshCustomerPictureUrls, loadSupabaseData]);
 
   useEffect(() => {
     let active = true;
@@ -62,10 +77,15 @@ export default function RootLayout() {
             (sess.user.user_metadata as any)?.full_name ||
             (sess.user.user_metadata as any)?.name ||
             undefined,
+          picture: (sess.user.user_metadata as any)?.picture || (sess.user.user_metadata as any)?.avatar_url || undefined,
         });
       })
+      .catch((error) => {
+        console.warn('Failed to get Supabase session (network or DB down):', error);
+        if (active) setUser(null);
+      })
       .finally(() => {
-        authChecked.current = true;
+        if (active) setAuthChecked(true);
       });
 
     const { data: sub } = supabase.auth.onAuthStateChange((_evt, sess) => {
@@ -77,7 +97,11 @@ export default function RootLayout() {
       setUser({
         id: sess.user.id,
         email: sess.user.email || undefined,
-        full_name: (sess.user.user_metadata as any)?.full_name || (sess.user.user_metadata as any)?.name || undefined,
+        full_name:
+          (sess.user.user_metadata as any)?.full_name ||
+          (sess.user.user_metadata as any)?.name ||
+          undefined,
+        picture: (sess.user.user_metadata as any)?.picture || (sess.user.user_metadata as any)?.avatar_url || undefined,
       });
     });
 
@@ -89,11 +113,22 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (splashHidden.current) return;
-    if (!navigationState?.key) return;
-    if (!authChecked.current) return;
-    splashHidden.current = true;
-    SplashScreen.hideAsync().catch(() => {});
-  }, [navigationState?.key]);
+    if (authChecked && navigationState?.key) {
+      splashHidden.current = true;
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [navigationState?.key, authChecked]);
+
+  // Failsafe: hide splash screen unconditionally after 2.5 seconds
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!splashHidden.current) {
+        splashHidden.current = true;
+        SplashScreen.hideAsync().catch(() => {});
+      }
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     // Wait until both the navigator state is ready AND the layout is mounted

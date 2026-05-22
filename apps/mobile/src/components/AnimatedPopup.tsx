@@ -108,8 +108,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
-    paddingHorizontal: 24,
-    paddingBottom: 40,
     minHeight: 250,
     maxHeight: height * 0.9,
     ...theme.shadows.lg,

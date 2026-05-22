@@ -8,6 +8,7 @@ import {
   Image,
   TextInput,
   KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, {
@@ -15,7 +16,6 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
   Easing,
-  withSpring,
 } from 'react-native-reanimated';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
@@ -40,83 +40,37 @@ export default function LoginScreen() {
   const [error, setError] = useState<string | null>(null);
 
   // Animations
-  const logoScale = useSharedValue(0.8);
+  const logoScale = useSharedValue(2);
   const logoOpacity = useSharedValue(0);
   const contentOpacity = useSharedValue(0);
-  const contentTranslateY = useSharedValue(20);
-
-  // Icon Random Animations
-  const iconTranslateX = useSharedValue(0);
+  const contentTranslateY = useSharedValue(50);
+  
+  // Icon Transform
   const iconTranslateY = useSharedValue(0);
-  const iconRotate = useSharedValue(0);
   const iconScale = useSharedValue(1);
 
   useEffect(() => {
-    // Splash sequence
-    logoOpacity.value = withTiming(1, { duration: 1000 });
-    logoScale.value = withTiming(1.05, { duration: 900, easing: Easing.out(Easing.cubic) });
+    // 1. Fade in the logo initially
+    logoOpacity.value = withTiming(1, { duration: 600 });
+    
+    // 2. Pulse the logo slightly to show it's alive
+    iconScale.value = withTiming(1.05, { duration: 800 }, () => {
+      iconScale.value = withTiming(1, { duration: 400 });
+    });
 
-    const timer = setTimeout(() => {
+    // 3. After 1.2s, smoothly slide it up and reveal the form
+    setTimeout(() => {
+      logoScale.value = withTiming(1, { duration: 600, easing: Easing.inOut(Easing.cubic) });
       setShowContent(true);
-      logoScale.value = withTiming(0.9, { duration: 800 });
-      contentOpacity.value = withTiming(1, { duration: 800 });
-      contentTranslateY.value = withTiming(0, {
-        duration: 800,
-        easing: Easing.out(Easing.cubic),
-      });
-    }, 1500);
-
-    // Random idle movements after splash intro
-    let intervalId: any;
-    let idleTimeoutId: any;
-
-    const startTimeout = setTimeout(() => {
-      intervalId = setInterval(() => {
-        const targetX = (Math.random() - 0.5) * 16; // -8 to 8
-        const targetY = (Math.random() - 0.5) * 16; // -8 to 8
-        const targetRotate = (Math.random() - 0.5) * 24; // -12deg to 12deg
-        const targetScale = 0.95 + Math.random() * 0.15; // 0.95 to 1.10
-
-        iconTranslateX.value = withSpring(targetX, { damping: 12, stiffness: 90 });
-        iconTranslateY.value = withSpring(targetY, { damping: 12, stiffness: 90 });
-        iconRotate.value = withSpring(targetRotate, { damping: 12, stiffness: 90 });
-        iconScale.value = withSpring(targetScale, { damping: 12, stiffness: 90 });
-
-        idleTimeoutId = setTimeout(() => {
-          iconTranslateX.value = withSpring(0, { damping: 15, stiffness: 100 });
-          iconTranslateY.value = withSpring(0, { damping: 15, stiffness: 100 });
-          iconRotate.value = withSpring(0, { damping: 15, stiffness: 100 });
-          iconScale.value = withSpring(1, { damping: 15, stiffness: 100 });
-        }, 1000);
-      }, 4000);
-    }, 3000);
-
-    return () => {
-      clearTimeout(timer);
-      clearTimeout(startTimeout);
-      if (intervalId) clearInterval(intervalId);
-      if (idleTimeoutId) clearTimeout(idleTimeoutId);
-    };
+      contentOpacity.value = withTiming(1, { duration: 600, easing: Easing.out(Easing.cubic) });
+      contentTranslateY.value = withTiming(0, { duration: 600, easing: Easing.out(Easing.cubic) });
+    }, 1200);
   }, []);
 
   const handleIconTap = () => {
-    // Generate a wild random animation on tap
-    const targetX = (Math.random() - 0.5) * 30;
-    const targetY = (Math.random() - 0.5) * 30;
-    const targetRotate = (Math.random() - 0.5) * 60;
-    const targetScale = 1.25 + Math.random() * 0.25;
-
-    iconTranslateX.value = withSpring(targetX, { damping: 5, stiffness: 150 });
-    iconTranslateY.value = withSpring(targetY, { damping: 5, stiffness: 150 });
-    iconRotate.value = withSpring(targetRotate, { damping: 5, stiffness: 150 });
-    iconScale.value = withSpring(targetScale, { damping: 5, stiffness: 150 });
-
-    setTimeout(() => {
-      iconTranslateX.value = withSpring(0, { damping: 10, stiffness: 120 });
-      iconTranslateY.value = withSpring(0, { damping: 10, stiffness: 120 });
-      iconRotate.value = withSpring(0, { damping: 10, stiffness: 120 });
-      iconScale.value = withSpring(1, { damping: 10, stiffness: 120 });
-    }, 500);
+    iconScale.value = withTiming(1.1, { duration: 150 }, () => {
+        iconScale.value = withTiming(1, { duration: 150 });
+    });
   };
 
   const logoStyle = useAnimatedStyle(() => ({
@@ -126,9 +80,7 @@ export default function LoginScreen() {
 
   const iconStyle = useAnimatedStyle(() => ({
     transform: [
-      { translateX: iconTranslateX.value },
       { translateY: iconTranslateY.value },
-      { rotate: `${iconRotate.value}deg` },
       { scale: iconScale.value },
     ],
   }));
@@ -329,7 +281,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior="padding">
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.splashBg}>
         <Animated.View style={[styles.logoContainer, logoStyle]}>
           <TouchableOpacity activeOpacity={0.95} onPress={handleIconTap}>
@@ -349,7 +301,7 @@ export default function LoginScreen() {
         <Animated.View style={[styles.content, contentStyle]}>
           <View style={styles.onboardingBox}>
             <Text style={styles.welcomeText}>{mode === 'signup' ? 'Criar conta' : 'Entrar'}</Text>
-            <Text style={styles.description}>Use e-mail e senha (Supabase Auth).</Text>
+            <Text style={styles.description}>Use e-mail e senha para acessar.</Text>
           </View>
 
           {error ? (
@@ -416,13 +368,9 @@ export default function LoginScreen() {
                 {mode === 'signin' ? 'Não tem conta? Criar agora' : 'Já tem conta? Entrar'}
               </Text>
             </TouchableOpacity>
-
-            <TouchableOpacity style={styles.offlineBtn} onPress={handleOfflineMode} activeOpacity={0.7} disabled={busy}>
-              <Text style={styles.offlineBtnText}>Continuar no modo offline</Text>
-            </TouchableOpacity>
           </View>
 
-          <Text style={styles.footer}>Supabase Auth • Sessão segura</Text>
+          <Text style={styles.footer}>Sessão segura</Text>
         </Animated.View>
       )}
     </KeyboardAvoidingView>
@@ -454,11 +402,12 @@ const styles = StyleSheet.create({
     letterSpacing: -1,
   },
   content: {
-    height: height * 0.45,
+    minHeight: height * 0.55,
     backgroundColor: '#ffffff',
     borderTopLeftRadius: 40,
     borderTopRightRadius: 40,
     padding: 30,
+    paddingBottom: 50,
     alignItems: 'center',
     justifyContent: 'space-between',
     ...theme.shadows.lg,

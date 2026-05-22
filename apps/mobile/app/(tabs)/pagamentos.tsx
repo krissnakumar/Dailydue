@@ -59,12 +59,12 @@ export default function PagamentosModal() {
   const handleConfirmPayment = async () => {
     const amt = parseFloat(amountStr);
     if (isNaN(amt) || amt <= 0) {
-      Alert.alert('Aviso', 'Informe o valor exato recebido para abater na conta.');
+      Alert.alert('Ops!', 'Qual foi o valor pago? 💰');
       return;
     }
 
     if (!selectedCustId || !targetCust) {
-      Alert.alert('Aviso', 'Selecione o cliente que está realizando o pagamento.');
+      Alert.alert('Ops!', 'Quem fez o pagamento? Selecione um cliente. 👤');
       return;
     }
 
@@ -75,10 +75,10 @@ export default function PagamentosModal() {
       getCurrentMonthTransactionsCount() >= subscription.max_transactions_per_month
     ) {
       Alert.alert(
-        'Limite de Lançamentos Atingido',
-        'Você atingiu o limite de 30 lançamentos no plano gratuito. Faça o upgrade para o Premium para lançamentos ilimitados.',
+        'Plano Básico 🔒',
+        'Limite de lançamentos do mês atingido. Mude para o Premium!',
         [
-          { text: 'Voltar', style: 'cancel' },
+          { text: 'Depois', style: 'cancel' },
           { text: 'Ver Planos', onPress: () => router.push('/subscription') }
         ]
       );
@@ -100,8 +100,8 @@ export default function PagamentosModal() {
         );
       } else {
         Alert.alert(
-          'Sucesso',
-          `✔️ Baixa de ${formatCurrency(amt)} registrada para ${targetCust.full_name.split(' ')[0]}!`
+          'Pronto! 🎉',
+          `Abatemos R$ ${amt.toFixed(2)} da conta de ${targetCust.full_name.split(' ')[0]}!`
         );
       }
 
@@ -109,15 +109,15 @@ export default function PagamentosModal() {
     } catch (err: any) {
       if (err.message === 'FREE_PLAN_TRANSACTION_LIMIT_REACHED') {
         Alert.alert(
-          'Limite de Lançamentos Atingido',
-          'Você atingiu o limite de 30 lançamentos no plano gratuito. Faça o upgrade para o Premium para lançamentos ilimitados.',
+          'Plano Básico 🔒',
+          'Limite de lançamentos atingido. Mude para o Premium!',
           [
-            { text: 'Voltar', style: 'cancel' },
+            { text: 'Depois', style: 'cancel' },
             { text: 'Ver Planos', onPress: () => router.push('/subscription') }
           ]
         );
       } else {
-        Alert.alert('Erro', 'Não foi possível registrar o pagamento.');
+        Alert.alert('Eita!', 'Não conseguimos salvar agora. Tente de novo! 😅');
       }
     }
   };

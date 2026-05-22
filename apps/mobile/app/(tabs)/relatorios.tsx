@@ -100,7 +100,7 @@ export default function RelatoriosScreen() {
       />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <Animated.View entering={FadeInDown.duration(500).springify().damping(15)}>
+        <Animated.View entering={FadeInDown.duration(0)}>
           <Text style={styles.sectionTitle}>Métricas Globais Acumuladas</Text>
 
           <Card style={styles.cardBox}>
@@ -121,7 +121,7 @@ export default function RelatoriosScreen() {
           </Card>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(100).duration(500).springify().damping(15)}>
+        <Animated.View entering={FadeInDown.delay(0).duration(0)}>
           <Text style={styles.sectionTitle}>Opções de Exportação</Text>
           <View style={styles.exportGrid}>
             <Button
@@ -141,7 +141,7 @@ export default function RelatoriosScreen() {
           </View>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(200).duration(500).springify().damping(15)}>
+        <Animated.View entering={FadeInDown.delay(0).duration(0)}>
           <Text style={styles.sectionTitle}>Registro Geral de Auditoria ({historyFlat.length})</Text>
 
           <Card style={styles.tableCard}>
@@ -158,7 +158,7 @@ export default function RelatoriosScreen() {
                     activeOpacity={0.7}
                   >
                     <Animated.View
-                      entering={idx < 25 ? FadeInRight.delay(250 + idx * 40).duration(350).springify().damping(16) : undefined}
+                      entering={idx < 25 ? FadeInRight.delay(0).duration(0) : undefined}
                       style={[styles.tableRow, idx === historyFlat.length - 1 && { borderBottomWidth: 0 }]}
                     >
                       <View style={{ flex: 1 }}>

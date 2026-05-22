@@ -1,5 +1,5 @@
-import React, { ReactNode } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Image } from 'react-native';
+import React, { ReactNode, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useFiadoStore } from '../store';
@@ -23,7 +23,30 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { customers, user, setUser } = useFiadoStore();
+  const { customers, user, setUser, subscription } = useFiadoStore();
+
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (subscription.is_premium) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.2,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    } else {
+      pulseAnim.setValue(1);
+    }
+  }, [subscription.is_premium, pulseAnim]);
 
   // Calcula total geral a receber
   const totalRecebiveis = customers.reduce((acc, curr) => acc + (curr.total_debt || 0), 0);
@@ -63,6 +86,12 @@ export const Header: React.FC<HeaderProps> = ({
           <View style={styles.titleWrapper}>
             {leftAction}
             <Text style={styles.titleText}>{title}</Text>
+            <TouchableOpacity onPress={() => router.push('/subscription')} style={styles.planBadgeContainer}>
+               <Animated.View style={[styles.planBadge, subscription.is_premium ? styles.planBadgePremium : styles.planBadgeBasic, subscription.is_premium && { transform: [{ scale: pulseAnim }] }]}>
+                  <Ionicons name={subscription.is_premium ? "star" : "leaf"} size={10} color="#fff" />
+                  <Text style={styles.planBadgeText}>{subscription.is_premium ? 'PRO' : 'BÁSICO'}</Text>
+               </Animated.View>
+            </TouchableOpacity>
           </View>
         ) : (
           <TouchableOpacity
@@ -70,10 +99,16 @@ export const Header: React.FC<HeaderProps> = ({
             activeOpacity={0.75}
             onPress={() => router.replace('/(tabs)/home')}
           >
-            <View style={styles.logoBadge}>
-              <Image source={require('../../assets/icon.png')} style={styles.logoImage} />
+            {title === 'Fiado' && <Image source={require('../../assets/icon.png')} style={styles.logoImage} />}
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={styles.titleText}>{title}</Text>
+              <View style={styles.planBadgeContainer}>
+                 <Animated.View style={[styles.planBadge, subscription.is_premium ? styles.planBadgePremium : styles.planBadgeBasic, subscription.is_premium && { transform: [{ scale: pulseAnim }] }]}>
+                    <Ionicons name={subscription.is_premium ? "star" : "leaf"} size={10} color="#fff" />
+                    <Text style={styles.planBadgeText}>{subscription.is_premium ? 'PRO' : 'BÁSICO'}</Text>
+                 </Animated.View>
+              </View>
             </View>
-            <Text style={styles.titleText}>{title}</Text>
           </TouchableOpacity>
         )}
 
@@ -123,24 +158,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  logoBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.18,
-    shadowRadius: 4,
-    elevation: 3,
-  },
   logoImage: {
-    width: 24,
-    height: 24,
-    resizeMode: 'contain',
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    marginRight: 0,
+    resizeMode: 'cover',
   },
   titleIcon: {
     fontSize: 22,
@@ -171,5 +194,26 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '900',
   },
-
+  planBadgeContainer: {
+    marginLeft: 8,
+  },
+  planBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  planBadgePremium: {
+    backgroundColor: '#fbbf24', // Amber/gold for premium
+  },
+  planBadgeBasic: {
+    backgroundColor: 'rgba(255,255,255,0.2)', // Semi-transparent for basic
+  },
+  planBadgeText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: 'bold',
+    marginLeft: 4,
+  },
 });

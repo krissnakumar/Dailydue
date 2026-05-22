@@ -10,7 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { customers, resetDemoData } = useFiadoStore();
+  const { customers, openNovoCliente } = useFiadoStore();
   const [searchQuery, setSearchQuery] = React.useState('');
 
   const { width: SCREEN_WIDTH } = useWindowDimensions();
@@ -87,7 +87,7 @@ export default function HomeScreen() {
   }) => {
     return (
       <Animated.View
-        entering={FadeInRight.delay(index * 100).duration(600).springify().damping(15)}
+        entering={FadeInRight.delay(0).duration(0)}
         style={[styles.gridTileWrap, { width: CARD_WIDTH, marginRight: CARD_GAP }]}
       >
         <Pressable
@@ -127,7 +127,7 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.wrapper}>
-      <Header showTotal={true} title="Caderninho" />
+      <Header showTotal={true} title="Fiado" />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Grade de Resumo Executivo em Linha Única Scrollable */}
@@ -180,7 +180,7 @@ export default function HomeScreen() {
 
         {/* Ações Rápidas - Clientes & Busca */}
         <Animated.View
-          entering={FadeInDown.delay(350).duration(500).springify().damping(18)}
+          entering={FadeInDown.delay(0).duration(0)}
           style={styles.searchSection}
         >
           <View style={styles.searchBarContainer}>
@@ -202,7 +202,7 @@ export default function HomeScreen() {
           </View>
           <TouchableOpacity
             style={[styles.newCustBtn, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
-            onPress={() => router.push('/clientes?openAdd=true')}
+            onPress={openNovoCliente}
             activeOpacity={0.7}
           >
             <Ionicons name="person-add-outline" size={18} color="#ffffff" />
@@ -248,7 +248,7 @@ export default function HomeScreen() {
 
         {/* Linha do Tempo de Atividades Recentes */}
         <Animated.View
-          entering={FadeInDown.delay(400).duration(500).springify()}
+          entering={FadeInDown.delay(0).duration(0)}
           style={styles.sectionHeader}
         >
           <Text style={styles.sectionTitle}>Últimas Movimentações na Loja</Text>
@@ -276,7 +276,7 @@ export default function HomeScreen() {
               return (
                 <Animated.View
                   key={tx.id || String(idx)}
-                  entering={FadeInDown.delay(450 + idx * 80).duration(500).springify().damping(16)}
+                  entering={FadeInDown.delay(0).duration(0)}
                 >
                   <TouchableOpacity
                     style={[styles.feedItem, idx === atividadesRecentes.length - 1 && { borderBottomWidth: 0 }]}
@@ -317,15 +317,6 @@ export default function HomeScreen() {
           )}
         </Card>
 
-        {/* Botoes Auxiliares */}
-        <TouchableOpacity
-          style={[styles.demoResetBtn, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }]}
-          onPress={resetDemoData}
-          activeOpacity={0.6}
-        >
-          <Ionicons name="refresh-outline" size={14} color={theme.colors.textMuted} />
-          <Text style={styles.demoResetText}>Restaurar Dados de Demonstração Inicial</Text>
-        </TouchableOpacity>
       </ScrollView>
     </View>
   );

@@ -9,6 +9,8 @@ import {
   updateCustomer,
   deleteCustomer as apiDeleteCustomer,
   deleteTransaction as apiDeleteTransaction,
+  getCustomers,
+  getTransactionsByCustomer,
 } from '@controle-fiado/api';
 import * as Haptics from 'expo-haptics';
 import { INITIAL_CUSTOMERS, INITIAL_QUICK_ITEMS } from '../constants';
@@ -67,7 +69,7 @@ export interface UserSubscriptionState {
 
 export interface FiadoMobileState {
   // Auth State
-  user: { email?: string; id?: string; full_name?: string } | null;
+  user: { email?: string; id?: string; full_name?: string; picture?: string; avatar_url?: string } | null;
   businessConfig: {
     businessName: string;
     pixKey: string;
@@ -92,6 +94,16 @@ export interface FiadoMobileState {
   failedSyncItems: Array<PendingQueueItem & { failed_reason: string; failed_at: string }>;
   customerIdMap: Record<string, string>;
   isSyncing: boolean;
+
+  // Novo Fiado Popup State
+  novoFiadoState: { isOpen: boolean; customerId?: string };
+  openNovoFiado: (customerId?: string) => void;
+  closeNovoFiado: () => void;
+
+  // Novo Cliente Popup State
+  novoClienteState: { isOpen: boolean };
+  openNovoCliente: () => void;
+  closeNovoCliente: () => void;
 
   // Actions
   refreshCustomerPictureUrls: () => Promise<void>;
@@ -129,6 +141,7 @@ export interface FiadoMobileState {
   attemptBackgroundSync: () => Promise<void>;
   clearSyncQueue: () => void;
   resetDemoData: () => void;
+  loadSupabaseData: () => Promise<void>;
 }
 
 function normalizeCustomerForSupabase(input: any): {
@@ -220,7 +233,6 @@ async function signedUrlForCustomerPicture(path: string) {
 }
 
 export const useFiadoStore = create<FiadoMobileState>()(
-  persist(
     (set, get) => ({
       user: null,
       businessConfig: {
@@ -382,7 +394,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
         const start = startOfMonth.getTime();
         for (const c of get().customers) {
           for (const h of c.history) {
-            if (h.type === 'debt' || h.type === 'payment') {
+            if (h.type === 'debt' || h.type === 'payment' || h.type === 'system') {
               const t = new Date(h.created_at).getTime();
               if (t >= start) {
                 count++;
@@ -393,12 +405,20 @@ export const useFiadoStore = create<FiadoMobileState>()(
         return count;
       },
 
-      customers: INITIAL_CUSTOMERS as CustomerClient[],
-      quickItems: INITIAL_QUICK_ITEMS,
+      customers: [],
+      quickItems: [],
       syncQueue: [],
       failedSyncItems: [],
       customerIdMap: {},
       isSyncing: false,
+
+      novoFiadoState: { isOpen: false, customerId: undefined },
+      openNovoFiado: (customerId) => set({ novoFiadoState: { isOpen: true, customerId } }),
+      closeNovoFiado: () => set({ novoFiadoState: { isOpen: false, customerId: undefined } }),
+
+      novoClienteState: { isOpen: false },
+      openNovoCliente: () => set({ novoClienteState: { isOpen: true } }),
+      closeNovoCliente: () => set({ novoClienteState: { isOpen: false } }),
 
       refreshCustomerPictureUrls: async () => {
         try {
@@ -635,6 +655,14 @@ export const useFiadoStore = create<FiadoMobileState>()(
       },
 
       editHistoryItem: (customerId, itemId, newDesc, newAmount) => {
+        const sub = get().subscription;
+        if (!sub.is_premium && sub.max_transactions_per_month !== null) {
+          const txCount = get().getCurrentMonthTransactionsCount();
+          if (txCount >= sub.max_transactions_per_month) {
+            throw new Error('FREE_PLAN_TRANSACTION_LIMIT_REACHED');
+          }
+        }
+
         set((state) => {
           const updated = state.customers.map((c) => {
             if (c.id === customerId) {
@@ -738,11 +766,22 @@ export const useFiadoStore = create<FiadoMobileState>()(
 
       getSmartSuggestions: (query) => {
         const items = get().quickItems;
-        const sorted = [...items].sort((a, b) => {
+        let sorted = [...items].sort((a, b) => {
           const scoreA = a.count * 2 + new Date(a.lastUsed).getTime() / 1000000000;
           const scoreB = b.count * 2 + new Date(b.lastUsed).getTime() / 1000000000;
           return scoreB - scoreA;
         });
+
+        // Add defaults if empty
+        if (sorted.length === 0) {
+          sorted = [
+            { name: 'Pão', price: 5, count: 1, lastUsed: new Date().toISOString() },
+            { name: 'Coca-cola', price: 8, count: 1, lastUsed: new Date().toISOString() },
+            { name: 'Cerveja', price: 6, count: 1, lastUsed: new Date().toISOString() },
+            { name: 'Salgado', price: 7, count: 1, lastUsed: new Date().toISOString() },
+            { name: 'Doces', price: 3, count: 1, lastUsed: new Date().toISOString() },
+          ];
+        }
 
         const cleanQuery = query.toLowerCase().trim();
         if (!cleanQuery) return sorted.slice(0, 8);
@@ -773,7 +812,16 @@ export const useFiadoStore = create<FiadoMobileState>()(
         const { syncQueue, isSyncing, businessConfig, user } = get();
         if (isSyncing || syncQueue.length === 0) return;
 
-        const { data: sessionData } = await supabase.auth.getSession();
+        let sessionData = null;
+        try {
+          const { data } = await supabase.auth.getSession();
+          sessionData = data;
+        } catch (e) {
+          console.log('[Sync] Banco offline ou erro de rede. Sincronização pausada.');
+          set({ isSyncing: false });
+          return;
+        }
+
         if (!sessionData?.session) {
           console.log('[Sync] Usuário não autenticado. Sincronização pausada.');
           set({ isSyncing: false });
@@ -1126,19 +1174,58 @@ export const useFiadoStore = create<FiadoMobileState>()(
         }
       },
 
+      loadSupabaseData: async () => {
+        try {
+          const serverCustomers = await getCustomers();
+          if (!serverCustomers || serverCustomers.length === 0) {
+             set({ customers: [] });
+             return;
+          }
+          
+          const mappedCustomers: CustomerClient[] = [];
+          for (const sc of serverCustomers) {
+            const txs = await getTransactionsByCustomer(sc.id);
+            const history: HistoryItem[] = (txs || []).map((t: any) => ({
+               id: t.id,
+               description: t.description || '',
+               amount: t.amount,
+               created_at: t.created_at,
+               type: t.type as 'debt' | 'payment' | 'system',
+               created_by: t.created_by_name || 'Dono',
+            }));
+            
+            mappedCustomers.push({
+               id: sc.id,
+               business_id: sc.business_id,
+               full_name: sc.full_name,
+               phone: sc.phone || '',
+               total_debt: sc.total_debt || 0,
+               created_at: sc.created_at,
+               history,
+               cep: sc.cep || undefined,
+               address: sc.address || undefined,
+               documentType: sc.document_type || undefined,
+               documentValue: sc.document_value || undefined,
+               picture: undefined,
+               picture_storage_path: sc.picture_storage_path || null,
+               picture_mime_type: sc.picture_mime_type || null,
+            });
+          }
+          
+          set({ customers: mappedCustomers });
+        } catch (error) {
+          console.error('[loadSupabaseData] Erro ao carregar do Supabase:', error);
+        }
+      },
+
       resetDemoData: () => {
         set({
-          customers: INITIAL_CUSTOMERS as CustomerClient[],
-          quickItems: INITIAL_QUICK_ITEMS,
+          customers: [],
+          quickItems: [],
           syncQueue: [],
           failedSyncItems: [],
           customerIdMap: {},
         });
       },
-    }),
-    {
-      name: 'controle_fiado_mobile_zustand_store',
-      storage: createJSONStorage(() => AsyncStorage),
-    }
-  )
+    })
 );

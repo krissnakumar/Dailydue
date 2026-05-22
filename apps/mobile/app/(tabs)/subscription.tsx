@@ -323,145 +323,25 @@ export default function SubscriptionScreen() {
 
             <Text style={styles.sectionTitle}>Adquira o Premium por apenas R$ 11,99/mês</Text>
             <Card style={styles.checkoutCard}>
-              {/* Method Selector */}
-              <View style={styles.methodSelector}>
-                <TouchableOpacity
-                  style={[styles.methodTab, checkoutMethod === 'pix' && styles.methodTabActive]}
-                  onPress={() => setCheckoutMethod('pix')}
-                >
-                  <Ionicons
-                    name="qr-code-outline"
-                    size={16}
-                    color={checkoutMethod === 'pix' ? theme.colors.primary : theme.colors.textMuted}
-                    style={{ marginRight: 6 }}
-                  />
-                  <Text
-                    style={[
-                      styles.methodTabText,
-                      checkoutMethod === 'pix' && styles.methodTabTextActive,
-                    ]}
-                  >
-                    Pagar com PIX
-                  </Text>
-                </TouchableOpacity>
+              <View style={styles.googlePlayContainer}>
+                <View style={styles.googlePlayHeader}>
+                  <Ionicons name="logo-google-playstore" size={24} color="#10b981" />
+                  <Text style={styles.googlePlayTitle}>Pagamento Seguro pelo Google Play</Text>
+                </View>
+                <Text style={styles.googlePlayDesc}>
+                  Sua assinatura será processada com segurança e cobrada diretamente na sua conta do Google Play. 
+                  Você pode gerenciar ou cancelar a qualquer momento nas configurações do seu celular.
+                </Text>
 
-                <TouchableOpacity
-                  style={[styles.methodTab, checkoutMethod === 'card' && styles.methodTabActive]}
-                  onPress={() => setCheckoutMethod('card')}
-                >
-                  <Ionicons
-                    name="card-outline"
-                    size={16}
-                    color={checkoutMethod === 'card' ? theme.colors.primary : theme.colors.textMuted}
-                    style={{ marginRight: 6 }}
-                  />
-                  <Text
-                    style={[
-                      styles.methodTabText,
-                      checkoutMethod === 'card' && styles.methodTabTextActive,
-                    ]}
-                  >
-                    Cartão de Crédito
-                  </Text>
-                </TouchableOpacity>
+                <Button
+                  title={loading ? 'Processando Assinatura...' : 'Assinar com Google Play'}
+                  variant="primary"
+                  leftIcon={loading ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="logo-google" size={16} color="#fff" style={{ marginRight: 6 }} />}
+                  disabled={loading}
+                  onPress={handleUpgrade}
+                  style={{ marginTop: 12, backgroundColor: '#10b981' }}
+                />
               </View>
-
-              {/* PIX Form */}
-              {checkoutMethod === 'pix' && (
-                <View style={styles.pixContainer}>
-                  <Text style={styles.pixLabel}>Escaneie o QR Code abaixo ou copie a chave:</Text>
-                  {/* Decorative QR Mock */}
-                  <View style={styles.qrCodeWrapper}>
-                    <View style={styles.qrCodeContainer}>
-                      <Ionicons name="qr-code" size={120} color={theme.colors.textMain} />
-                      <View style={styles.qrCenterLogo}>
-                        <Ionicons name="flash" size={20} color="#10b981" />
-                      </View>
-                    </View>
-                  </View>
-
-                  <Button
-                    title="Copiar Código PIX"
-                    variant="ghost"
-                    leftIcon={<Ionicons name="copy-outline" size={16} color={theme.colors.primary} style={{ marginRight: 6 }} />}
-                    onPress={handleCopyPix}
-                    style={{ marginBottom: 12 }}
-                  />
-
-                  <Button
-                    title={loading ? 'Processando...' : 'Já paguei! Confirmar Ativação'}
-                    variant="accent"
-                    leftIcon={loading ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="checkmark-circle-outline" size={18} color="#fff" style={{ marginRight: 6 }} />}
-                    disabled={loading}
-                    onPress={handleUpgrade}
-                  />
-                </View>
-              )}
-
-              {/* Card Form */}
-              {checkoutMethod === 'card' && (
-                <View style={styles.cardForm}>
-                  <View style={styles.formGroup}>
-                    <Text style={styles.inputLabel}>Nome Impresso no Cartão</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Ex: João da Silva"
-                      placeholderTextColor="#94a3b8"
-                      value={cardName}
-                      onChangeText={setCardName}
-                    />
-                  </View>
-
-                  <View style={styles.formGroup}>
-                    <Text style={styles.inputLabel}>Número do Cartão</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="0000 0000 0000 0000"
-                      placeholderTextColor="#94a3b8"
-                      keyboardType="numeric"
-                      value={cardNumber}
-                      onChangeText={handleCardNumberChange}
-                    />
-                  </View>
-
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <View style={[styles.formGroup, { width: '48%' }]}>
-                      <Text style={styles.inputLabel}>Validade (MM/AA)</Text>
-                      <TextInput
-                        style={styles.input}
-                        placeholder="MM/AA"
-                        placeholderTextColor="#94a3b8"
-                        keyboardType="numeric"
-                        value={cardExpiry}
-                        onChangeText={handleCardExpiryChange}
-                      />
-                    </View>
-
-                    <View style={[styles.formGroup, { width: '48%' }]}>
-                      <Text style={styles.inputLabel}>CVC / CVV</Text>
-                      <TextInput
-                        style={styles.input}
-                        placeholder="123"
-                        placeholderTextColor="#94a3b8"
-                        keyboardType="numeric"
-                        secureTextEntry
-                        maxLength={3}
-                        value={cardCvv}
-                        onChangeText={setCardCvv}
-                      />
-                    </View>
-                  </View>
-
-                  <Button
-                    title={loading ? 'Processando Assinatura...' : 'Assinar por R$ 11,99/mês'}
-                    variant="accent"
-                    leftIcon={loading ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="sparkles" size={16} color="#fff" style={{ marginRight: 6 }} />}
-                    disabled={loading}
-                    onPress={handleUpgrade}
-                    style={{ marginTop: 8 }}
-                  />
-                </View>
-              )}
             </Card>
           </View>
         ) : (
@@ -482,93 +362,7 @@ export default function SubscriptionScreen() {
           </View>
         )}
 
-        {/* Sandbox Panel */}
-        <Text style={styles.sectionTitle}>Painel Sandbox de Testes</Text>
-        <Card style={styles.sandboxCard}>
-          <View style={styles.sandboxRow}>
-            <View style={{ flex: 1, marginRight: 10 }}>
-              <Text style={styles.sandboxLabel}>Simulador Local Ativo</Text>
-              <Text style={styles.sandboxDesc}>
-                Substitui os dados reais da nuvem por um estado offline simulado localmente.
-              </Text>
-            </View>
-            <Switch
-              value={isSimulated}
-              onValueChange={(val) => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                toggleSubscriptionSimulation(val, subscription.plan_id);
-              }}
-              thumbColor={isSimulated ? theme.colors.primary : '#94a3b8'}
-              trackColor={{ true: '#bae6fd', false: '#cbd5e1' }}
-            />
-          </View>
 
-          {isSimulated && (
-            <View style={styles.sandboxToggles}>
-              <Text style={styles.sandboxSubTitle}>Simular Nível de Acesso:</Text>
-              <View style={styles.sandboxButtonsContainer}>
-                <TouchableOpacity
-                  style={[
-                    styles.sandboxTab,
-                    !subscription.is_premium && styles.sandboxTabActive,
-                  ]}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    simulateSubscriptionDowngrade();
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.sandboxTabText,
-                      !subscription.is_premium && styles.sandboxTabTextActive,
-                    ]}
-                  >
-                    Plano Gratuito
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.sandboxTab,
-                    subscription.is_premium && styles.sandboxTabActive,
-                  ]}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    simulateSubscriptionUpgrade('card');
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.sandboxTabText,
-                      subscription.is_premium && styles.sandboxTabTextActive,
-                    ]}
-                  >
-                    Premium ⭐
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-
-          <View style={styles.sandboxStatusRow}>
-            <Text style={styles.sandboxStatusLabel}>Origem da Assinatura:</Text>
-            <View
-              style={[
-                styles.sourceBadge,
-                isSimulated ? styles.sourceBadgeLocal : styles.sourceBadgeCloud,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.sourceBadgeText,
-                  isSimulated ? styles.sourceBadgeTextLocal : styles.sourceBadgeTextCloud,
-                ]}
-              >
-                {isSimulated ? 'SIMULAÇÃO LOCAL' : 'NUVEM SUPABASE'}
-              </Text>
-            </View>
-          </View>
-        </Card>
       </ScrollView>
     </View>
   );
@@ -719,96 +513,25 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     marginTop: 2,
   },
-  checkoutCard: {
-    padding: 16,
+  googlePlayContainer: {
+    padding: 8,
   },
-  methodSelector: {
-    flexDirection: 'row',
-    backgroundColor: '#f1f5f9',
-    borderRadius: 8,
-    padding: 4,
-    marginBottom: 16,
-  },
-  methodTab: {
-    flex: 1,
+  googlePlayHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: 6,
-  },
-  methodTabActive: {
-    backgroundColor: '#ffffff',
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  methodTabText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: theme.colors.textMuted,
-  },
-  methodTabTextActive: {
-    color: theme.colors.primary,
-  },
-  pixContainer: {
-    alignItems: 'center',
-  },
-  pixLabel: {
-    fontSize: 13,
-    color: theme.colors.textMuted,
     marginBottom: 12,
-    textAlign: 'center',
   },
-  qrCodeWrapper: {
-    padding: 16,
-    backgroundColor: '#f8fafc',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+  googlePlayTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.colors.textMain,
+    marginLeft: 8,
+  },
+  googlePlayDesc: {
+    fontSize: 13,
+    color: theme.colors.textMuted,
+    lineHeight: 20,
     marginBottom: 16,
-  },
-  qrCodeContainer: {
-    width: 140,
-    height: 140,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  qrCenterLogo: {
-    position: 'absolute',
-    backgroundColor: '#ffffff',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: '#e2e8f0',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardForm: {
-    width: '100%',
-  },
-  formGroup: {
-    marginBottom: 12,
-  },
-  inputLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: theme.colors.textMain,
-    marginBottom: 4,
-  },
-  input: {
-    backgroundColor: theme.colors.inputBg,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.borderRadius.sm,
-    height: 44,
-    paddingHorizontal: 12,
-    fontSize: 14,
-    color: theme.colors.textMain,
   },
   cancelCard: {
     padding: 16,

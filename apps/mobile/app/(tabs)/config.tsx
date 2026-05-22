@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, Alert, Image, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Header, Card, Button } from '../../src/components';
 import { useFiadoStore } from '../../src/store';
 import { theme } from '../../src/theme';
 import { supabase } from '@controle-fiado/api';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function ConfiguracoesScreen() {
   const router = useRouter();
@@ -25,14 +26,55 @@ export default function ConfiguracoesScreen() {
   const [bizName, setBizName] = useState(businessConfig.businessName);
   const [pix, setPix] = useState(businessConfig.pixKey);
   const [phone, setPhone] = useState(businessConfig.phone);
+  
+  const [userName, setUserName] = useState(user?.full_name || '');
+  const [userPic, setUserPic] = useState(user?.picture || user?.avatar_url || '');
 
-  const handleSaveConfig = () => {
+  const handleSaveConfig = async () => {
     updateBusinessConfig({
       businessName: bizName.trim(),
       pixKey: pix.trim(),
       phone: phone.trim(),
     });
-    Alert.alert('Sucesso', 'Configurações da loja salvas com sucesso em cache local seguro!');
+    
+    if (user) {
+      try {
+        await supabase.auth.updateUser({
+          data: {
+            full_name: userName.trim(),
+            picture: userPic,
+          }
+        });
+        setUser({ ...user, full_name: userName.trim(), picture: userPic });
+      } catch (err) {
+        console.warn('Erro ao atualizar perfil', err);
+      }
+    }
+    
+    Alert.alert('Sucesso', 'Configurações salvas com sucesso!');
+  };
+
+  const handlePickPicture = async () => {
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert('Permissão necessária', 'Precisamos de acesso à galeria para alterar a foto.', [{ text: 'OK', style: 'cancel' }]);
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.2,
+        base64: true,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const base64Data = `data:image/jpeg;base64,${result.assets[0].base64}`;
+        setUserPic(base64Data);
+      }
+    } catch (error) {
+      console.warn('ImagePicker Error', error);
+    }
   };
 
   const handleLogout = () => {
@@ -63,42 +105,6 @@ export default function ConfiguracoesScreen() {
       <Header showTotal={false} title="Configurações do App" />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Status de Conexão Supabase / Nuvem */}
-        <Text style={styles.sectionTitle}>Sessão de Segurança (Supabase Auth)</Text>
-        <Card style={styles.authCard}>
-          {user ? (
-            <View>
-              <Text style={styles.authUserText}>Conectado como:</Text>
-              <Text style={styles.authEmail}>{user.email}</Text>
-              <Text style={styles.authRole}>Permissão: Administrador / Dono</Text>
-
-              <Button
-                title="Desconectar Conta"
-                variant="ghost"
-                onPress={handleLogout}
-                style={{ marginTop: 12 }}
-              />
-            </View>
-          ) : (
-            <View style={{ alignItems: 'center' }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
-                <Ionicons name="warning-outline" size={16} color="#ca8a04" style={{ marginRight: 6 }} />
-                <Text style={[styles.authWarnTitle, { marginBottom: 0 }]}>Modo Balcão Local (Sem Conexão Nuvem)</Text>
-              </View>
-              <Text style={styles.authWarnDesc}>
-                Seus dados estão protegidos no armazenamento local do dispositivo. Conecte com o Google para backup em tempo real.
-              </Text>
-
-              <Button
-                title="Entrar / Criar conta"
-                variant="primary"
-                onPress={handleGoToLogin}
-                style={{ marginTop: 12, width: '100%' }}
-              />
-            </View>
-          )}
-        </Card>
-
         {/* Plano de Assinatura e Limites */}
         <Text style={styles.sectionTitle}>Assinatura & Limites de Uso</Text>
         <Card style={styles.subCard}>
@@ -185,9 +191,54 @@ export default function ConfiguracoesScreen() {
           />
         </Card>
 
-        {/* Dados do Estabelecimento */}
-        <Text style={styles.sectionTitle}>Dados do Estabelecimento</Text>
+        {/* Meu Perfil & Dados do Estabelecimento */}
+        <Text style={styles.sectionTitle}>Meu Perfil e Estabelecimento</Text>
         <Card style={styles.formCard}>
+          {user ? (
+            <View style={{ marginBottom: 24, paddingBottom: 24, borderBottomWidth: 1, borderBottomColor: theme.colors.border }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                <TouchableOpacity onPress={handlePickPicture} style={styles.profileAvatar}>
+                  {userPic ? (
+                    <Image source={{ uri: userPic }} style={{ width: 48, height: 48, borderRadius: 24 }} />
+                  ) : (
+                    <Text style={styles.profileAvatarText}>
+                      {userName ? userName.charAt(0).toUpperCase() : user.email?.charAt(0).toUpperCase() || 'U'}
+                    </Text>
+                  )}
+                  <View style={{ position: 'absolute', bottom: -4, right: -4, backgroundColor: theme.colors.primary, borderRadius: 10, padding: 2 }}>
+                    <Ionicons name="camera" size={12} color="#fff" />
+                  </View>
+                </TouchableOpacity>
+                <View style={{ flex: 1, marginLeft: 16 }}>
+                  <Text style={styles.label}>Seu Nome</Text>
+                  <TextInput 
+                    style={[styles.input, { height: 40, marginBottom: 0 }]} 
+                    value={userName} 
+                    onChangeText={setUserName} 
+                    placeholder="Seu nome"
+                  />
+                </View>
+              </View>
+              <Text style={styles.profileEmail}>Conta de Acesso: {user.email}</Text>
+            </View>
+          ) : (
+            <View style={{ alignItems: 'center', marginBottom: 24, paddingBottom: 24, borderBottomWidth: 1, borderBottomColor: theme.colors.border }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
+                <Ionicons name="warning-outline" size={16} color="#ca8a04" style={{ marginRight: 6 }} />
+                <Text style={[styles.authWarnTitle, { marginBottom: 0 }]}>Conta Local (Sem Nuvem)</Text>
+              </View>
+              <Text style={styles.authWarnDesc}>
+                Conecte-se para manter um backup seguro dos seus dados.
+              </Text>
+              <Button
+                title="Criar Perfil / Entrar"
+                variant="primary"
+                onPress={handleGoToLogin}
+                style={{ marginTop: 12, width: '100%' }}
+              />
+            </View>
+          )}
+
           <View style={styles.formGroup}>
             <Text style={styles.label}>Nome do Estabelecimento</Text>
             <TextInput style={styles.input} value={bizName} onChangeText={setBizName} />
@@ -255,21 +306,28 @@ const styles = StyleSheet.create({
   authCard: {
     padding: 16,
   },
-  authUserText: {
-    fontSize: 12,
-    color: theme.colors.textMuted,
+  profileAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#e0f2fe',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  authEmail: {
-    fontSize: 16,
+  profileAvatarText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#0369a1',
+  },
+  profileName: {
+    fontSize: 18,
     fontWeight: '700',
     color: theme.colors.textMain,
-    marginTop: 2,
+    marginBottom: 2,
   },
-  authRole: {
-    fontSize: 13,
-    color: theme.colors.primaryDark,
-    marginTop: 4,
-    fontWeight: '600',
+  profileEmail: {
+    fontSize: 14,
+    color: theme.colors.textMuted,
   },
   authWarnTitle: {
     fontSize: 14,
