@@ -4,7 +4,8 @@
   "private": true,
   "workspaces": [
     "apps/mobile",
-    "packages/api"
+    "packages/api",
+    "packages/types"
   ],
   "scripts": {
     "build": "turbo run build",
