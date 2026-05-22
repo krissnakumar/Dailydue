@@ -322,7 +322,7 @@ export default function SubscriptionScreen() {
             </Card>
 
             <Text style={styles.sectionTitle}>Adquira o Premium por apenas R$ 11,99/mês</Text>
-            <Card style={styles.checkoutCard}>
+            <Card style={styles.benefitsCard}>
               <View style={styles.googlePlayContainer}>
                 <View style={styles.googlePlayHeader}>
                   <Ionicons name="logo-google-playstore" size={24} color="#10b981" />
