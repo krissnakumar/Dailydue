@@ -1,5 +1,5 @@
 import React from 'react';
-import { Tabs, useRouter } from 'expo-router';
+import { Redirect, Tabs, useRouter } from 'expo-router';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { theme } from '../../src/theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,7 +9,11 @@ import { NovoClientePopup } from '../../src/components/NovoClientePopup';
 
 export default function TabsLayout() {
   const router = useRouter();
-  const { openNovoFiado } = useFiadoStore();
+  const { openNovoFiado, user, authChecked } = useFiadoStore();
+
+  if (authChecked && !user) {
+    return <Redirect href="/(auth)/login" />;
+  }
 
   return (
     <>
@@ -61,11 +65,14 @@ export default function TabsLayout() {
                 Fiado
               </Text>
             ),
-            tabBarButton: ({ delayLongPress, ...props }) => (
+            tabBarButton: ({ delayLongPress, onPress, href, ...props }: any) => (
               <TouchableOpacity
-                {...(props as any)}
+                {...props}
                 activeOpacity={0.8}
-                onPress={() => openNovoFiado()}
+                onPress={(e: any) => {
+                  if (e && e.preventDefault) e.preventDefault();
+                  openNovoFiado();
+                }}
                 style={styles.centerButtonWrapper}
               >
                 <View style={styles.centerButton}>

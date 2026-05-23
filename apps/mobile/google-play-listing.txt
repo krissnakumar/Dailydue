@@ -1,0 +1,78 @@
+======================================================
+     DADOS PARA A GOOGLE PLAY STORE - CONTROLE FIADO
+======================================================
+Este arquivo contém todos os textos e informações necessárias 
+para preencher a ficha da sua loja na Google Play Console.
+
+------------------------------------------------------
+INFORMAÇÕES PRINCIPAIS (STORE LISTING)
+------------------------------------------------------
+Nome do Aplicativo (Máx 30 caracteres):
+Controle Fiado - Gestão Simples
+
+Descrição Curta (Máx 80 caracteres):
+O fim do caderninho! Gerencie clientes, vendas e fiados de forma rápida e segura.
+
+Descrição Completa (Máx 4000 caracteres):
+Diga adeus ao caderninho de papel! O Controle Fiado é a ferramenta definitiva para pequenos negócios, mercadinhos, padarias e autônomos que precisam gerenciar vendas a prazo de forma organizada, segura e moderna.
+
+Principais Funcionalidades:
+- Cadastro rápido de clientes com opção de foto.
+- Registro de vendas e pagamentos em poucos cliques.
+- Histórico completo de transações (entradas e saídas).
+- Envio automático de cobranças e recibos pelo WhatsApp.
+- Funcionamento offline (suas anotações são salvas no celular e sincronizadas na nuvem).
+- Limites mensais e controle de dívida por cliente.
+- Interface amigável e direto ao ponto!
+
+Feito para facilitar a sua vida no balcão e garantir que você nunca mais perca o controle de quem te deve. Baixe agora e profissionalize as cobranças do seu negócio!
+
+------------------------------------------------------
+DETALHES DO APLICATIVO
+------------------------------------------------------
+Package Name (ID do Pacote):
+br.com.controlefiado.app
+
+Categoria Principal:
+Negócios (Business) ou Finanças (Finance)
+
+Tags / Palavras-chave sugeridas:
+Vendas, Fiado, Gestão de Negócios, Caderninho, Finanças, Cobrança, Autônomo, Pequenas Empresas, Controle de Caixa.
+
+Classificação Indicativa (Content Rating):
+Livre (Todas as idades) - O aplicativo não contém violência, linguagem inadequada ou compras integradas perigosas.
+
+------------------------------------------------------
+DADOS DE CONTATO DO DESENVOLVEDOR
+------------------------------------------------------
+E-mail de Contato: 
+[INSERIR SEU E-MAIL DE SUPORTE]
+
+Site Oficial: 
+[INSERIR SEU SITE OU DEIXAR EM BRANCO]
+
+------------------------------------------------------
+POLÍTICA DE PRIVACIDADE (PRIVACY POLICY)
+------------------------------------------------------
+Para publicar na Play Store, a Google exige um link válido para uma Política de Privacidade.
+Se você não tem um site, pode gerar uma política gratuita em sites como "privacypolicies.com" ou usar o Google Docs/Notion e deixar o link público.
+
+Abaixo está um modelo básico do texto para a sua Política de Privacidade:
+
+"A sua privacidade é importante para nós. O aplicativo Controle Fiado solicita permissões apenas para o funcionamento essencial de seus recursos, como:
+1. Armazenamento/Câmera: Para adicionar a foto de perfil dos seus clientes.
+2. Contatos: (Opcional) Para vincular um cliente rapidamente.
+3. Internet: Para salvar o backup seguro das suas contas na nuvem.
+
+Não compartilhamos as informações dos seus clientes ou as suas informações financeiras com terceiros sob nenhuma circunstância. Todos os dados são criptografados e atrelados estritamente à sua conta pessoal logada."
+
+URL da Política de Privacidade (Cole o link na Play Console):
+[COLE O LINK AQUI]
+
+------------------------------------------------------
+RECURSOS GRÁFICOS NECESSÁRIOS PARA O UPLOAD
+------------------------------------------------------
+- Ícone do App: 512px por 512px (formato PNG ou JPEG, máx 1MB).
+- Gráfico de Recursos (Feature Graphic): 1024px por 500px (PNG ou JPEG).
+- Capturas de Tela do Celular (Screenshots): Mínimo de 2 capturas de tela (recomenda-se de 4 a 6 mostrando as principais telas).
+- (Opcional) Capturas de Tela de Tablet.

@@ -31,7 +31,15 @@ const queryClient = new QueryClient({
 });
 
 export default function RootLayout() {
-  const { user, attemptBackgroundSync, setUser, refreshCustomerPictureUrls, loadSupabaseData } = useFiadoStore();
+  const {
+    user,
+    authChecked,
+    attemptBackgroundSync,
+    setUser,
+    setAuthChecked,
+    refreshCustomerPictureUrls,
+    loadSupabaseData,
+  } = useFiadoStore();
   const segments = useSegments();
   const router = useRouter();
   const navigationState = useRootNavigationState();
@@ -39,7 +47,6 @@ export default function RootLayout() {
   // Expo Router can fire auth effects before the Stack navigator is
   // fully mounted, causing "navigate before mounting" errors.
   const mounted = useRef(false);
-  const [authChecked, setAuthChecked] = React.useState(false);
   const splashHidden = useRef(false);
 
   useEffect(() => {
@@ -113,26 +120,29 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (splashHidden.current) return;
-    if (authChecked && navigationState?.key) {
+    // Hide the native splash as soon as the navigator is ready.
+    // We'll handle any auth loading state inside the app UI.
+    if (navigationState?.key) {
       splashHidden.current = true;
       SplashScreen.hideAsync().catch(() => {});
     }
-  }, [navigationState?.key, authChecked]);
+  }, [navigationState?.key]);
 
-  // Failsafe: hide splash screen unconditionally after 2.5 seconds
+  // Failsafe: hide splash screen unconditionally after 1 second
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!splashHidden.current) {
         splashHidden.current = true;
         SplashScreen.hideAsync().catch(() => {});
       }
-    }, 2500);
+    }, 1000);
     return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
     // Wait until both the navigator state is ready AND the layout is mounted
     if (!mounted.current || !navigationState?.key) return;
+    if (!authChecked) return;
 
     const inAuthGroup = segments[0] === '(auth)';
 
@@ -145,14 +155,14 @@ export default function RootLayout() {
     }, 0);
 
     return () => clearTimeout(timeoutId);
-  }, [user, segments, navigationState?.key]);
+  }, [user, segments, navigationState?.key, authChecked]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <StatusBar style="light" backgroundColor="#064e3b" />
-          <Stack screenOptions={{ headerShown: false }}>
+          <Stack initialRouteName="index" screenOptions={{ headerShown: false }}>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="(auth)" options={{ headerShown: false, presentation: 'modal' }} />
           </Stack>

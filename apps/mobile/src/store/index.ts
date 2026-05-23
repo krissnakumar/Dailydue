@@ -13,8 +13,6 @@ import {
   getTransactionsByCustomer,
 } from '@controle-fiado/api';
 import * as Haptics from 'expo-haptics';
-import { INITIAL_CUSTOMERS, INITIAL_QUICK_ITEMS } from '../constants';
-
 export interface HistoryItem {
   id: string;
   description: string;
@@ -70,12 +68,14 @@ export interface UserSubscriptionState {
 export interface FiadoMobileState {
   // Auth State
   user: { email?: string; id?: string; full_name?: string; picture?: string; avatar_url?: string } | null;
+  authChecked: boolean;
   businessConfig: {
     businessName: string;
     pixKey: string;
     phone: string;
   };
   setUser: (user: any) => void;
+  setAuthChecked: (checked: boolean) => void;
   updateBusinessConfig: (config: Partial<FiadoMobileState['businessConfig']>) => void;
 
   // Subscription State
@@ -94,6 +94,7 @@ export interface FiadoMobileState {
   failedSyncItems: Array<PendingQueueItem & { failed_reason: string; failed_at: string }>;
   customerIdMap: Record<string, string>;
   isSyncing: boolean;
+  hasBootstrappedProfile: boolean;
 
   // Novo Fiado Popup State
   novoFiadoState: { isOpen: boolean; customerId?: string };
@@ -233,8 +234,10 @@ async function signedUrlForCustomerPicture(path: string) {
 }
 
 export const useFiadoStore = create<FiadoMobileState>()(
+  persist(
     (set, get) => ({
       user: null,
+      authChecked: false,
       businessConfig: {
         businessName: 'Meu Mercadinho',
         pixKey: 'mercadinho@bairro.com.br',
@@ -260,6 +263,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
           });
         }
       },
+      setAuthChecked: (checked) => set({ authChecked: checked }),
       updateBusinessConfig: (config) =>
         set((state) => ({
           businessConfig: { ...state.businessConfig, ...config },
@@ -411,6 +415,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
       failedSyncItems: [],
       customerIdMap: {},
       isSyncing: false,
+      hasBootstrappedProfile: false,
 
       novoFiadoState: { isOpen: false, customerId: undefined },
       openNovoFiado: (customerId) => set({ novoFiadoState: { isOpen: true, customerId } }),
@@ -832,12 +837,13 @@ export const useFiadoStore = create<FiadoMobileState>()(
         // (Sem isso, get_current_business_id() pode retornar null e quebrar inserts.)
         try {
           const phone = (businessConfig.phone || '').replace(/\D/g, '');
-          if (phone) {
+          if (phone && !get().hasBootstrappedProfile) {
             await bootstrapOwnerProfile({
               business_name: businessConfig.businessName || 'Meu Estabelecimento',
               owner_name: user?.full_name || 'Dono',
               phone,
             });
+            set({ hasBootstrappedProfile: true });
           }
         } catch (e: any) {
           console.log('[Sync] Falha ao inicializar perfil/loja:', e?.message || e);
@@ -885,7 +891,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
                     failedSyncItems: [
                       ...state.failedSyncItems,
                       { ...(item as any), failed_reason: 'MISSING_NAME', failed_at: new Date().toISOString() },
-                    ],
+                    ].slice(-50),
                     syncQueue: state.syncQueue.filter((q) => q.id !== item.id),
                   }));
                   continue;
@@ -969,7 +975,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
                       failedSyncItems: [
                         ...state.failedSyncItems,
                         { ...(item as any), failed_reason: 'MISSING_NAME', failed_at: new Date().toISOString() },
-                      ],
+                      ].slice(-50),
                       syncQueue: state.syncQueue.filter((q) => q.id !== item.id),
                     }));
                     continue;
@@ -1064,7 +1070,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
                       failedSyncItems: [
                         ...state.failedSyncItems,
                         { ...(item as any), failed_reason: 'ORPHAN_TRANSACTION_CUSTOMER', failed_at: new Date().toISOString() },
-                      ],
+                      ].slice(-50),
                       syncQueue: state.syncQueue.filter((q) => q.id !== item.id),
                     }));
                   } else {
@@ -1154,7 +1160,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
                 failedSyncItems: [
                   ...state.failedSyncItems,
                   { ...(item as any), failed_reason: msg, failed_at: new Date().toISOString() },
-                ],
+                ].slice(-50),
               }));
               processedIds.push(item.id);
             }
@@ -1194,12 +1200,19 @@ export const useFiadoStore = create<FiadoMobileState>()(
                created_by: t.created_by_name || 'Dono',
             }));
             
+            let total_debt_calc = 0;
+            history.forEach(h => {
+              if (h.type === 'debt') total_debt_calc += h.amount;
+              if (h.type === 'payment') total_debt_calc -= h.amount;
+            });
+            total_debt_calc = Number(Math.max(0, total_debt_calc).toFixed(2));
+            
             mappedCustomers.push({
                id: sc.id,
                business_id: sc.business_id,
                full_name: sc.name || '',
                phone: sc.phone || '',
-               total_debt: sc.total_debt || 0,
+               total_debt: total_debt_calc,
                created_at: sc.created_at,
                history,
                cep: undefined,
@@ -1227,5 +1240,26 @@ export const useFiadoStore = create<FiadoMobileState>()(
           customerIdMap: {},
         });
       },
-    })
+    }),
+    {
+      name: 'fiado-store',
+      storage: createJSONStorage(() => AsyncStorage),
+      version: 2,
+      migrate: async (persistedState, _version) => {
+        // Old builds persisted `user`. Never hydrate auth from disk.
+        if (persistedState && typeof persistedState === 'object') {
+          const state: any = { ...(persistedState as any) };
+          delete state.user;
+          delete state.authChecked;
+          return state;
+        }
+        return persistedState as any;
+      },
+      // Always derive auth from Supabase session (never from local persisted state).
+      partialize: (state) => {
+        const { user: _user, authChecked: _authChecked, ...rest } = state;
+        return rest;
+      },
+    }
+  )
 );

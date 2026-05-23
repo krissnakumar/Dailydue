@@ -9,6 +9,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, {
@@ -126,34 +127,15 @@ export default function LoginScreen() {
       const finalUrl = res.url;
       const getParam = (urlStr: string, key: string) => {
         if (!urlStr) return null;
+        const normalizedUrl = urlStr.replace('#', urlStr.includes('?') ? '&' : '?');
         try {
-          // 1. Try manual string parsing (most reliable for custom schemes in RN/Hermes)
-          const regex = new RegExp(`[?#&]${key}=([^&#]*)`);
-          const match = urlStr.match(regex);
-          if (match && match[1]) {
-            return decodeURIComponent(match[1]);
-          }
-
-          // 2. Try standard URL parser as a fallback
-          const u = new URL(urlStr);
-          const fromSearch = u.searchParams.get(key);
-          if (fromSearch) return fromSearch;
-          const hash = (u.hash || '').replace(/^#/, '');
-          if (hash) {
-            const fromHash = new URLSearchParams(hash).get(key);
-            if (fromHash) return fromHash;
-          }
-        } catch {
-          // ignore and fall through
-        }
-
-        // 3. Fallback for non-standard URLs
-        try {
-          const parsed = Linking.parse(urlStr);
+          const parsed = Linking.parse(normalizedUrl);
           const qp = (parsed?.queryParams as any) || {};
           if (typeof qp[key] === 'string') return qp[key];
         } catch {
-          // ignore
+          const regex = new RegExp(`[?&]${key}=([^&]*)`);
+          const match = normalizedUrl.match(regex);
+          if (match && match[1]) return decodeURIComponent(match[1]);
         }
         return null;
       };
@@ -254,8 +236,11 @@ export default function LoginScreen() {
           });
         }
 
-        // Some Supabase projects require email confirmation; let RootLayout handle routing on session.
-        router.replace('/(tabs)/home');
+        if (data.session) {
+          router.replace('/(tabs)/home');
+        } else {
+          Alert.alert('Conta criada', 'Verifique seu e-mail para confirmar a conta.');
+        }
       } else {
         const { data, error: signInErr } = await supabase.auth.signInWithPassword({
           email: cleanEmail,

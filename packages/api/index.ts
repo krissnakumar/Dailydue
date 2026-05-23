@@ -1,25 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Customer, CustomerBalanceView, Transaction, Business, SubscriptionPlanName } from '@controle-fiado/types';
 
-// Detecta o ambiente atual de forma isomorfa sem expor hardcodes de links inativos
-const envObj: Record<string, any> = 
-  (typeof process !== 'undefined' && process.env) ||
-  // @ts-ignore
-  (typeof import.meta !== 'undefined' && import.meta.env) || {};
-
+// Em React Native (Expo), variáveis de ambiente são substituídas estaticamente.
+// Portanto, é obrigatório acessar process.env.EXPO_PUBLIC_* diretamente.
 const supabaseUrl = 
-  envObj.EXPO_PUBLIC_SUPABASE_URL ||
-  envObj.VITE_SUPABASE_URL ||
-  envObj.SUPABASE_URL ||
-  'http://localhost:54321'; // Aponta por padrão para a porta oficial do emulador local do Supabase CLI
-
-const supabaseAnonKey = 
-  envObj.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
-  envObj.VITE_SUPABASE_ANON_KEY ||
-  envObj.SUPABASE_ANON_KEY ||
+  process.env.EXPO_PUBLIC_SUPABASE_URL ||
+  // @ts-ignore
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) ||
   '';
 
-export const supabaseEnvOk = Boolean(supabaseUrl && supabaseAnonKey);
+const supabaseAnonKey = 
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
+  // @ts-ignore
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_ANON_KEY) ||
+  '';
+
+export const supabaseEnvOk = Boolean(supabaseUrl && supabaseAnonKey && !supabaseUrl.includes('localhost'));
 
 let supabaseAuthStorage: any = undefined;
 try {
@@ -32,7 +28,13 @@ try {
   // ignore
 }
 
-export const supabase = createClient(supabaseUrl || 'http://localhost:54321', supabaseAnonKey || 'missing-anon-key', {
+if (!supabaseEnvOk) {
+  throw new Error(
+    'Missing Supabase config. Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY (no localhost) before running/building.'
+  );
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,

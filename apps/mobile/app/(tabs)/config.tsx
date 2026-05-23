@@ -150,7 +150,7 @@ export default function ConfiguracoesScreen() {
                     : '100%',
                   backgroundColor: subscription.is_premium
                     ? theme.colors.primary
-                    : customersCount >= (subscription.max_customers ?? 2)
+                    : (subscription.max_customers !== null && customersCount >= subscription.max_customers)
                     ? theme.colors.danger
                     : theme.colors.accent,
                 }
@@ -174,7 +174,7 @@ export default function ConfiguracoesScreen() {
                     : '100%',
                   backgroundColor: subscription.is_premium
                     ? theme.colors.primary
-                    : txCount >= (subscription.max_transactions_per_month ?? 30)
+                    : (subscription.max_transactions_per_month !== null && txCount >= subscription.max_transactions_per_month)
                     ? theme.colors.danger
                     : theme.colors.accent,
                 }

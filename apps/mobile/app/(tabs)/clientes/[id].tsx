@@ -311,7 +311,15 @@ export default function CustomerDetailScreen() {
   };
 
   // Calcula saldos remanescentes retroativamente para auditoria na timeline
-  let runningBalance = customer.total_debt;
+  const historyWithBalances = React.useMemo(() => {
+    let currentBalance = customer.total_debt;
+    return customer.history.map(item => {
+      const balAtThisPoint = currentBalance;
+      if (item.type === 'debt') currentBalance -= item.amount;
+      if (item.type === 'payment') currentBalance += item.amount;
+      return { ...item, balAtThisPoint };
+    });
+  }, [customer.history, customer.total_debt]);
 
   return (
     <View style={styles.wrapper}>
@@ -451,10 +459,10 @@ export default function CustomerDetailScreen() {
         </Animated.View>
 
         <View style={styles.timelineWrapper}>
-          {customer.history.length === 0 ? (
+          {historyWithBalances.length === 0 ? (
             <Text style={styles.emptyTimeline}>Nenhum registro no caderno de auditoria.</Text>
           ) : (
-            customer.history.map((item, index) => {
+            historyWithBalances.map((item, index) => {
               const isDebt = item.type === 'debt';
               const isPay = item.type === 'payment';
               const isSys = item.type === 'system';
@@ -467,9 +475,7 @@ export default function CustomerDetailScreen() {
               });
 
               // Saldo remanescente em cada etapa do passado
-              const balAtThisPoint = runningBalance;
-              if (isDebt) runningBalance -= item.amount;
-              if (isPay) runningBalance += item.amount;
+              const balAtThisPoint = item.balAtThisPoint;
 
               return (
                 <Animated.View
