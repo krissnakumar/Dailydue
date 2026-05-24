@@ -2,7 +2,7 @@
   "expo": {
     "name": "Fiado",
     "slug": "controle-fiado-mobile",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "controlefiado",
@@ -20,7 +20,8 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "br.com.controlefiado.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -28,8 +29,11 @@
         "backgroundColor": "#064e3b"
       },
       "package": "br.com.controlefiado.app",
-      "versionCode": 3,
-      "softwareKeyboardLayoutMode": "pan"
+      "versionCode": 4,
+      "softwareKeyboardLayoutMode": "resize",
+      "permissions": [
+        "com.android.vending.BILLING"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -37,7 +41,13 @@
     },
     "plugins": [
       "expo-router",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "react-native-iap",
+        {
+          "paymentMethods": ["play"]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

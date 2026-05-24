@@ -4,12 +4,10 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { theme } from '../../src/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useFiadoStore } from '../../src/store';
-import { NovoFiadoPopup } from '../../src/components/NovoFiadoPopup';
-import { NovoClientePopup } from '../../src/components/NovoClientePopup';
 
 export default function TabsLayout() {
   const router = useRouter();
-  const { openNovoFiado, user, authChecked } = useFiadoStore();
+  const { user, authChecked } = useFiadoStore();
 
   if (authChecked && !user) {
     return <Redirect href="/(auth)/login" />;
@@ -71,7 +69,7 @@ export default function TabsLayout() {
                 activeOpacity={0.8}
                 onPress={(e: any) => {
                   if (e && e.preventDefault) e.preventDefault();
-                  openNovoFiado();
+                  router.push('/novo-fiado');
                 }}
                 style={styles.centerButtonWrapper}
               >
@@ -114,8 +112,6 @@ export default function TabsLayout() {
           }}
         />
       </Tabs>
-      <NovoFiadoPopup />
-      <NovoClientePopup />
     </>
   );
 }

@@ -63,6 +63,7 @@ export interface UserSubscriptionState {
   status: 'active' | 'trialing' | 'canceled' | 'none';
   current_period_end: string | null;
   is_simulated: boolean;
+  source: 'cloud' | 'play' | 'simulated';
 }
 
 export interface FiadoMobileState {
@@ -74,7 +75,7 @@ export interface FiadoMobileState {
     pixKey: string;
     phone: string;
   };
-  setUser: (user: any) => void;
+  setUser: (user: FiadoMobileState['user']) => void;
   setAuthChecked: (checked: boolean) => void;
   updateBusinessConfig: (config: Partial<FiadoMobileState['businessConfig']>) => void;
 
@@ -84,6 +85,7 @@ export interface FiadoMobileState {
   toggleSubscriptionSimulation: (enabled: boolean, planId?: 'free' | 'premium_monthly') => void;
   simulateSubscriptionUpgrade: (method: 'pix' | 'card') => void;
   simulateSubscriptionDowngrade: () => void;
+  setPlayPremiumActive: (active: boolean) => void;
   getActiveCustomersCount: () => number;
   getCurrentMonthTransactionsCount: () => number;
 
@@ -138,14 +140,22 @@ export interface FiadoMobileState {
   getSmartSuggestions: (query: string) => QuickItemClient[];
   
   // Offline Background Sync
-  enqueueSync: (type: PendingQueueItem['type'], payload: any) => void;
+  enqueueSync: (type: PendingQueueItem['type'], payload: Record<string, any>) => void;
   attemptBackgroundSync: () => Promise<void>;
   clearSyncQueue: () => void;
   resetDemoData: () => void;
   loadSupabaseData: () => Promise<void>;
 }
 
-function normalizeCustomerForSupabase(input: any): {
+interface CustomerNormalizeInput {
+  name?: string | null;
+  full_name?: string | null;
+  nome?: string | null;
+  customer_name?: string | null;
+  customerName?: string | null;
+}
+
+function normalizeCustomerForSupabase(input: CustomerNormalizeInput): {
   name: string | null;
   full_name: string | null;
 } {
@@ -196,8 +206,13 @@ function mimeFromUri(uri?: string) {
 
 function isEmoji(str?: string) {
   if (!str) return false;
-  const s = String(str);
-  return s.length <= 4 && !s.includes('/') && !s.startsWith('data:');
+  const s = String(str).trim();
+  try {
+    const emojiRegex = new RegExp('^(\\p{Emoji_Presentation}|\\p{Emoji}\\uFE0F)+$', 'u');
+    return emojiRegex.test(s);
+  } catch {
+    return s.length <= 4 && !s.includes('/') && !s.startsWith('data:');
+  }
 }
 
 function isTransientNetworkError(err: any): boolean {
@@ -259,6 +274,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
               status: 'active',
               current_period_end: null,
               is_simulated: false,
+              source: 'cloud',
             }
           });
         }
@@ -279,6 +295,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
         status: 'active',
         current_period_end: null,
         is_simulated: false,
+        source: 'cloud',
       },
 
       fetchSubscription: async () => {
@@ -300,6 +317,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
                 status: 'active',
                 current_period_end: null,
                 is_simulated: false,
+                source: 'cloud',
               }
             });
           }
@@ -322,6 +340,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
               status: 'active',
               current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
               is_simulated: true,
+              source: 'simulated',
             }
           });
         } else {
@@ -329,6 +348,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
             subscription: {
               ...state.subscription,
               is_simulated: false,
+              source: 'cloud',
             }
           }));
           if (get().user) {
@@ -345,6 +365,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
                 status: 'active',
                 current_period_end: null,
                 is_simulated: false,
+                source: 'cloud',
               }
             });
           }
@@ -363,6 +384,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
             status: 'active',
             current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
             is_simulated: true,
+            source: 'simulated',
           }
         });
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -380,9 +402,28 @@ export const useFiadoStore = create<FiadoMobileState>()(
             status: 'active',
             current_period_end: null,
             is_simulated: true,
+            source: 'simulated',
           }
         });
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      },
+
+      setPlayPremiumActive: (active) => {
+        set((state) => ({
+          subscription: {
+            ...state.subscription,
+            plan_id: active ? 'premium_monthly' : 'free',
+            plan_name: active ? 'Premium Mensal' : 'Free',
+            price_brl: active ? 11.99 : 0,
+            max_customers: active ? null : 2,
+            max_transactions_per_month: active ? null : 30,
+            is_premium: active,
+            status: 'active',
+            current_period_end: active ? state.subscription.current_period_end : null,
+            is_simulated: false,
+            source: 'play',
+          },
+        }));
       },
 
       getActiveCustomersCount: () => {
@@ -398,7 +439,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
         const start = startOfMonth.getTime();
         for (const c of get().customers) {
           for (const h of c.history) {
-            if (h.type === 'debt' || h.type === 'payment' || h.type === 'system') {
+            if (h.type === 'debt' || h.type === 'payment') {
               const t = new Date(h.created_at).getTime();
               if (t >= start) {
                 count++;
@@ -431,14 +472,21 @@ export const useFiadoStore = create<FiadoMobileState>()(
           if (!session) return;
 
           const list = get().customers;
-          const updates: Array<{ id: string; url: string }> = [];
-          for (const c of list) {
-            if (isEmoji(c.picture)) continue;
+          const promises = list.map(async (c) => {
+            if (isEmoji(c.picture)) return null;
             const path = String(c.picture_storage_path || '').trim();
-            if (!path) continue;
-            const url = await signedUrlForCustomerPicture(path);
-            if (url) updates.push({ id: c.id, url });
-          }
+            if (!path) return null;
+            try {
+              const url = await signedUrlForCustomerPicture(path);
+              if (url) return { id: c.id, url };
+            } catch {
+              // ignore
+            }
+            return null;
+          });
+
+          const results = await Promise.all(promises);
+          const updates = results.filter((x): x is { id: string; url: string } => x !== null);
           if (updates.length === 0) return;
 
           set((state) => ({
@@ -558,7 +606,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
             documentValue: cust.documentValue,
             picture: cust.picture,
             ...(isLikelyLocalImageUri(cust.picture) ? { picture_local_uri: cust.picture, picture_mime_type: mimeFromUri(cust.picture) } : {}),
-            ...(cust.picture === '' ? { clear_photo: true } : {}),
+            ...(cust.picture === '' || (cust.picture && isEmoji(cust.picture)) ? { clear_photo: true } : {}),
           });
         }
       },
@@ -660,6 +708,16 @@ export const useFiadoStore = create<FiadoMobileState>()(
       },
 
       editHistoryItem: (customerId, itemId, newDesc, newAmount) => {
+        const customer = get().customers.find((c) => c.id === customerId);
+        if (!customer) return;
+        const originalItem = customer.history.find((h) => h.id === itemId);
+        if (!originalItem) return;
+
+        const cleanDesc = newDesc.trim();
+        if (originalItem.description === cleanDesc && originalItem.amount === newAmount) {
+          return;
+        }
+
         const sub = get().subscription;
         if (!sub.is_premium && sub.max_transactions_per_month !== null) {
           const txCount = get().getCurrentMonthTransactionsCount();
@@ -892,8 +950,8 @@ export const useFiadoStore = create<FiadoMobileState>()(
                       ...state.failedSyncItems,
                       { ...(item as any), failed_reason: 'MISSING_NAME', failed_at: new Date().toISOString() },
                     ].slice(-50),
-                    syncQueue: state.syncQueue.filter((q) => q.id !== item.id),
                   }));
+                  processedIds.push(item.id);
                   continue;
                 }
 
@@ -976,8 +1034,8 @@ export const useFiadoStore = create<FiadoMobileState>()(
                         ...state.failedSyncItems,
                         { ...(item as any), failed_reason: 'MISSING_NAME', failed_at: new Date().toISOString() },
                       ].slice(-50),
-                      syncQueue: state.syncQueue.filter((q) => q.id !== item.id),
                     }));
+                    processedIds.push(item.id);
                     continue;
                   }
 
@@ -1071,8 +1129,8 @@ export const useFiadoStore = create<FiadoMobileState>()(
                         ...state.failedSyncItems,
                         { ...(item as any), failed_reason: 'ORPHAN_TRANSACTION_CUSTOMER', failed_at: new Date().toISOString() },
                       ].slice(-50),
-                      syncQueue: state.syncQueue.filter((q) => q.id !== item.id),
                     }));
+                    processedIds.push(item.id);
                   } else {
                     console.log(`[Sync] Transação pendente aguardando mapeamento do cliente. item=${item.id} customerId=${rawCustomerId}`);
                   }
@@ -1156,13 +1214,53 @@ export const useFiadoStore = create<FiadoMobileState>()(
                 `[Sync] Erro persistente no item ${item.id} (${item.type}). Removendo da fila. Erro:`,
                 msg
               );
-              set((state) => ({
-                failedSyncItems: [
-                  ...state.failedSyncItems,
-                  { ...(item as any), failed_reason: msg, failed_at: new Date().toISOString() },
-                ].slice(-50),
-              }));
+
+              // Se a criação do cliente falhou permanentemente,
+              // limpa todos os itens dependentes que usam o ID temporário deste cliente.
+              let dependentIdsToRemove: string[] = [];
+              if (item.type === 'create_customer') {
+                const tempId = item.payload?.id;
+                if (tempId && isTempCustomerId(tempId)) {
+                  const dependents = get().syncQueue.filter((q) => {
+                    if (q.id === item.id) return false;
+                    const qCustId = String(
+                      q.payload?.customer_id || q.payload?.customerId || q.payload?.client_id || q.payload?.clientId || ''
+                    );
+                    if (qCustId === tempId) return true;
+                    if (q.type === 'update_customer' && String(q.payload?.id) === tempId) return true;
+                    if (q.type === 'delete_customer' && String(q.payload?.id) === tempId) return true;
+                    return false;
+                  });
+
+                  for (const dep of dependents) {
+                    dependentIdsToRemove.push(dep.id);
+                  }
+                }
+              }
+
+              set((state) => {
+                const depFailedItems = state.syncQueue
+                  .filter((q) => dependentIdsToRemove.includes(q.id))
+                  .map((q) => ({
+                    ...q,
+                    failed_reason: `PARENT_CUSTOMER_CREATION_FAILED (Parent error: ${msg})`,
+                    failed_at: new Date().toISOString(),
+                  }));
+
+                return {
+                  failedSyncItems: [
+                    ...state.failedSyncItems,
+                    { ...(item as any), failed_reason: msg, failed_at: new Date().toISOString() },
+                    ...depFailedItems,
+                  ].slice(-50),
+                };
+              });
+
               processedIds.push(item.id);
+              if (dependentIdsToRemove.length > 0) {
+                processedIds.push(...dependentIdsToRemove);
+                remainingQueue = remainingQueue.filter(q => !dependentIdsToRemove.includes(q.id));
+              }
             }
           }
 

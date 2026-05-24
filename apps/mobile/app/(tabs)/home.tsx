@@ -1,16 +1,16 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable, TextInput, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Header, Card, Button } from '../../src/components';
+import { Header, Card } from '../../src/components';
 import { useFiadoStore } from '../../src/store';
 import { formatCurrency } from '../../src/utils';
 import { theme } from '../../src/theme';
-import Animated, { FadeInRight, FadeInDown } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { customers, openNovoCliente } = useFiadoStore();
+  const { customers } = useFiadoStore();
   const [searchQuery, setSearchQuery] = React.useState('');
 
   const { width: SCREEN_WIDTH } = useWindowDimensions();
@@ -87,7 +87,6 @@ export default function HomeScreen() {
   }) => {
     return (
       <Animated.View
-        entering={FadeInRight.delay(0).duration(0)}
         style={[styles.gridTileWrap, { width: CARD_WIDTH, marginRight: CARD_GAP }]}
       >
         <Pressable
@@ -180,8 +179,7 @@ export default function HomeScreen() {
 
         {/* Ações Rápidas - Clientes & Busca */}
         <Animated.View
-          entering={FadeInDown.delay(0).duration(0)}
-          style={styles.searchSection}
+            style={styles.searchSection}
         >
           <View style={styles.searchBarContainer}>
             <Ionicons name="search" size={15} color={theme.colors.textMuted} style={{ marginRight: 6 }} />
@@ -202,7 +200,7 @@ export default function HomeScreen() {
           </View>
           <TouchableOpacity
             style={[styles.newCustBtn, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
-            onPress={openNovoCliente}
+            onPress={() => router.push('/clientes/novo')}
             activeOpacity={0.7}
           >
             <Ionicons name="person-add-outline" size={18} color="#ffffff" />
@@ -248,8 +246,7 @@ export default function HomeScreen() {
 
         {/* Linha do Tempo de Atividades Recentes */}
         <Animated.View
-          entering={FadeInDown.delay(0).duration(0)}
-          style={styles.sectionHeader}
+            style={styles.sectionHeader}
         >
           <Text style={styles.sectionTitle}>Últimas Movimentações na Loja</Text>
           <TouchableOpacity onPress={() => router.push('/relatorios')}>
@@ -276,7 +273,6 @@ export default function HomeScreen() {
               return (
                 <Animated.View
                   key={tx.id || String(idx)}
-                  entering={FadeInDown.delay(0).duration(0)}
                 >
                   <TouchableOpacity
                     style={[styles.feedItem, idx === atividadesRecentes.length - 1 && { borderBottomWidth: 0 }]}

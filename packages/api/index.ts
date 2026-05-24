@@ -1,5 +1,36 @@
 import { createClient } from '@supabase/supabase-js';
+import * as ExpoCrypto from 'expo-crypto';
 import type { Customer, CustomerBalanceView, Transaction, Business, SubscriptionPlanName } from '@controle-fiado/types';
+
+function installReactNativeWebCryptoPolyfill() {
+  const target = globalThis as any;
+  const currentCrypto = target.crypto || {};
+
+  if (!target.crypto) {
+    target.crypto = currentCrypto;
+  }
+
+  if (typeof currentCrypto.getRandomValues !== 'function' && typeof ExpoCrypto.getRandomBytes === 'function') {
+    currentCrypto.getRandomValues = <T extends ArrayBufferView>(array: T): T => {
+      const randomBytes = ExpoCrypto.getRandomBytes(array.byteLength);
+      new Uint8Array(array.buffer, array.byteOffset, array.byteLength).set(randomBytes);
+      return array;
+    };
+  }
+
+  if (!currentCrypto.subtle) {
+    currentCrypto.subtle = {};
+  }
+
+  if (typeof currentCrypto.subtle.digest !== 'function' && typeof ExpoCrypto.digest === 'function') {
+    currentCrypto.subtle.digest = (algorithm: string | { name: string }, data: BufferSource) => {
+      const name = typeof algorithm === 'string' ? algorithm : algorithm.name;
+      return ExpoCrypto.digest(name as any, data);
+    };
+  }
+}
+
+installReactNativeWebCryptoPolyfill();
 
 // Em React Native (Expo), variáveis de ambiente são substituídas estaticamente.
 // Portanto, é obrigatório acessar process.env.EXPO_PUBLIC_* diretamente.
@@ -28,21 +59,35 @@ try {
   // ignore
 }
 
-if (!supabaseEnvOk) {
-  throw new Error(
-    'Missing Supabase config. Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY (no localhost) before running/building.'
-  );
+export interface SupabaseUserMetadata {
+  full_name?: string;
+  name?: string;
+  picture?: string;
+  avatar_url?: string;
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-    ...(supabaseAuthStorage ? { flowType: 'pkce' as const } : {}),
-    ...(supabaseAuthStorage ? { storage: supabaseAuthStorage } : {}),
-  },
-});
+export function extractUserMetadata(metadata: any): { full_name?: string; picture?: string } {
+  if (!metadata) return { full_name: undefined, picture: undefined };
+  const m = metadata as SupabaseUserMetadata;
+  return {
+    full_name: m.full_name || m.name || undefined,
+    picture: m.picture || m.avatar_url || undefined,
+  };
+}
+
+export const supabase = createClient(
+  supabaseUrl || 'https://placeholder-url-for-missing-env.supabase.co',
+  supabaseAnonKey || 'placeholder-anon-key',
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      ...(supabaseAuthStorage ? { flowType: 'pkce' as const } : {}),
+      ...(supabaseAuthStorage ? { storage: supabaseAuthStorage } : {}),
+    },
+  }
+);
 
 // ============================================================================
 // SERVIÇOS DE AUTENTICAÇÃO (OTP Simplificado por Telefone)

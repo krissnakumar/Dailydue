@@ -5,6 +5,8 @@ import {
   Modal,
   Dimensions,
   TouchableWithoutFeedback,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -87,7 +89,13 @@ export const AnimatedPopup: React.FC<AnimatedPopupProps> = ({
             <View style={styles.handleContainer}>
                 <View style={styles.handle} />
             </View>
-            {children}
+            <KeyboardAvoidingView
+              style={styles.keyboardAvoider}
+              behavior="padding"
+              keyboardVerticalOffset={Platform.OS === 'android' ? 24 : 0}
+            >
+              {children}
+            </KeyboardAvoidingView>
           </Animated.View>
         </GestureDetector>
       </View>
@@ -111,6 +119,9 @@ const styles = StyleSheet.create({
     minHeight: 250,
     maxHeight: height * 0.9,
     ...theme.shadows.lg,
+  },
+  keyboardAvoider: {
+    flex: 1,
   },
   handleContainer: {
     height: 30,

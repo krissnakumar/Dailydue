@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Alert, Image, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, Alert, Image, TouchableOpacity, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Header, Card, Button } from '../../src/components';
 import { useFiadoStore } from '../../src/store';
@@ -78,22 +78,33 @@ export default function ConfiguracoesScreen() {
   };
 
   const handleLogout = () => {
-    Alert.alert('Desconectar', 'Deseja desconectar a conta atual e voltar ao modo balcão offline?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Sim, Sair',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await supabase.auth.signOut();
-          } catch {
-            // ignore
-          } finally {
-            setUser(null);
-          }
+    const doLogout = async () => {
+      try {
+        await supabase.auth.signOut();
+      } catch (error) {
+        console.warn('Erro ao desconectar', error);
+      } finally {
+        setUser(null);
+        router.replace('/(auth)/login');
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('Deseja desconectar a conta atual e voltar ao modo balcão offline?')) {
+        void doLogout();
+      }
+    } else {
+      Alert.alert('Desconectar', 'Deseja desconectar a conta atual e voltar ao modo balcão offline?', [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Sim, Sair',
+          style: 'destructive',
+          onPress: () => {
+            void doLogout();
+          },
         },
-      },
-    ]);
+      ]);
+    }
   };
 
   const handleGoToLogin = () => {
@@ -220,6 +231,13 @@ export default function ConfiguracoesScreen() {
                 </View>
               </View>
               <Text style={styles.profileEmail}>Conta de Acesso: {user.email}</Text>
+              <Button
+                title="Desconectar / Sair da Conta"
+                variant="danger"
+                leftIcon={<Ionicons name="log-out-outline" size={16} color={theme.colors.danger} style={{ marginRight: 6 }} />}
+                onPress={handleLogout}
+                style={{ marginTop: 16 }}
+              />
             </View>
           ) : (
             <View style={{ alignItems: 'center', marginBottom: 24, paddingBottom: 24, borderBottomWidth: 1, borderBottomColor: theme.colors.border }}>

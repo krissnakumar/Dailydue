@@ -1,5 +1,5 @@
 import React, { ReactNode, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, Animated } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, Animated, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useFiadoStore } from '../store';
@@ -53,27 +53,34 @@ export const Header: React.FC<HeaderProps> = ({
 
   const handleAccountAction = () => {
     if (user) {
-      Alert.alert(
-        'Sair da Conta',
-        'Deseja realmente desconectar e voltar para a tela inicial?',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          {
-            text: 'Sair',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                await supabase.auth.signOut();
-              } catch {
-                // ignore; still clear local session
-              } finally {
-                setUser(null);
-                router.replace('/(auth)/login');
-              }
-            },
+      const doLogout = async () => {
+        try {
+          await supabase.auth.signOut();
+        } catch (error) {
+          console.warn('Erro ao desconectar', error);
+        } finally {
+          setUser(null);
+          router.replace('/(auth)/login');
+        }
+      };
+
+      if (Platform.OS === 'web') {
+        if (window.confirm('Deseja realmente desconectar e voltar para a tela inicial?')) {
+          void doLogout();
+        }
+        return;
+      }
+
+      Alert.alert('Sair da Conta', 'Deseja realmente desconectar e voltar para a tela inicial?', [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Sair',
+          style: 'destructive',
+          onPress: () => {
+            void doLogout();
           },
-        ]
-      );
+        },
+      ]);
     } else {
       router.push('/config');
     }

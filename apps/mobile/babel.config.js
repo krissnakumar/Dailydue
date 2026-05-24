@@ -3,7 +3,7 @@ module.exports = function (api) {
   return {
     presets: [['babel-preset-expo', { unstable_transformImportMeta: true }]],
     plugins: [
-      // 'nativewind/babel',
+      'nativewind/babel',
       'react-native-reanimated/plugin',
     ],
   };

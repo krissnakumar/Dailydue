@@ -8,7 +8,13 @@ import { Ionicons } from '@expo/vector-icons';
 
 const isEmoji = (str?: string) => {
   if (!str) return false;
-  return str.length <= 4 && !str.includes('/') && !str.startsWith('data:');
+  const s = String(str).trim();
+  try {
+    const emojiRegex = new RegExp('^(\\p{Emoji_Presentation}|\\p{Emoji}\\uFE0F)+$', 'u');
+    return emojiRegex.test(s);
+  } catch {
+    return s.length <= 4 && !s.includes('/') && !s.startsWith('data:');
+  }
 };
 
 export interface CustomerRowProps {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -20,9 +20,15 @@ import { theme } from '../../../src/theme';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 
-const isEmoji = (str: string) => {
+const isEmoji = (str?: string) => {
   if (!str) return false;
-  return str.length <= 4 && !str.includes('/') && !str.startsWith('data:');
+  const s = String(str).trim();
+  try {
+    const emojiRegex = new RegExp('^(\\p{Emoji_Presentation}|\\p{Emoji}\\uFE0F)+$', 'u');
+    return emojiRegex.test(s);
+  } catch {
+    return s.length <= 4 && !s.includes('/') && !s.startsWith('data:');
+  }
 };
 
 export default function CustomerDetailScreen() {
@@ -38,16 +44,18 @@ export default function CustomerDetailScreen() {
     deleteCustomer,
     editHistoryItem,
     deleteHistoryItem,
-    openNovoFiado,
   } = useFiadoStore();
 
   const customer = customers.find((c) => c.id === id);
+  const redirectingRef = useRef(false);
 
   useEffect(() => {
     if (!id) return;
     if (customer) return;
+    if (redirectingRef.current) return;
     const mapped = customerIdMap?.[String(id)];
     if (mapped) {
+      redirectingRef.current = true;
       router.replace(`/clientes/${mapped}`);
     }
   }, [id, customer, customerIdMap, router]);
@@ -407,7 +415,7 @@ export default function CustomerDetailScreen() {
         <View style={styles.gridActionsRow}>
           <TouchableOpacity
             style={[styles.btnActionFiado, styles.rowCenter]}
-            onPress={() => openNovoFiado(customer.id)}
+            onPress={() => router.push(`/novo-fiado?customerId=${customer.id}`)}
             activeOpacity={0.7}
           >
             <Ionicons name="add-circle-outline" size={14} color={theme.colors.accent} style={{ marginRight: 4 }} />

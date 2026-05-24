@@ -6,6 +6,7 @@
   "private": true,
   "dependencies": {
     "@supabase/supabase-js": "^2.43.0",
-    "@controle-fiado/types": "*"
+    "@controle-fiado/types": "*",
+    "expo-crypto": "~15.0.9"
   }
 }

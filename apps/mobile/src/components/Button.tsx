@@ -10,7 +10,7 @@ import { theme } from '../theme';
 
 export interface ButtonProps extends TouchableOpacityProps {
   title: string;
-  variant?: 'primary' | 'accent' | 'success' | 'secondary' | 'ghost';
+  variant?: 'primary' | 'accent' | 'success' | 'secondary' | 'ghost' | 'danger';
   size?: 'md' | 'lg';
   loading?: boolean;
   leftIcon?: React.ReactNode;
@@ -28,6 +28,12 @@ export const Button: React.FC<ButtonProps> = ({
 }) => {
   const getVariantStyles = () => {
     switch (variant) {
+      case 'danger':
+        return {
+          bg: theme.colors.dangerBg,
+          text: theme.colors.danger,
+          border: theme.colors.dangerBg,
+        };
       case 'accent':
         return {
           bg: theme.colors.accent,

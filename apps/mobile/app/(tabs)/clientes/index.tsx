@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,35 +7,24 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Alert,
-  Image,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
-import { Header, Button, CustomerRow, AnimatedPopup } from '../../../src/components';
+import { useRouter } from 'expo-router';
+import { Header, Button, CustomerRow } from '../../../src/components';
 import { useFiadoStore } from '../../../src/store';
 import { theme } from '../../../src/theme';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function ClientesScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ openAdd?: string }>();
   const {
     customers,
     businessConfig,
-    addCustomer,
     subscription,
-    deleteCustomer,
-    getActiveCustomersCount,
-    openNovoFiado,
-    openNovoCliente,
   } = useFiadoStore();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'devendo' | 'atrasados' | 'pagos'>('all');
-
-
 
   const filteredCustomers = customers.filter((c) => {
     if (searchQuery.trim()) {
@@ -58,16 +47,11 @@ export default function ClientesScreen() {
     return true;
   });
 
-
-
   return (
     <View style={styles.wrapper}>
       <Header showTotal={false} title="Relação de Clientes" />
 
-      <Animated.View
-        entering={FadeInDown.duration(0)}
-        style={styles.searchContainer}
-      >
+      <Animated.View style={styles.searchContainer}>
         <View style={styles.inputWrapper}>
           <Ionicons name="search-outline" size={16} color={theme.colors.textMuted} style={{ marginRight: 8 }} />
           <TextInput
@@ -86,10 +70,7 @@ export default function ClientesScreen() {
         </View>
       </Animated.View>
 
-      <Animated.View
-        entering={FadeInDown.delay(0).duration(0)}
-        style={styles.filtersWrapper}
-      >
+      <Animated.View style={styles.filtersWrapper}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersScroll}>
           {['all', 'devendo', 'atrasados', 'pagos'].map((f) => (
             <TouchableOpacity
@@ -114,12 +95,9 @@ export default function ClientesScreen() {
         </ScrollView>
       </Animated.View>
 
-      <Animated.View
-        entering={FadeInDown.delay(0).duration(0)}
-        style={styles.listHeader}
-      >
+      <Animated.View style={styles.listHeader}>
         <Text style={styles.listCount}>{filteredCustomers.length} clientes encontrados</Text>
-        <TouchableOpacity onPress={openNovoCliente} style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <TouchableOpacity onPress={() => router.push('/clientes/novo')} style={{ flexDirection: 'row', alignItems: 'center' }}>
           <Ionicons name="add" size={14} color={theme.colors.primary} style={{ marginRight: 2 }} />
           <Text style={styles.quickAddText}>Cadastrar</Text>
         </TouchableOpacity>
@@ -131,15 +109,13 @@ export default function ClientesScreen() {
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         renderItem={({ item, index }) => (
-          <Animated.View
-            entering={FadeInDown.delay(0).duration(0)}
-          >
+          <Animated.View>
             <CustomerRow
               customer={item}
               pixKey={businessConfig.pixKey}
               onPress={() => router.push(`/clientes/${item.id}`)}
               onSwipeLeft={() => router.push(`/pagamentos?customerId=${item.id}`)}
-              onSwipeRight={() => openNovoFiado(item.id)}
+              onSwipeRight={() => router.push(`/novo-fiado?customerId=${item.id}`)}
             />
           </Animated.View>
         )}
@@ -150,23 +126,20 @@ export default function ClientesScreen() {
             <Button
               title="Cadastrar Novo Cliente"
               variant="ghost"
-              onPress={openNovoCliente}
+              onPress={() => router.push('/clientes/novo')}
               style={{ marginTop: 12 }}
             />
           </View>
         )}
       />
 
-      <Animated.View
-        entering={FadeInDown.delay(0).duration(0)}
-        style={styles.footerAdd}
-      >
+      <Animated.View style={styles.footerAdd}>
         <Button
           title="Cadastrar Novo Cliente"
           variant="primary"
           size="lg"
           leftIcon={<Ionicons name="add" size={18} color="#ffffff" style={{ marginRight: 6 }} />}
-          onPress={openNovoCliente}
+          onPress={() => router.push('/clientes/novo')}
         />
       </Animated.View>
 
