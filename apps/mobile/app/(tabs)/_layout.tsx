@@ -1,6 +1,7 @@
 import React from 'react';
 import { Redirect, Tabs, useRouter } from 'expo-router';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '../../src/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useFiadoStore } from '../../src/store';
@@ -8,17 +9,21 @@ import { useFiadoStore } from '../../src/store';
 export default function TabsLayout() {
   const router = useRouter();
   const { user, authChecked } = useFiadoStore();
+  const insets = useSafeAreaInsets();
 
   if (authChecked && !user) {
     return <Redirect href="/(auth)/login" />;
   }
+
+  const bottomPadding = insets.bottom > 0 ? insets.bottom : 8;
+  const tabBarHeight = 54 + bottomPadding;
 
   return (
     <>
       <Tabs
         screenOptions={{
           headerShown: false,
-          tabBarStyle: styles.tabBar,
+          tabBarStyle: [styles.tabBar, { height: tabBarHeight, paddingBottom: bottomPadding }],
           tabBarActiveTintColor: theme.colors.primary,
           tabBarInactiveTintColor: theme.colors.textMuted,
           tabBarLabelStyle: styles.label,

@@ -86,8 +86,10 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
+  const paddingTopValue = insets.top > 0 ? insets.top + 12 : Platform.OS === 'android' ? 38 : 16;
+
   return (
-    <View style={[styles.container, { paddingTop: Math.max(insets.top, 16) }]}>
+    <View style={[styles.container, { paddingTop: paddingTopValue }]}>
       <View style={styles.topRow}>
         {leftAction ? (
           <View style={styles.titleWrapper}>

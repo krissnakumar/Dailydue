@@ -9,6 +9,7 @@ import {
   Modal,
   TextInput,
   Image,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -334,7 +335,7 @@ export default function CustomerDetailScreen() {
       {/* Cabeçalho da Visão Interna */}
       <Animated.View
         entering={FadeInDown.duration(0)}
-        style={[styles.headerContainer, { paddingTop: Math.max(insets.top, 16) }]}
+        style={[styles.headerContainer, { paddingTop: insets.top > 0 ? insets.top + 12 : Platform.OS === 'android' ? 38 : 16 }]}
       >
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={theme.colors.textMain} />
