@@ -6,17 +6,39 @@ import { useFiadoStore } from '../../src/store';
 import { theme } from '../../src/theme';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useResponsive } from '../../src/utils/responsive';
+import Constants from 'expo-constants';
+import { verifyGooglePlaySubscription } from '@controle-fiado/api';
 
 const premiumSubId = process.env.EXPO_PUBLIC_GOOGLE_PLAY_PREMIUM_SUB_ID || '';
+const androidPackageName = Constants.expoConfig?.android?.package || 'br.com.controlefiado.app';
+
+function extractPurchaseToken(purchase: any): string | null {
+  const direct = purchase?.purchaseToken || purchase?.transactionReceipt?.purchaseToken || purchase?.dataAndroid?.purchaseToken;
+  if (direct) return String(direct);
+
+  const receipt = purchase?.transactionReceipt || purchase?.dataAndroid;
+  if (typeof receipt === 'string') {
+    try {
+      const parsed = JSON.parse(receipt);
+      return parsed?.purchaseToken || parsed?.token || null;
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
 
 export default function SubscriptionNativeScreen() {
   const router = useRouter();
+  const layout = useResponsive();
   const {
     subscription,
     getActiveCustomersCount,
     getCurrentMonthTransactionsCount,
     toggleSubscriptionSimulation,
-    setPlayPremiumActive,
+    fetchSubscription,
   } = useFiadoStore();
 
   const customersCount = getActiveCustomersCount();
@@ -26,13 +48,16 @@ export default function SubscriptionNativeScreen() {
   const isSimulated = subscription.is_simulated;
 
   let useIAPHook: any = null;
-  try {
-    // Lazy-load native-only dependency so the screen can render a helpful message
-    // when the dev client wasn't rebuilt after installing IAP deps.
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    useIAPHook = require('react-native-iap')?.useIAP;
-  } catch {
-    useIAPHook = null;
+  const isExpoGo = Constants.appOwnership === 'expo';
+  if (!isExpoGo) {
+    try {
+      // Lazy-load native-only dependency so the screen can render a helpful message
+      // when the dev client wasn't rebuilt after installing IAP deps.
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      useIAPHook = require('react-native-iap')?.useIAP;
+    } catch {
+      useIAPHook = null;
+    }
   }
 
   if (!useIAPHook) {
@@ -47,11 +72,24 @@ export default function SubscriptionNativeScreen() {
             </TouchableOpacity>
           }
         />
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              maxWidth: layout.contentMaxWidth,
+              alignSelf: 'center',
+              width: '100%',
+              paddingHorizontal: layout.spacing.screen,
+            },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
           <Card style={styles.googleCard}>
             <Text style={styles.googlePlayTitle}>Google Play Billing indisponível</Text>
             <Text style={styles.googlePlayDesc}>
-              Refaça o build do app Android (dev client / AAB) após instalar as dependências de billing.
+              {isExpoGo
+                ? 'Assinaturas do Google Play não rodam no Expo Go. Use um development build ou AAB.'
+                : 'Refaça o build do app Android (dev client / AAB) após instalar as dependências de billing.'}
             </Text>
             <Button title="Ver instruções" variant="ghost" onPress={() => router.push('/config')} style={{ marginTop: 10 }} />
           </Card>
@@ -60,16 +98,48 @@ export default function SubscriptionNativeScreen() {
     );
   }
 
-  const { connected, subscriptions, fetchProducts, requestPurchase, finishTransaction, restorePurchases, hasActiveSubscriptions } = useIAPHook({
+  const verifyAndRefresh = async (purchase: any) => {
+    if (!premiumSubId || purchase?.productId !== premiumSubId) return false;
+
+    const purchaseToken = extractPurchaseToken(purchase);
+    if (!purchaseToken) {
+      Alert.alert('Google Play', 'Não consegui ler o token da compra. Tente restaurar a assinatura em alguns segundos.');
+      return false;
+    }
+
+    const result = await verifyGooglePlaySubscription({
+      packageName: androidPackageName,
+      productId: premiumSubId,
+      purchaseToken,
+    });
+
+    await fetchSubscription();
+    return Boolean(result?.is_premium);
+  };
+
+  const {
+    connected,
+    subscriptions,
+    fetchProducts,
+    requestPurchase,
+    finishTransaction,
+    restorePurchases,
+    getAvailablePurchases,
+  } = useIAPHook({
     onPurchaseSuccess: async (purchase: any) => {
       try {
         if (!premiumSubId || purchase.productId !== premiumSubId) return;
-        setPlayPremiumActive(true);
+        const active = await verifyAndRefresh(purchase);
+        if (!active) {
+          Alert.alert('Assinatura', 'Compra recebida, mas o Google Play ainda não confirmou uma assinatura ativa.');
+          return;
+        }
         await finishTransaction({ purchase, isConsumable: false });
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert('Assinatura Ativada', 'Pagamento confirmado pelo Google Play. Premium liberado! ✅');
+        Alert.alert('Assinatura Ativada', 'Pagamento confirmado pelo Google Play. Premium liberado!');
       } catch (e) {
-        console.warn('[IAP] finishTransaction failed:', e);
+        console.warn('[IAP] purchase verification failed:', e);
+        Alert.alert('Validação pendente', 'Não foi possível validar a compra no servidor agora. Tente restaurar em alguns segundos.');
       }
     },
     onPurchaseError: (e: any) => {
@@ -147,9 +217,20 @@ export default function SubscriptionNativeScreen() {
     setLoading(true);
     try {
       await restorePurchases({ includeSuspendedAndroid: true });
-      const active = await hasActiveSubscriptions([premiumSubId]);
-      setPlayPremiumActive(Boolean(active));
-      Alert.alert('Restaurado', active ? 'Assinatura ativa encontrada ✅' : 'Nenhuma assinatura ativa encontrada.');
+      const availablePurchases =
+        typeof getAvailablePurchases === 'function'
+          ? await getAvailablePurchases({ onlyIncludeActiveItemsAndroid: true })
+          : [];
+      const premiumPurchase = (availablePurchases || []).find((purchase: any) => purchase?.productId === premiumSubId);
+
+      if (premiumPurchase) {
+        const active = await verifyAndRefresh(premiumPurchase);
+        Alert.alert('Restaurado', active ? 'Assinatura ativa confirmada.' : 'Nenhuma assinatura ativa foi confirmada pelo servidor.');
+        return;
+      }
+
+      await fetchSubscription();
+      Alert.alert('Restaurado', 'Plano revalidado pela nuvem. Se a assinatura acabou de ser comprada, tente novamente em alguns segundos.');
     } catch (e: any) {
       Alert.alert('Ops!', e?.message || 'Falha ao restaurar compras.');
     } finally {
@@ -169,7 +250,18 @@ export default function SubscriptionNativeScreen() {
         }
       />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            maxWidth: layout.contentMaxWidth,
+            alignSelf: 'center',
+            width: '100%',
+            paddingHorizontal: layout.spacing.screen,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={styles.sectionTitle}>Plano e limites</Text>
         <Card style={styles.planCard}>
           <View style={styles.subHeader}>

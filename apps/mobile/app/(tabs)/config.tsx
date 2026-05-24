@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Alert, Image, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, Alert, Image, TouchableOpacity, Platform, KeyboardAvoidingView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Header, Card, Button } from '../../src/components';
 import { useFiadoStore } from '../../src/store';
 import { theme } from '../../src/theme';
-import { supabase } from '@controle-fiado/api';
+import { supabase, updateOwnerProfile, uploadOwnerProfilePicture } from '@controle-fiado/api';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { useResponsive } from '../../src/utils/responsive';
 
 export default function ConfiguracoesScreen() {
   const router = useRouter();
+  const layout = useResponsive();
   const {
     businessConfig,
     updateBusinessConfig,
@@ -30,28 +32,54 @@ export default function ConfiguracoesScreen() {
   const [userName, setUserName] = useState(user?.full_name || '');
   const [userPic, setUserPic] = useState(user?.picture || user?.avatar_url || '');
 
+  const isLocalPicture = (uri: string) =>
+    uri.startsWith('file:') || uri.startsWith('content:') || uri.startsWith('blob:') || uri.startsWith('data:image/');
+
   const handleSaveConfig = async () => {
-    updateBusinessConfig({
-      businessName: bizName.trim(),
-      pixKey: pix.trim(),
-      phone: phone.trim(),
-    });
-    
-    if (user) {
-      try {
-        await supabase.auth.updateUser({
-          data: {
-            full_name: userName.trim(),
-            picture: userPic,
-          }
-        });
-        setUser({ ...user, full_name: userName.trim(), picture: userPic });
-      } catch (err) {
-        console.warn('Erro ao atualizar perfil', err);
+    try {
+      let nextPicture = userPic;
+      let avatarStoragePath: string | null | undefined = undefined;
+      let avatarMimeType: string | null | undefined = undefined;
+
+      if (user && userPic && isLocalPicture(userPic)) {
+        const uploaded = await uploadOwnerProfilePicture(userPic);
+        nextPicture = uploaded.signed_url;
+        avatarStoragePath = uploaded.path;
+        avatarMimeType = uploaded.mime_type;
       }
+
+      if (user) {
+        await updateOwnerProfile({
+          full_name: userName.trim(),
+          business_name: bizName.trim(),
+          phone: phone.trim(),
+          pix_key: pix.trim(),
+          avatar_storage_path: avatarStoragePath,
+          avatar_mime_type: avatarMimeType,
+          picture_url: nextPicture,
+        });
+        setUser({
+          ...user,
+          full_name: userName.trim(),
+          picture: nextPicture,
+          avatar_url: nextPicture,
+          avatar_storage_path: avatarStoragePath ?? (user as any).avatar_storage_path,
+          avatar_mime_type: avatarMimeType ?? (user as any).avatar_mime_type,
+        } as any);
+      }
+
+      updateBusinessConfig({
+        businessName: bizName.trim(),
+        pixKey: pix.trim(),
+        phone: phone.trim(),
+      });
+
+      setUserPic(nextPicture);
+      Alert.alert('Sucesso', 'Configurações salvas com sucesso!');
+    } catch (err) {
+      console.warn('Erro ao atualizar perfil', err);
+      Alert.alert('Ops!', 'Não foi possível salvar o perfil na nuvem agora.');
     }
-    
-    Alert.alert('Sucesso', 'Configurações salvas com sucesso!');
   };
 
   const handlePickPicture = async () => {
@@ -65,12 +93,11 @@ export default function ConfiguracoesScreen() {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.2,
-        base64: true,
+        quality: 0.45,
+        base64: false,
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const base64Data = `data:image/jpeg;base64,${result.assets[0].base64}`;
-        setUserPic(base64Data);
+        setUserPic(result.assets[0].uri);
       }
     } catch (error) {
       console.warn('ImagePicker Error', error);
@@ -115,7 +142,23 @@ export default function ConfiguracoesScreen() {
     <View style={styles.wrapper}>
       <Header showTotal={false} title="Configurações do App" />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            maxWidth: layout.contentMaxWidth,
+            alignSelf: 'center',
+            width: '100%',
+            paddingHorizontal: layout.spacing.screen,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Plano de Assinatura e Limites */}
         <Text style={styles.sectionTitle}>Assinatura & Limites de Uso</Text>
         <Card style={styles.subCard}>
@@ -300,6 +343,7 @@ export default function ConfiguracoesScreen() {
           <Text style={styles.infoText}>Fila de Sincronização Local: <Text style={{ fontWeight: 'bold' }}>0 pendente(s)</Text></Text>
         </Card>
       </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }

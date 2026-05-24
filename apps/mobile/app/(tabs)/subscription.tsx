@@ -1,15 +1,18 @@
 import React from 'react';
-import { Platform, View, Text, StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
+import { AdaptiveContainer, AdaptiveCard, ResponsiveText } from '../../src/components';
 
 export default function SubscriptionScreen() {
   if (Platform.OS === 'web') {
     return (
-      <View style={styles.webWrap}>
-        <Text style={styles.webTitle}>Assinatura</Text>
-        <Text style={styles.webDesc}>
-          Assinaturas via Google Play estão disponíveis apenas no app Android.
-        </Text>
-      </View>
+      <AdaptiveContainer maxWidth={620} contentContainerStyle={styles.webWrap}>
+        <AdaptiveCard>
+          <ResponsiveText variant="title">Assinatura</ResponsiveText>
+          <ResponsiveText muted style={styles.webDesc}>
+            Assinaturas via Google Play estão disponíveis apenas no app Android.
+          </ResponsiveText>
+        </AdaptiveCard>
+      </AdaptiveContainer>
     );
   }
 
@@ -21,18 +24,9 @@ export default function SubscriptionScreen() {
 
 const styles = StyleSheet.create({
   webWrap: {
-    flex: 1,
-    padding: 24,
     justifyContent: 'center',
   },
-  webTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    marginBottom: 6,
-  },
   webDesc: {
-    fontSize: 14,
-    opacity: 0.75,
+    marginTop: 6,
   },
 });
-

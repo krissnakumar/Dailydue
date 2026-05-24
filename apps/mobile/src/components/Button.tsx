@@ -11,7 +11,7 @@ import { theme } from '../theme';
 export interface ButtonProps extends TouchableOpacityProps {
   title: string;
   variant?: 'primary' | 'accent' | 'success' | 'secondary' | 'ghost' | 'danger';
-  size?: 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg';
   loading?: boolean;
   leftIcon?: React.ReactNode;
 }
@@ -76,7 +76,7 @@ export const Button: React.FC<ButtonProps> = ({
       disabled={disabled || loading}
       style={[
         styles.base,
-        size === 'lg' ? styles.lg : styles.md,
+        size === 'lg' ? styles.lg : size === 'sm' ? styles.sm : styles.md,
         { backgroundColor: currentVariant.bg, borderColor: currentVariant.border },
         disabled && styles.disabled,
         style,
@@ -91,7 +91,7 @@ export const Button: React.FC<ButtonProps> = ({
           <Text
             style={[
               styles.text,
-              size === 'lg' ? styles.textLg : styles.textMd,
+              size === 'lg' ? styles.textLg : size === 'sm' ? styles.textSm : styles.textMd,
               { color: currentVariant.text },
             ]}
           >
@@ -112,21 +112,28 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 16,
   },
+  sm: {
+    height: 32,
+    paddingHorizontal: 12,
+  },
   md: {
-    height: 48,
+    height: 40,
   },
   lg: {
-    height: 56,
+    height: 48,
   },
   text: {
     fontWeight: '700',
     textAlign: 'center',
   },
+  textSm: {
+    fontSize: 12,
+  },
   textMd: {
-    fontSize: 15,
+    fontSize: 14,
   },
   textLg: {
-    fontSize: 17,
+    fontSize: 15,
   },
   disabled: {
     opacity: 0.5,

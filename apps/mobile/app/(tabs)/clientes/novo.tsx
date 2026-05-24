@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,12 +17,32 @@ import * as ImagePicker from 'expo-image-picker';
 import { Button } from '../../../src/components/Button';
 import { useFiadoStore } from '../../../src/store';
 import { theme } from '../../../src/theme';
+import { useAdaptiveColors, useResponsive } from '../../../src/utils/responsive';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function NovoClientePage() {
   const router = useRouter();
   const params = useLocalSearchParams<{ next?: string }>();
+  const layout = useResponsive();
+  const colors = useAdaptiveColors();
+  const insets = useSafeAreaInsets();
 
   const { addCustomer, subscription, getActiveCustomersCount } = useFiadoStore();
+  const customersCount = getActiveCustomersCount();
+
+  useEffect(() => {
+    if (!subscription.is_premium && subscription.max_customers !== null && customersCount >= subscription.max_customers) {
+      Alert.alert(
+        'Plano Básico 🔒',
+        'Limite de clientes atingido. Mude para o Premium!',
+        [
+          { text: 'Voltar', onPress: () => router.back(), style: 'cancel' },
+          { text: 'Ver Planos', onPress: () => router.replace('/subscription') },
+        ],
+        { cancelable: false }
+      );
+    }
+  }, [subscription, customersCount]);
 
   const [newName, setNewName] = useState('');
   const [newPhone, setNewPhone] = useState('');
@@ -262,18 +282,20 @@ export default function NovoClientePage() {
   };
 
   return (
-    <View style={styles.wrapper}>
-      <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.7}>
-          <Ionicons name="chevron-back" size={22} color={theme.colors.textMain} />
-        </TouchableOpacity>
-        <Text style={styles.topBarTitle}>Novo Cliente</Text>
-        <TouchableOpacity onPress={() => router.push('/subscription')} style={styles.badgeBtn} activeOpacity={0.7}>
-          <View style={styles.badge}>
-            <Ionicons name={subscription.is_premium ? 'star' : 'leaf'} size={10} color="#fff" />
-            <Text style={styles.badgeText}>{subscription.is_premium ? 'PRO' : 'BÁSICO'}</Text>
-          </View>
-        </TouchableOpacity>
+    <View style={[styles.wrapper, { backgroundColor: colors.background }]}>
+      <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 12), backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <View style={[styles.topBarInner, { maxWidth: layout.formMaxWidth + layout.spacing.screen * 2 }]}>
+          <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: colors.mutedSurface, borderColor: colors.border }]} activeOpacity={0.7}>
+            <Ionicons name="chevron-back" size={22} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={[styles.topBarTitle, { color: colors.text }]}>Novo Cliente</Text>
+          <TouchableOpacity onPress={() => router.push('/subscription')} style={styles.badgeBtn} activeOpacity={0.7}>
+            <View style={styles.badge}>
+              <Ionicons name={subscription.is_premium ? 'star' : 'leaf'} size={10} color="#fff" />
+              <Text style={styles.badgeText}>{subscription.is_premium ? 'PRO' : 'BÁSICO'}</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <KeyboardAvoidingView
@@ -283,13 +305,22 @@ export default function NovoClientePage() {
       >
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              maxWidth: layout.formMaxWidth,
+              alignSelf: 'center',
+              width: '100%',
+              paddingHorizontal: layout.spacing.screen,
+              paddingBottom: layout.spacing.xl + insets.bottom + 24,
+            },
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
         >
           <View style={styles.photoRow}>
-            <View style={styles.photoPreview}>
+            <View style={[styles.photoPreview, { backgroundColor: colors.mutedSurface, borderColor: colors.border }]}>
               {newPicture ? (
                 <Image source={{ uri: newPicture }} style={styles.photoPreviewImg} />
               ) : (
@@ -297,10 +328,10 @@ export default function NovoClientePage() {
               )}
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.formLabel}>Foto do Cliente</Text>
+              <Text style={[styles.formLabel, { color: colors.text }]}>Foto do Cliente</Text>
               <View style={styles.photoActions}>
-                <TouchableOpacity style={styles.photoBtn} onPress={pickCustomerPhoto} activeOpacity={0.8}>
-                  <Text style={styles.photoBtnText}>{newPicture ? 'Trocar' : 'Escolher'}</Text>
+                <TouchableOpacity style={[styles.photoBtn, { backgroundColor: colors.mutedSurface, borderColor: colors.border }]} onPress={pickCustomerPhoto} activeOpacity={0.8}>
+                  <Text style={[styles.photoBtnText, { color: colors.text }]}>{newPicture ? 'Trocar' : 'Escolher'}</Text>
                 </TouchableOpacity>
                 {newPicture ? (
                   <TouchableOpacity style={[styles.photoBtn, styles.photoBtnDanger]} onPress={() => setNewPicture('')} activeOpacity={0.8}>
@@ -313,9 +344,9 @@ export default function NovoClientePage() {
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.formLabel}>Nome *</Text>
+            <Text style={[styles.formLabel, { color: colors.text }]}>Nome *</Text>
             <TextInput
-              style={styles.formInput}
+              style={[styles.formInput, { backgroundColor: colors.mutedSurface, borderColor: colors.border, color: colors.text }]}
               placeholder="Ex: Dona Maria, Zé do Bar"
               placeholderTextColor={theme.colors.textMuted}
               value={newName}
@@ -325,9 +356,9 @@ export default function NovoClientePage() {
 
           <View style={styles.formRow}>
             <View style={[styles.formGroup, styles.formCol]}>
-              <Text style={styles.formLabel}>WhatsApp</Text>
+              <Text style={[styles.formLabel, { color: colors.text }]}>WhatsApp</Text>
               <TextInput
-                style={styles.formInput}
+                style={[styles.formInput, { backgroundColor: colors.mutedSurface, borderColor: colors.border, color: colors.text }]}
                 placeholder="(11) 99999-9999"
                 placeholderTextColor={theme.colors.textMuted}
                 keyboardType="phone-pad"
@@ -336,9 +367,9 @@ export default function NovoClientePage() {
               />
             </View>
             <View style={[styles.formGroup, styles.formCol]}>
-              <Text style={styles.formLabel}>CEP</Text>
+              <Text style={[styles.formLabel, { color: colors.text }]}>CEP</Text>
               <TextInput
-                style={styles.formInput}
+                style={[styles.formInput, { backgroundColor: colors.mutedSurface, borderColor: colors.border, color: colors.text }]}
                 placeholder="01001000"
                 placeholderTextColor={theme.colors.textMuted}
                 keyboardType="numeric"
@@ -349,7 +380,7 @@ export default function NovoClientePage() {
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.formLabel}>Documento</Text>
+            <Text style={[styles.formLabel, { color: colors.text }]}>Documento</Text>
             <View style={styles.radioRow}>
               <TouchableOpacity
                 style={[styles.radioButton, newDocType === 'cpf' && styles.radioActive]}
@@ -371,7 +402,7 @@ export default function NovoClientePage() {
               </TouchableOpacity>
             </View>
             <TextInput
-              style={styles.formInput}
+              style={[styles.formInput, { backgroundColor: colors.mutedSurface, borderColor: colors.border, color: colors.text }]}
               placeholder={newDocType === 'cpf' ? '000.000.000-00' : '00.000.000/0000-00'}
               placeholderTextColor={theme.colors.textMuted}
               keyboardType="numeric"
@@ -382,9 +413,9 @@ export default function NovoClientePage() {
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.formLabel}>Endereço</Text>
+            <Text style={[styles.formLabel, { color: colors.text }]}>Endereço</Text>
             <TextInput
-              style={styles.formInput}
+              style={[styles.formInput, { backgroundColor: colors.mutedSurface, borderColor: colors.border, color: colors.text }]}
               placeholder="Rua, número, bairro, cidade…"
               placeholderTextColor={theme.colors.textMuted}
               value={newAddress}
@@ -418,25 +449,24 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   topBar: {
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+  },
+  topBarInner: {
+    width: '100%',
+    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-    backgroundColor: theme.colors.card,
   },
   backBtn: {
-    width: 36,
-    height: 36,
+    minWidth: 44,
+    minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 18,
-    backgroundColor: theme.colors.inputBg,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: theme.colors.border,
   },
   topBarTitle: {
     fontSize: 16,
@@ -445,7 +475,10 @@ const styles = StyleSheet.create({
   },
   badgeBtn: {
     paddingLeft: 6,
-    paddingVertical: 6,
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
   },
   badge: {
     flexDirection: 'row',
@@ -463,13 +496,13 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 24,
     paddingTop: 16,
-    paddingBottom: Platform.OS === 'android' ? 280 : 40,
   },
   photoRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
+    gap: 12,
     marginBottom: 16,
   },
   photoPreview: {
@@ -479,7 +512,6 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.inputBg,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
     borderWidth: 1,
     borderColor: theme.colors.border,
     overflow: 'hidden',
@@ -490,17 +522,19 @@ const styles = StyleSheet.create({
   },
   photoActions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
     alignItems: 'center',
     marginBottom: 4,
   },
   photoBtn: {
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    minHeight: 44,
     backgroundColor: theme.colors.inputBg,
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: theme.borderRadius.sm,
-    marginRight: 8,
+    justifyContent: 'center',
   },
   photoBtnDanger: {
     borderColor: '#fca5a5',
@@ -534,27 +568,31 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
     borderRadius: theme.borderRadius.sm,
     paddingHorizontal: 12,
-    height: 44,
+    minHeight: 44,
     fontSize: 15,
   },
   formRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 12,
   },
   formCol: {
-    flex: 0.48,
+    flexGrow: 1,
+    flexBasis: 220,
   },
   radioRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
     marginBottom: 8,
   },
   radioButton: {
     paddingHorizontal: 16,
-    paddingVertical: 6,
+    minHeight: 44,
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: theme.borderRadius.full,
-    marginRight: 8,
+    justifyContent: 'center',
   },
   radioActive: {
     backgroundColor: theme.colors.primary,
@@ -575,4 +613,3 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
-

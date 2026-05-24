@@ -86,10 +86,8 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
-  const paddingTopValue = insets.top > 0 ? insets.top + 12 : Platform.OS === 'android' ? 38 : 16;
-
   return (
-    <View style={[styles.container, { paddingTop: paddingTopValue }]}>
+    <View style={[styles.container, { paddingTop: Math.max(insets.top, 16) }]}>
       <View style={styles.topRow}>
         {leftAction ? (
           <View style={styles.titleWrapper}>
@@ -152,7 +150,7 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: theme.colors.primaryBrand,
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 12,
     borderBottomLeftRadius: theme.borderRadius.lg,
     borderBottomRightRadius: theme.borderRadius.lg,
     ...theme.shadows.md,
@@ -161,7 +159,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 0,
   },
   titleWrapper: {
     flexDirection: 'row',

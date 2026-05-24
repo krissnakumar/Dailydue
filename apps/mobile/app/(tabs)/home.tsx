@@ -1,21 +1,16 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable, TextInput, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Header, Card } from '../../src/components';
+import { AdaptiveCard, AdaptiveContainer, AdaptiveGrid, Header, Card } from '../../src/components';
 import { useFiadoStore } from '../../src/store';
 import { formatCurrency } from '../../src/utils';
 import { theme } from '../../src/theme';
-import Animated from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function HomeScreen() {
   const router = useRouter();
   const { customers } = useFiadoStore();
   const [searchQuery, setSearchQuery] = React.useState('');
-
-  const { width: SCREEN_WIDTH } = useWindowDimensions();
-  const CARD_GAP = 8;
-  const CARD_WIDTH = (SCREEN_WIDTH - 32 - CARD_GAP * 2) / 2.35;
 
   // Calcula Métricas de Resumo
   let totalReceber = 0;
@@ -75,7 +70,6 @@ export default function HomeScreen() {
     valueStyle,
     onPress,
     icon,
-    index,
   }: {
     title: string;
     value: string;
@@ -83,36 +77,25 @@ export default function HomeScreen() {
     valueStyle?: any;
     onPress: () => void;
     icon: React.ComponentProps<typeof Ionicons>['name'];
-    index: number;
   }) => {
     return (
-      <Animated.View
-        style={[styles.gridTileWrap, { width: CARD_WIDTH, marginRight: CARD_GAP }]}
+      <TouchableOpacity
+        onPress={onPress}
+        activeOpacity={0.7}
+        style={[styles.compactCard, { borderLeftColor: statusColor }]}
       >
-        <Pressable
-          onPress={onPress}
-          android_ripple={{ color: `${statusColor}1A`, borderless: false }}
-          style={({ pressed }) => [
-            styles.pressableContainer,
-            pressed && styles.pressed
-          ]}
-        >
-          <View style={[styles.gridCard, { borderColor: `${statusColor}33` }]}>
-            <View style={[styles.cardAccentLine, { backgroundColor: statusColor }]} />
-            <View style={styles.cardHeaderRow}>
-              <View style={[styles.iconBadge, { backgroundColor: `${statusColor}1A` }]}>
-                <Ionicons name={icon} size={12} color={statusColor} />
-              </View>
-              <Text style={styles.metricTitle} numberOfLines={1}>
-                {title}
-              </Text>
-            </View>
-            <Text style={[styles.metricVal, valueStyle]} numberOfLines={1}>
+        <View style={styles.compactRow}>
+          <Ionicons name={icon} size={15} color={statusColor} style={{ marginRight: 8 }} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.compactTitle} numberOfLines={1}>
+              {title}
+            </Text>
+            <Text style={[styles.compactValue, valueStyle]} numberOfLines={1}>
               {value}
             </Text>
           </View>
-        </Pressable>
-      </Animated.View>
+        </View>
+      </TouchableOpacity>
     );
   };
 
@@ -124,21 +107,41 @@ export default function HomeScreen() {
       )
     : [];
 
+  const dashboardSidebar = (
+    <View style={styles.sidebarContent}>
+      {[
+        { label: 'Dashboard', icon: 'home-outline' as const, href: '/home' as const },
+        { label: 'Clientes', icon: 'people-outline' as const, href: '/clientes' as const },
+        { label: 'Relatórios', icon: 'bar-chart-outline' as const, href: '/relatorios' as const },
+        { label: 'Configurações', icon: 'settings-outline' as const, href: '/config' as const },
+      ].map((item) => (
+        <TouchableOpacity key={item.label} style={styles.sidebarItem} onPress={() => router.push(item.href)}>
+          <Ionicons name={item.icon} size={18} color={theme.colors.textMuted} />
+          <Text style={styles.sidebarItemText}>{item.label}</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+
+  const dashboardRightPanel = (
+    <View style={styles.rightPanelContent}>
+      <Text style={styles.panelTitle}>Resumo da praça</Text>
+      <Text style={styles.panelValue}>{clientesAtrasados}</Text>
+      <Text style={styles.panelMuted}>clientes com cobrança acima de 15 dias</Text>
+    </View>
+  );
+
   return (
     <View style={styles.wrapper}>
       <Header showTotal={true} title="Fiado" />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Grade de Resumo Executivo em Linha Única Scrollable */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          snapToInterval={CARD_WIDTH + CARD_GAP}
-          decelerationRate="fast"
-          snapToAlignment="start"
-          contentContainerStyle={styles.metricsScroll}
-          style={styles.metricsContainer}
-        >
+      <AdaptiveContainer
+        safeArea={false}
+        sidebar={dashboardSidebar}
+        rightPanel={dashboardRightPanel}
+        contentContainerStyle={styles.scrollContent}
+      >
+        <AdaptiveGrid minItemWidth={160} maxColumns={4} style={styles.metricsContainer}>
           <MetricTile
             title="Recebido"
             value={formatCurrency(recebidoHoje)}
@@ -146,7 +149,6 @@ export default function HomeScreen() {
             valueStyle={styles.valBlue}
             onPress={() => router.push('/home-details?kind=todayCollections')}
             icon="cash-outline"
-            index={0}
           />
           <MetricTile
             title="A Receber"
@@ -155,7 +157,6 @@ export default function HomeScreen() {
             valueStyle={styles.valGreen}
             onPress={() => router.push('/home-details?kind=balanceFiado')}
             icon="trending-up-outline"
-            index={1}
           />
           <MetricTile
             title="Devedores"
@@ -164,7 +165,6 @@ export default function HomeScreen() {
             valueStyle={styles.valAmber}
             onPress={() => router.push('/home-details?kind=pendingClients')}
             icon="person-outline"
-            index={2}
           />
           <MetricTile
             title="Clientes"
@@ -173,14 +173,11 @@ export default function HomeScreen() {
             valueStyle={styles.valIndigo}
             onPress={() => router.push('/home-details?kind=totalClients')}
             icon="bar-chart-outline"
-            index={3}
           />
-        </ScrollView>
+        </AdaptiveGrid>
 
         {/* Ações Rápidas - Clientes & Busca */}
-        <Animated.View
-            style={styles.searchSection}
-        >
+        <View style={styles.searchSection}>
           <View style={styles.searchBarContainer}>
             <Ionicons name="search" size={15} color={theme.colors.textMuted} style={{ marginRight: 6 }} />
             <TextInput
@@ -205,7 +202,7 @@ export default function HomeScreen() {
           >
             <Ionicons name="person-add-outline" size={18} color="#ffffff" />
           </TouchableOpacity>
-        </Animated.View>
+        </View>
 
         {/* Resultados de Busca */}
         {searchQuery.trim().length > 0 && (
@@ -245,14 +242,12 @@ export default function HomeScreen() {
         )}
 
         {/* Linha do Tempo de Atividades Recentes */}
-        <Animated.View
-            style={styles.sectionHeader}
-        >
+        <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Últimas Movimentações na Loja</Text>
           <TouchableOpacity onPress={() => router.push('/relatorios')}>
             <Text style={styles.linkText}>Ver Relatórios</Text>
           </TouchableOpacity>
-        </Animated.View>
+        </View>
 
         <Card style={styles.feedCard}>
           {atividadesRecentes.length === 0 ? (
@@ -271,9 +266,7 @@ export default function HomeScreen() {
               const iconName = isDebt ? 'document-text-outline' : isPay ? 'cash-outline' : 'settings-outline';
 
               return (
-                <Animated.View
-                  key={tx.id || String(idx)}
-                >
+                <View key={tx.id || String(idx)}>
                   <TouchableOpacity
                     style={[styles.feedItem, idx === atividadesRecentes.length - 1 && { borderBottomWidth: 0 }]}
                     activeOpacity={0.7}
@@ -307,13 +300,13 @@ export default function HomeScreen() {
                       <Text style={styles.feedTime}>{timeStr}</Text>
                     </View>
                   </TouchableOpacity>
-                </Animated.View>
+                </View>
               );
             })
           )}
         </Card>
 
-      </ScrollView>
+      </AdaptiveContainer>
     </View>
   );
 }
@@ -324,83 +317,47 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   scrollContent: {
-    padding: 16,
-    paddingBottom: 40,
+    padding: 12,
+    paddingBottom: 24,
   },
   metricsContainer: {
-    marginBottom: 16,
-    marginHorizontal: -16,
-    paddingHorizontal: 16,
+    marginBottom: 10,
+    marginHorizontal: -12,
+    paddingHorizontal: 12,
   },
   metricsScroll: {
     paddingRight: 32,
     flexDirection: 'row',
   },
-  gridTileWrap: {
-    marginVertical: 4,
-    borderRadius: theme.borderRadius.md,
+  compactCard: {
     backgroundColor: '#ffffff',
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 2,
-  },
-  pressableContainer: {
-    borderRadius: theme.borderRadius.md,
-    overflow: 'hidden',
-  },
-  pressed: {
-    transform: [{ scale: 0.96 }],
-    opacity: 0.85,
-  },
-  gridCard: {
-    width: '100%',
-    padding: 10,
-    paddingTop: 10,
-    borderRadius: theme.borderRadius.md,
     borderWidth: 1,
-    minHeight: 72,
-    justifyContent: 'space-between',
-    backgroundColor: '#ffffff',
+    borderColor: theme.colors.border,
+    borderLeftWidth: 3,
+    borderRadius: theme.borderRadius.sm,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    marginVertical: 2,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.02,
+    shadowRadius: 6,
+    elevation: 1,
   },
-  cardAccentLine: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 3,
-    borderTopLeftRadius: theme.borderRadius.md,
-    borderTopRightRadius: theme.borderRadius.md,
-  },
-  cardHeaderRow: {
+  compactRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-start',
     alignItems: 'center',
-    width: '100%',
-    marginBottom: 4,
-    gap: 6,
   },
-  iconBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconBadgeText: {
-    fontSize: 11,
-  },
-  metricTitle: {
-    fontSize: 8,
+  compactTitle: {
+    fontSize: 10,
     textTransform: 'uppercase',
     color: theme.colors.textMuted,
     fontWeight: '800',
-    textAlign: 'left',
     letterSpacing: 0.5,
+    marginBottom: 1,
   },
-  metricVal: {
-    fontSize: 16,
+  compactValue: {
+    fontSize: 15,
     fontWeight: '900',
     fontFamily: 'Outfit',
   },
@@ -412,7 +369,7 @@ const styles = StyleSheet.create({
   searchSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   searchBarContainer: {
     flex: 1,
@@ -421,7 +378,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.inputBg,
     borderRadius: theme.borderRadius.md,
     paddingHorizontal: 12,
-    height: 44,
+    height: 38,
     borderWidth: 1,
     borderColor: theme.colors.border,
     marginRight: 8,
@@ -448,7 +405,7 @@ const styles = StyleSheet.create({
   },
   newCustBtn: {
     backgroundColor: theme.colors.primary,
-    height: 44,
+    height: 38,
     paddingHorizontal: 16,
     borderRadius: theme.borderRadius.md,
     justifyContent: 'center',
@@ -528,8 +485,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 12,
-    marginBottom: 8,
+    marginTop: 8,
+    marginBottom: 6,
   },
   sectionTitle: {
     fontSize: 15,
@@ -555,7 +512,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.inputBg,
   },
@@ -619,5 +576,45 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: theme.colors.textMuted,
     textDecorationLine: 'underline',
+  },
+  sidebarContent: {
+    padding: 16,
+    gap: 8,
+  },
+  sidebarItem: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: 12,
+    backgroundColor: theme.colors.inputBg,
+  },
+  sidebarItemText: {
+    marginLeft: 10,
+    fontSize: 14,
+    fontWeight: '700',
+    color: theme.colors.textMain,
+  },
+  rightPanelContent: {
+    padding: 18,
+  },
+  panelTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: theme.colors.textMuted,
+    textTransform: 'uppercase',
+  },
+  panelValue: {
+    marginTop: 10,
+    fontSize: 38,
+    fontWeight: '900',
+    color: theme.colors.accent,
+    fontFamily: 'Outfit',
+  },
+  panelMuted: {
+    marginTop: 4,
+    fontSize: 13,
+    color: theme.colors.textMuted,
+    lineHeight: 18,
   },
 });

@@ -131,6 +131,77 @@ export async function bootstrapOwnerProfile(params: {
   return data as string; // business_id
 }
 
+function mimeFromUri(uri: string) {
+  const clean = uri.split('?')[0]?.toLowerCase() || '';
+  if (clean.endsWith('.png')) return 'image/png';
+  if (clean.endsWith('.webp')) return 'image/webp';
+  return 'image/jpeg';
+}
+
+export async function uploadOwnerProfilePicture(uri: string, mimeType?: string | null) {
+  const session = (await supabase.auth.getSession()).data.session;
+  const userId = session?.user?.id;
+  if (!userId) throw new Error('NOT_AUTHENTICATED');
+
+  const mime = mimeType || mimeFromUri(uri);
+  const ext = mime.includes('png') ? 'png' : mime.includes('webp') ? 'webp' : 'jpg';
+  const path = `${userId}/avatar.${ext}`;
+  const response = await fetch(uri);
+  const blob = await response.blob();
+
+  const { error } = await supabase.storage
+    .from('owner-pictures')
+    .upload(path, blob as any, { contentType: mime, upsert: true } as any);
+  if (error) throw error;
+
+  const { data } = await supabase.storage.from('owner-pictures').createSignedUrl(path, 60 * 60 * 24 * 7);
+  return { path, mime_type: mime, signed_url: data?.signedUrl || uri };
+}
+
+export async function updateOwnerProfile(params: {
+  full_name?: string | null;
+  business_name?: string | null;
+  phone?: string | null;
+  pix_key?: string | null;
+  avatar_storage_path?: string | null;
+  avatar_mime_type?: string | null;
+  picture_url?: string | null;
+  clear_avatar?: boolean;
+}) {
+  const { data, error } = await supabase.rpc('update_owner_profile', {
+    p_full_name: params.full_name ?? null,
+    p_business_name: params.business_name ?? null,
+    p_phone: params.phone ?? null,
+    p_pix_key: params.pix_key ?? null,
+    p_avatar_storage_path: params.avatar_storage_path ?? null,
+    p_avatar_mime_type: params.avatar_mime_type ?? null,
+    p_clear_avatar: Boolean(params.clear_avatar),
+  });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+
+  await supabase.auth.updateUser({
+    data: {
+      full_name: params.full_name || undefined,
+      picture: params.picture_url || undefined,
+      avatar_url: params.picture_url || undefined,
+      avatar_storage_path: row?.avatar_storage_path || undefined,
+      avatar_mime_type: row?.avatar_mime_type || undefined,
+    },
+  });
+
+  return row as {
+    profile_id: string;
+    business_id: string;
+    full_name: string | null;
+    business_name: string | null;
+    phone: string | null;
+    pix_key: string | null;
+    avatar_storage_path: string | null;
+    avatar_mime_type: string | null;
+  };
+}
+
 // ============================================================================
 // SERVIÇOS DE DADOS COMPARTILHADOS (Tipados com @controle-fiado/types)
 // ============================================================================
@@ -194,8 +265,27 @@ export async function updateCustomer(params: {
   picture_mime_type?: string | null;
   clear_photo?: boolean;
 }) {
+  try {
+    const { data, error } = await supabase.rpc('update_customer_enforced', {
+      p_customer_id: params.customer_id,
+      p_name: params.name ?? null,
+      p_phone: params.phone ?? null,
+      p_email: params.email ?? null,
+      p_address: params.address ?? null,
+      p_notes: params.notes ?? null,
+      p_credit_limit: params.credit_limit ?? null,
+      p_picture_storage_path: params.picture_storage_path ?? null,
+      p_picture_mime_type: params.picture_mime_type ?? null,
+      p_clear_photo: Boolean(params.clear_photo),
+    });
+    if (!error) return data as Customer;
+  } catch {
+    // Older deployments may not have the RPC yet; fall back to RLS-protected update.
+  }
+
   const payload: Record<string, any> = {};
   if (params.name !== undefined) payload.name = params.name;
+  if (params.name !== undefined) payload.full_name = params.name;
   if (params.phone !== undefined) payload.phone = params.phone;
   if (params.email !== undefined) payload.email = params.email;
   if (params.address !== undefined) payload.address = params.address;
@@ -218,6 +308,31 @@ export async function updateCustomer(params: {
     .single();
   if (error) throw error;
   return data as Customer;
+}
+
+export async function verifyGooglePlaySubscription(params: {
+  packageName: string;
+  productId: string;
+  purchaseToken: string;
+}) {
+  const { data, error } = await supabase.functions.invoke('verify-google-play-purchase', {
+    body: {
+      packageName: params.packageName,
+      productId: params.productId,
+      purchaseToken: params.purchaseToken,
+    },
+  });
+
+  if (error) throw error;
+  if ((data as any)?.error) throw new Error(String((data as any).error));
+  return data as {
+    success: boolean;
+    plan_id: 'premium_monthly';
+    product_id: string;
+    status: string;
+    current_period_end: string | null;
+    is_premium: boolean;
+  };
 }
 
 export async function createTransactionEnforced(params: {

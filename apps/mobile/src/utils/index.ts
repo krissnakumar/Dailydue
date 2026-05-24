@@ -3,6 +3,8 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Platform, Share } from 'react-native';
 
+import { openClientWhatsapp } from './whatsapp';
+
 export function formatCurrency(amount: number): string {
   return Number(amount || 0).toLocaleString('pt-BR', {
     style: 'currency',
@@ -20,7 +22,9 @@ export interface SendReminderParams {
   lastItems: Array<{ description: string; amount: number }>;
   phone?: string;
   pixKey?: string;
-  messageType?: 'simple' | 'detailed';
+  messageType?: 'simple' | 'detailed' | 'default';
+  businessName?: string;
+  dueDate?: string;
 }
 
 export async function sendWhatsappReminder({
@@ -29,37 +33,32 @@ export async function sendWhatsappReminder({
   lastItems,
   phone,
   pixKey = 'mercadinho@bairro.com.br',
-  messageType = 'detailed',
+  messageType = 'default',
+  businessName,
+  dueDate,
 }: SendReminderParams) {
   const firstName = customerName.split(' ')[0];
   let msg = '';
 
   if (messageType === 'simple') {
     msg = `Olá, ${firstName}! Tudo bem? ✅ 📖\nPassando para enviar o lembrete de pagamento do seu saldo no Caderninho.\n\n*Valor pendente:* ${formatCurrency(totalDebt)}\n\nFacilite o pagamento com a nossa chave PIX Copia e Cola: *${pixKey}*\n\nObrigado pela preferência! 🙏`;
-  } else {
+  } else if (messageType === 'detailed') {
     let itemsText = '';
     lastItems.slice(0, 5).forEach((item) => {
       itemsText += `\n▫️ ${item.description} - ${formatCurrency(item.amount)}`;
     });
     msg = `Olá, ${firstName}! Tudo bem? ✅ 📖\nPassando para enviar o resumo da sua continha no nosso Caderninho de Fiado.\n\n*Total devendo:* ${formatCurrency(totalDebt)}\n\n*Últimos itens anotados:*${itemsText}\n\nFacilite o pagamento com a nossa chave PIX Copia e Cola: *${pixKey}*\n\nObrigado pela preferência e amizade de sempre! 🙏`;
-  }
-
-  const encodedMsg = encodeURIComponent(msg);
-  const cleanPhone = sanitizePhone(phone || '');
-
-  let url = `https://api.whatsapp.com/send?text=${encodedMsg}`;
-  if (cleanPhone && cleanPhone.length >= 10) {
-    const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
-    url = `https://api.whatsapp.com/send?phone=${fullPhone}&text=${encodedMsg}`;
-  }
-
-  const canOpen = await Linking.canOpenURL(url);
-  if (canOpen) {
-    await Linking.openURL(url);
   } else {
-    // Alternativa nativa de compartilhamento se o app não estiver instalado
-    await Share.share({ message: msg });
+    // User requested template as default
+    const formattedAmount = Number(totalDebt || 0).toLocaleString('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    const bName = businessName || 'nossa loja';
+    msg = `Olá ${customerName}, tudo bem?\n\nAqui é da ${bName}. Estou passando para lembrar do fiado pendente no valor de R$ ${formattedAmount}${dueDate ? `, com vencimento em ${dueDate}` : ""}.\n\nPode me dar um retorno quando possível?`;
   }
+
+  await openClientWhatsapp(phone, msg);
 }
 
 export async function sendWhatsappReceipt(
@@ -72,21 +71,7 @@ export async function sendWhatsappReceipt(
   const firstName = customerName.split(' ')[0];
   const msg = `🧾 *RECIBO DIGITAL - CONTROLE DE FIADO*\n\nOlá, ${firstName}!\nConfirmamos o recebimento do seu pagamento no valor de *${formatCurrency(amountPaid)}* (${method}).\n\n*Saldo anterior:* ${formatCurrency(totalDebt + amountPaid)}\n*Saldo restante atualizado:* ${formatCurrency(totalDebt)}\n\nAgradecemos muito pela pontualidade e preferência! 🙏`;
 
-  const encodedMsg = encodeURIComponent(msg);
-  const cleanPhone = sanitizePhone(phone || '');
-
-  let url = `https://api.whatsapp.com/send?text=${encodedMsg}`;
-  if (cleanPhone && cleanPhone.length >= 10) {
-    const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
-    url = `https://api.whatsapp.com/send?phone=${fullPhone}&text=${encodedMsg}`;
-  }
-
-  const canOpen = await Linking.canOpenURL(url);
-  if (canOpen) {
-    await Linking.openURL(url);
-  } else {
-    await Share.share({ message: msg });
-  }
+  await openClientWhatsapp(phone, msg);
 }
 
 export async function generateStatementPDF(
@@ -186,3 +171,4 @@ export async function generateStatementPDF(
   }
 }
 export * from './responsive';
+export * from './whatsapp';

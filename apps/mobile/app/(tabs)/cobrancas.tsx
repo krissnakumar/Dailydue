@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Header, Card, Button, AnimatedPopup } from '../../src/components';
@@ -23,6 +24,46 @@ export default function CobrancasScreen() {
   const [selectedForNotice, setSelectedForNotice] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [messageType, setMessageType] = useState<'simple' | 'detailed'>('detailed');
+  const [customPopup, setCustomPopup] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    icon?: string;
+    iconColor?: string;
+    buttons: {
+      text: string;
+      onPress: () => void;
+      variant?: 'primary' | 'secondary' | 'danger';
+    }[];
+  } | null>(null);
+
+  const showAlert = (
+    title: string,
+    message: string,
+    buttons?: { text: string; onPress?: () => void; variant?: 'primary' | 'secondary' | 'danger' }[],
+    icon?: string,
+    iconColor?: string
+  ) => {
+    setCustomPopup({
+      visible: true,
+      title,
+      message,
+      icon: icon || 'information-circle-outline',
+      iconColor: iconColor || theme.colors.primaryBrand,
+      buttons: buttons && buttons.length > 0 ? buttons.map(b => ({
+        text: b.text,
+        onPress: () => {
+          setCustomPopup(null);
+          if (b.onPress) b.onPress();
+        },
+        variant: b.variant
+      })) : [{
+        text: 'OK',
+        onPress: () => setCustomPopup(null),
+        variant: 'primary'
+      }]
+    });
+  };
 
   const totalEmAberto = customers.reduce((acc, curr) => acc + curr.total_debt, 0);
   const totalDevedores = customers.filter((c) => c.total_debt > 0).length;
@@ -67,14 +108,15 @@ export default function CobrancasScreen() {
     }
   };
 
-  const handleSendReminder = (customer: any) => {
+  const handleSendReminder = (customer: any, typeOverride?: 'simple' | 'detailed' | 'default') => {
     sendWhatsappReminder({
       customerName: customer.full_name,
       totalDebt: customer.total_debt,
       lastItems: customer.history.map((h: any) => ({ description: h.description, amount: h.amount })),
       phone: customer.phone,
       pixKey: businessConfig.pixKey,
-      messageType,
+      messageType: typeOverride || messageType,
+      businessName: businessConfig.businessName,
     });
     setSelectedForNotice(null);
   };
@@ -83,7 +125,13 @@ export default function CobrancasScreen() {
     const selectedList = devedores.filter((c) => selectedIds.has(c.id));
     const comCelular = selectedList.filter((c) => c.phone && c.phone.length >= 10);
     if (comCelular.length === 0) {
-      Alert.alert('Aviso', 'Nenhum dos clientes selecionados possui celular/WhatsApp válido cadastrado.');
+      showAlert(
+        'Aviso',
+        'Nenhum dos clientes selecionados possui celular/WhatsApp válido cadastrado.',
+        [{ text: 'Entendi', variant: 'primary' }],
+        'alert-circle-outline',
+        '#eab308'
+      );
       return;
     }
 
@@ -92,11 +140,19 @@ export default function CobrancasScreen() {
     const sendNext = () => {
       if (currentIndex < comCelular.length) {
         const customer = comCelular[currentIndex];
-        Alert.alert(
-          'Próximo Envio',
-          `Enviar cobrança (${messageType === 'simple' ? 'Simplificada' : 'Detalhada'}) para ${customer.full_name}? (${currentIndex + 1}/${comCelular.length})`,
+        showAlert(
+          'Enviar Cobrança',
+          `Deseja enviar cobrança (${messageType === 'simple' ? 'Simplificada' : 'Detalhada'}) para ${customer.full_name}? (${currentIndex + 1} de ${comCelular.length})`,
           [
-            { text: 'Parar', style: 'cancel' },
+            { text: 'Parar', onPress: () => {}, variant: 'danger' },
+            {
+              text: 'Pular',
+              onPress: () => {
+                currentIndex++;
+                setTimeout(sendNext, 300);
+              },
+              variant: 'secondary',
+            },
             {
               text: 'Enviar',
               onPress: () => {
@@ -104,28 +160,32 @@ export default function CobrancasScreen() {
                 currentIndex++;
                 setTimeout(sendNext, 1000);
               },
+              variant: 'primary',
             },
-            {
-              text: 'Pular',
-              onPress: () => {
-                currentIndex++;
-                sendNext();
-              },
-            },
-          ]
+          ],
+          'logo-whatsapp',
+          '#25D366'
         );
       } else {
-        Alert.alert('Sucesso', 'Processo de cobrança em lote finalizado.');
+        showAlert(
+          'Sucesso',
+          'Processo de cobrança em lote finalizado.',
+          [{ text: 'Concluir', variant: 'primary' }],
+          'checkmark-circle-outline',
+          '#10b981'
+        );
       }
     };
 
-    Alert.alert(
+    showAlert(
       'Cobrança em Lote',
       `Iniciar envio sequencial (${messageType === 'simple' ? 'Simplificado' : 'Detalhado'}) para ${comCelular.length} cliente(s) selecionado(s)?`,
       [
-        { text: 'Não', style: 'cancel' },
-        { text: 'Sim, Iniciar', onPress: sendNext },
-      ]
+        { text: 'Não', variant: 'secondary' },
+        { text: 'Sim, Iniciar', onPress: sendNext, variant: 'primary' },
+      ],
+      'chatbubbles-outline',
+      '#0284c7'
     );
   };
 
@@ -135,15 +195,14 @@ export default function CobrancasScreen() {
 
       <Animated.View
         entering={FadeInDown.duration(0)}
-        style={styles.summaryContainer}
+        style={styles.summaryWrapper}
       >
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryLabel}>Total Pendente</Text>
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryLabel}>Pendente</Text>
           <Text style={styles.summaryVal}>{formatCurrency(totalEmAberto)}</Text>
         </View>
-        <View style={styles.summaryDivider} />
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryLabel}>Clientes Devedores</Text>
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryLabel}>Devedores</Text>
           <Text style={styles.summaryVal}>{totalDevedores}</Text>
         </View>
       </Animated.View>
@@ -182,66 +241,42 @@ export default function CobrancasScreen() {
         entering={FadeInDown.delay(0).duration(0)}
         style={styles.batchBox}
       >
-        <View style={styles.batchHeader}>
-          <View style={styles.batchIconBox}>
-            <Ionicons name="chatbubbles-outline" size={20} color="#0369a1" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.batchTitle}>Lembretes em Massa</Text>
-            <Text style={styles.batchDesc}>
-              Selecione os clientes abaixo para enviar cobranças no WhatsApp.
-            </Text>
-          </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Ionicons name="chatbubbles-outline" size={16} color="#0369a1" />
+          <Text style={styles.batchTitle}>Lote ({selectedIds.size})</Text>
         </View>
 
-        <View style={styles.batchDivider} />
-
-        <View style={styles.batchConfigRow}>
-          <View style={styles.batchCountBox}>
-            <Text style={styles.batchConfigLabel}>Selecionados</Text>
-            <Text style={styles.batchCountText}>
-              {selectedIds.size} de {devedores.length}
+        <View style={styles.toggleGroup}>
+          <TouchableOpacity
+            style={[styles.toggleBtn, messageType === 'simple' && styles.toggleBtnActive]}
+            onPress={() => setMessageType('simple')}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.toggleText, messageType === 'simple' && styles.toggleTextActive]}>
+              Total
             </Text>
-          </View>
-
-          <View style={styles.batchModelBox}>
-            <Text style={styles.batchConfigLabel}>Modelo de Lembrete</Text>
-            <View style={styles.toggleGroup}>
-              <TouchableOpacity
-                style={[styles.toggleBtn, messageType === 'simple' && styles.toggleBtnActive]}
-                onPress={() => setMessageType('simple')}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.toggleText, messageType === 'simple' && styles.toggleTextActive]}>
-                  Só o Total
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.toggleBtn, messageType === 'detailed' && styles.toggleBtnActive]}
-                onPress={() => setMessageType('detailed')}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.toggleText, messageType === 'detailed' && styles.toggleTextActive]}>
-                  Detalhado
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.toggleBtn, messageType === 'detailed' && styles.toggleBtnActive]}
+            onPress={() => setMessageType('detailed')}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.toggleText, messageType === 'detailed' && styles.toggleTextActive]}>
+              Detalhes
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <TouchableOpacity
           style={[
-            styles.batchSendBtn,
+            styles.batchSendBtnCompact,
             (selectedIds.size === 0) && styles.batchSendBtnDisabled
           ]}
           onPress={handleSendBatch}
           disabled={selectedIds.size === 0}
           activeOpacity={0.8}
         >
-          <Ionicons name="logo-whatsapp" size={18} color="#ffffff" style={{ marginRight: 8 }} />
-          <Text style={styles.batchSendText}>
-            Enviar no WhatsApp ({selectedIds.size})
-          </Text>
+          <Ionicons name="logo-whatsapp" size={16} color="#ffffff" />
         </TouchableOpacity>
       </Animated.View>
 
@@ -283,7 +318,7 @@ export default function CobrancasScreen() {
                   >
                     <Ionicons
                       name={selectedIds.has(c.id) ? "checkmark-circle" : "ellipse-outline"}
-                      size={22}
+                      size={20}
                       color={selectedIds.has(c.id) ? theme.colors.primaryBrand : theme.colors.textMuted}
                     />
                   </TouchableOpacity>
@@ -292,43 +327,28 @@ export default function CobrancasScreen() {
                   <TouchableOpacity
                     style={styles.cardMainContent}
                     activeOpacity={0.7}
-                    onPress={() => setSelectedForNotice(c)}
+                    onPress={() => router.push(`/clientes/${c.id}`)}
                   >
                     <View style={styles.clientInfo}>
-                      <View style={styles.avatar}>
-                        <Text style={styles.avatarText}>{c.full_name[0].toUpperCase()}</Text>
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.clientName} numberOfLines={1}>{c.full_name}</Text>
-                        <Text style={styles.phoneText} numberOfLines={1}>
-                          {hasPhone ? `WhatsApp: +55 ${c.phone}` : 'Sem WhatsApp'}
-                        </Text>
-                      </View>
-                      <View style={styles.debtBox}>
-                        <Text style={styles.debtLabel}>Deve</Text>
-                        <Text style={styles.debtValue}>{formatCurrency(c.total_debt)}</Text>
-                      </View>
+                      <Text style={styles.clientName} numberOfLines={1}>
+                        {c.full_name}
+                      </Text>
+                      <Text style={styles.debtValue}>
+                        {formatCurrency(c.total_debt)}
+                      </Text>
                     </View>
                   </TouchableOpacity>
 
-                  {/* Direct Send Icon */}
-                  <TouchableOpacity
-                    style={[styles.quickSendBtn, !hasPhone && styles.quickSendBtnDisabled]}
-                    activeOpacity={0.7}
-                    onPress={() => {
-                      if (hasPhone) {
-                        handleSendReminder(c);
-                      } else {
-                        setSelectedForNotice(c);
-                      }
-                    }}
-                  >
-                    <Ionicons
-                      name={hasPhone ? "logo-whatsapp" : "share-social-outline"}
-                      size={20}
-                      color={hasPhone ? "#25D366" : theme.colors.textMuted}
-                    />
-                  </TouchableOpacity>
+                  {/* Small WhatsApp Icon Button */}
+                  {hasPhone && (
+                    <TouchableOpacity
+                      style={styles.smallWhatsappBtn}
+                      activeOpacity={0.7}
+                      onPress={() => handleSendReminder(c, 'default')}
+                    >
+                      <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
+                    </TouchableOpacity>
+                  )}
                 </View>
               </Animated.View>
             );
@@ -416,6 +436,52 @@ export default function CobrancasScreen() {
           </View>
         )}
       </AnimatedPopup>
+
+      {/* Custom Centered Alert/Confirm Dialog Popup */}
+      {!!customPopup && (
+        <View style={StyleSheet.absoluteFill}>
+          <View style={styles.centeredOverlay}>
+            <TouchableWithoutFeedback onPress={() => setCustomPopup(null)}>
+              <View style={styles.centeredBackdrop} />
+            </TouchableWithoutFeedback>
+
+            <View style={styles.centeredPopupBox}>
+              <Text style={styles.customPopupTitle}>{customPopup?.title}</Text>
+              <Text style={styles.customPopupMessage}>{customPopup?.message}</Text>
+              <View style={[
+                styles.customPopupActions,
+                customPopup?.buttons && customPopup.buttons.length > 2
+                  ? { flexDirection: 'column', width: '100%', gap: 8 }
+                  : { flexDirection: 'row', width: '100%', gap: 12 }
+              ]}>
+                {customPopup?.buttons.map((btn, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    activeOpacity={0.8}
+                    style={[
+                      styles.customPopupBtn,
+                      customPopup.buttons.length <= 2 && { flex: 1 },
+                      btn.variant === 'primary' && styles.customPopupBtnPrimary,
+                      btn.variant === 'danger' && styles.customPopupBtnDanger,
+                      btn.variant === 'secondary' && styles.customPopupBtnSecondary,
+                    ]}
+                    onPress={btn.onPress}
+                  >
+                    <Text
+                      style={[
+                        styles.customPopupBtnText,
+                        btn.variant === 'secondary' ? styles.customPopupBtnTextSecondary : styles.customPopupBtnTextPrimary,
+                      ]}
+                    >
+                      {btn.text}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -425,35 +491,37 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-  summaryContainer: {
+  summaryWrapper: {
     flexDirection: 'row',
-    backgroundColor: '#ffffff',
     marginHorizontal: 16,
-    marginTop: -20,
-    borderRadius: theme.borderRadius.md,
-    padding: 16,
-    ...theme.shadows.md,
-    alignItems: 'center',
+    marginTop: -8,
+    gap: 12,
+    maxWidth: 300,
+    width: '100%',
+    alignSelf: 'center',
   },
-  summaryItem: {
+  summaryCard: {
     flex: 1,
+    backgroundColor: '#ffffff',
+    borderRadius: theme.borderRadius.md,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     alignItems: 'center',
-  },
-  summaryDivider: {
-    width: 1,
-    height: 30,
-    backgroundColor: theme.colors.border,
+    justifyContent: 'center',
+    ...theme.shadows.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   summaryLabel: {
-    fontSize: 11,
+    fontSize: 10,
     color: theme.colors.textMuted,
     textTransform: 'uppercase',
-    fontWeight: '600',
-    marginBottom: 4,
+    fontWeight: '700',
+    marginBottom: 2,
   },
   summaryVal: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '800',
     color: theme.colors.textMain,
     fontFamily: 'Outfit',
   },
@@ -487,66 +555,21 @@ const styles = StyleSheet.create({
   batchBox: {
     backgroundColor: '#e0f2fe',
     marginHorizontal: 16,
-    marginTop: 16,
-    padding: 16,
-    borderRadius: 16,
+    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#bae6fd',
-  },
-  batchHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  batchIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  batchTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0369a1',
-  },
-  batchDesc: {
-    fontSize: 11,
-    color: '#075985',
-    lineHeight: 14,
-    marginTop: 2,
-  },
-  batchDivider: {
-    height: 1,
-    backgroundColor: '#bae6fd',
-    marginVertical: 12,
-  },
-  batchConfigRow: {
-    flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 14,
     gap: 8,
   },
-  batchCountBox: {
-    flex: 1,
-  },
-  batchModelBox: {
-    flex: 1.5,
-    alignItems: 'flex-end',
-  },
-  batchConfigLabel: {
-    fontSize: 9,
+  batchTitle: {
+    fontSize: 12,
     fontWeight: '700',
     color: '#0369a1',
-    textTransform: 'uppercase',
-    marginBottom: 4,
-  },
-  batchCountText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#075985',
   },
   toggleGroup: {
     flexDirection: 'row',
@@ -555,7 +578,7 @@ const styles = StyleSheet.create({
     padding: 2,
   },
   toggleBtn: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 6,
   },
@@ -575,23 +598,22 @@ const styles = StyleSheet.create({
     color: theme.colors.primaryBrand,
     fontWeight: '700',
   },
-  batchSendBtn: {
-    flexDirection: 'row',
+  batchSendBtnCompact: {
     backgroundColor: '#25D366',
-    paddingVertical: 10,
-    borderRadius: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    ...theme.shadows.sm,
+    shadowColor: '#25D366',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
   },
   batchSendBtnDisabled: {
     backgroundColor: '#94a3b8',
     opacity: 0.6,
-  },
-  batchSendText: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '700',
   },
   listContent: {
     paddingHorizontal: 16,
@@ -625,10 +647,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
-    borderRadius: 16,
-    marginBottom: 12,
+    borderRadius: 12,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: theme.colors.border,
+    paddingHorizontal: 4,
     ...theme.shadows.sm,
   },
   clientCardAtrasado: {
@@ -636,70 +659,37 @@ const styles = StyleSheet.create({
     backgroundColor: '#fffafb',
   },
   checkboxContainer: {
-    paddingLeft: 12,
-    paddingRight: 6,
-    height: '100%',
+    paddingHorizontal: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
   cardMainContent: {
     flex: 1,
     paddingVertical: 12,
+    paddingRight: 8,
   },
   clientInfo: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: theme.colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  avatarText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: theme.colors.primaryDark,
   },
   clientName: {
     fontSize: 14,
-    fontWeight: '700',
-    color: theme.colors.textMain,
-  },
-  phoneText: {
-    fontSize: 11,
-    color: theme.colors.textMuted,
-    marginTop: 2,
-  },
-  debtBox: {
-    alignItems: 'flex-end',
-    paddingRight: 8,
-  },
-  debtLabel: {
-    fontSize: 9,
-    color: theme.colors.textMuted,
-    textTransform: 'uppercase',
     fontWeight: '600',
+    color: theme.colors.textMain,
+    flex: 1,
   },
   debtValue: {
     fontSize: 14,
     fontWeight: '700',
     color: theme.colors.accent,
     fontFamily: 'Outfit',
+    marginRight: 4,
   },
-  quickSendBtn: {
+  smallWhatsappBtn: {
     paddingHorizontal: 12,
-    height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    borderLeftWidth: 1,
-    borderLeftColor: '#f1f5f9',
-  },
-  quickSendBtnDisabled: {
-    opacity: 0.5,
   },
   emptyState: {
     alignItems: 'center',
@@ -751,5 +741,70 @@ const styles = StyleSheet.create({
   popupActions: {
     flexDirection: 'row',
     gap: 12,
+  },
+  centeredOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  centeredBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+  },
+  centeredPopupBox: {
+    width: '85%',
+    maxWidth: 280,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    ...theme.shadows.lg,
+  },
+  customPopupTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: theme.colors.textMain,
+    fontFamily: 'Outfit',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  customPopupMessage: {
+    fontSize: 12,
+    color: theme.colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 16,
+    marginBottom: 16,
+    paddingHorizontal: 4,
+  },
+  customPopupActions: {
+    gap: 8,
+  },
+  customPopupBtn: {
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  customPopupBtnPrimary: {
+    backgroundColor: theme.colors.primaryBrand,
+  },
+  customPopupBtnDanger: {
+    backgroundColor: '#ef4444',
+  },
+  customPopupBtnSecondary: {
+    backgroundColor: '#f1f5f9',
+    borderColor: '#e2e8f0',
+  },
+  customPopupBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  customPopupBtnTextPrimary: {
+    color: '#ffffff',
+  },
+  customPopupBtnTextSecondary: {
+    color: '#475569',
   },
 });

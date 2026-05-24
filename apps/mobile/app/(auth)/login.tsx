@@ -566,7 +566,7 @@ export default function LoginScreen() {
               <Animated.Image
                 source={require('../../assets/icon.png')}
                 style={[
-                  { width: 64, height: 64, marginBottom: 8, borderRadius: 12 },
+                  { width: 44, height: 44, borderRadius: 10, marginRight: 0 },
                   iconStyle,
                 ]}
               />
@@ -761,7 +761,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   logoContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 24,
     overflow: 'hidden',
   },

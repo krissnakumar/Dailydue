@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, ViewProps, StyleSheet } from 'react-native';
 import { theme } from '../theme';
+import { useAdaptiveColors } from '../utils/responsive';
 
 export interface CardProps extends ViewProps {
   children: React.ReactNode;
@@ -15,10 +16,13 @@ export const Card: React.FC<CardProps> = ({
   statusColor,
   ...props
 }) => {
+  const colors = useAdaptiveColors();
+
   return (
     <View
       style={[
         styles.card,
+        { backgroundColor: colors.surface, borderColor: colors.border },
         variant === 'highlight' && styles.highlight,
         statusColor ? { borderLeftWidth: 4, borderLeftColor: statusColor } : null,
         style,

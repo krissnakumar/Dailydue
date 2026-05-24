@@ -16,16 +16,22 @@ import { useFiadoStore } from '../../src/store';
 import { formatCurrency, sendWhatsappReceipt } from '../../src/utils';
 import { theme } from '../../src/theme';
 import { Ionicons } from '@expo/vector-icons';
+import { useAdaptiveColors, useResponsive } from '../../src/utils/responsive';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function PagamentosModal() {
   const router = useRouter();
   const params = useLocalSearchParams<{ customerId?: string }>();
+  const layout = useResponsive();
+  const colors = useAdaptiveColors();
+  const insets = useSafeAreaInsets();
   const { customers, receivePayment, subscription, getCurrentMonthTransactionsCount } = useFiadoStore();
 
   const [selectedCustId, setSelectedCustId] = useState<string>(params.customerId || '');
   const [payMethod, setPayMethod] = useState<'dinheiro' | 'PIX' | 'cartao'>('dinheiro');
   const [amountStr, setAmountStr] = useState('');
   const [sendReceipt, setSendReceipt] = useState(false);
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
 
   // Seleciona o primeiro cliente devedor se não vier preenchido
   useEffect(() => {
@@ -65,6 +71,14 @@ export default function PagamentosModal() {
 
     if (!selectedCustId || !targetCust) {
       Alert.alert('Ops!', 'Quem fez o pagamento? Selecione um cliente. 👤');
+      return;
+    }
+
+    if (amt > currentDebt) {
+      Alert.alert(
+        'Valor Excedido ⚠️',
+        `O pagamento (R$ ${amt.toFixed(2)}) não pode ser maior que a dívida atual (R$ ${currentDebt.toFixed(2)}).`
+      );
       return;
     }
 
@@ -116,6 +130,11 @@ export default function PagamentosModal() {
             { text: 'Ver Planos', onPress: () => router.push('/subscription') }
           ]
         );
+      } else if (err.message === 'PAYMENT_EXCEEDS_DEBT') {
+        Alert.alert(
+          'Valor Excedido ⚠️',
+          `O valor do pagamento não pode ser maior que a dívida atual.`
+        );
       } else {
         Alert.alert('Eita!', 'Não conseguimos salvar agora. Tente de novo! 😅');
       }
@@ -124,59 +143,94 @@ export default function PagamentosModal() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.wrapper}
+      style={[styles.wrapper, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 12), backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <View style={[styles.headerInner, { maxWidth: layout.formMaxWidth + layout.spacing.screen * 2 }]}>
         <View style={styles.headerLeft}>
-          <Text style={styles.headerTitle}>Receber Pagamento</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Receber Pagamento</Text>
           <Text style={styles.headerBadge}>Abater Dívida</Text>
         </View>
         <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
           <Ionicons name="close" size={24} color={theme.colors.textMuted} />
         </TouchableOpacity>
+        </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            maxWidth: layout.formMaxWidth,
+            alignSelf: 'center',
+            width: '100%',
+            paddingHorizontal: layout.spacing.screen,
+            paddingBottom: layout.spacing.xl + insets.bottom + 24,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* 1. Selecionar Cliente */}
         <View style={styles.formGroup}>
-          <Text style={styles.label}>1. Selecione o Cliente *</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.custScroll}>
-            {customers.map((c) => {
-              const isSelected = c.id === selectedCustId;
-              const hasDebt = c.total_debt > 0;
-              return (
+          <Text style={[styles.label, { color: colors.text }]}>1. Selecione o Cliente *</Text>
+          <TouchableOpacity
+            style={[styles.dropdownSelector, { backgroundColor: colors.mutedSurface, borderColor: colors.border }]}
+            onPress={() => setShowCustomerDropdown(!showCustomerDropdown)}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.dropdownSelectorText, { color: colors.text }]} numberOfLines={1}>
+              {selectedCustId 
+                ? (() => {
+                    const c = customers.find((cust) => cust.id === selectedCustId);
+                    return c ? `${c.full_name} (${formatCurrency(c.total_debt)})` : 'Selecione um…';
+                  })()
+                : 'Selecione um…'}
+            </Text>
+            <Ionicons
+              name={showCustomerDropdown ? 'chevron-up' : 'chevron-down'}
+              size={20}
+              color={theme.colors.textMuted}
+            />
+          </TouchableOpacity>
+
+          {showCustomerDropdown && (
+            <View style={[styles.dropdownList, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <TouchableOpacity
+                style={styles.dropdownCreateBtn}
+                onPress={() => {
+                  setShowCustomerDropdown(false);
+                  router.push('/clientes/novo?next=pagamentos');
+                }}
+              >
+                <Ionicons name="add-circle-outline" size={20} color={theme.colors.primary} style={{ marginRight: 8 }} />
+                <Text style={styles.dropdownCreateText}>Cadastrar Novo Cliente</Text>
+              </TouchableOpacity>
+
+              {customers.map((c) => (
                 <TouchableOpacity
                   key={c.id}
-                  style={[
-                    styles.custChip,
-                    isSelected && styles.custChipActive,
-                    !hasDebt && { opacity: 0.6 },
-                  ]}
+                  style={[styles.dropdownItem, { borderBottomColor: colors.border }, selectedCustId === c.id && styles.dropdownItemActive]}
                   onPress={() => {
                     setSelectedCustId(c.id);
                     setAmountStr('');
+                    setShowCustomerDropdown(false);
                   }}
-                  activeOpacity={0.8}
                 >
-                  <Text style={[styles.custChipText, isSelected && styles.custChipTextActive]}>
-                    {c.full_name.split(' ')[0]} • {formatCurrency(c.total_debt)}
+                  <Text style={[styles.dropdownItemText, { color: colors.text }, selectedCustId === c.id && styles.dropdownItemTextActive]} numberOfLines={1}>
+                    {c.full_name} • {formatCurrency(c.total_debt)}
                   </Text>
+                  {selectedCustId === c.id && <Ionicons name="checkmark" size={18} color={theme.colors.primary} />}
                 </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+              ))}
+            </View>
+          )}
         </View>
 
-        {/* 2. Informação do Débito Atual */}
-        <View style={styles.debtPreviewBox}>
-          <Text style={styles.debtPreviewLabel}>Saldo Pendente do Cliente:</Text>
-          <Text style={styles.debtPreviewVal}>{formatCurrency(currentDebt)}</Text>
-        </View>
-
-        {/* 3. Forma de Pagamento */}
+        {/* 2. Forma de Pagamento */}
         <View style={styles.formGroup}>
-          <Text style={styles.label}>2. Método de Pagamento</Text>
+          <Text style={[styles.label, { color: colors.text }]}>2. Método de Pagamento</Text>
           <View style={styles.methodsRow}>
             <TouchableOpacity
               style={[styles.methodBtn, payMethod === 'dinheiro' && styles.methodBtnActive, { flexDirection: 'row' }]}
@@ -227,9 +281,9 @@ export default function PagamentosModal() {
 
         {/* 4. Valor Recebido com Display Gigante */}
         <View style={styles.formGroup}>
-          <Text style={styles.label}>3. Valor Recebido (R$) *</Text>
+          <Text style={[styles.label, { color: colors.text }]}>3. Valor Recebido (R$) *</Text>
           <TextInput
-            style={[styles.amountDisplay, styles.amountText, { textAlign: 'center' }]}
+            style={[styles.amountDisplay, styles.amountText, { textAlign: 'center', backgroundColor: colors.mutedSurface, borderColor: colors.border }]}
             value={amountStr}
             onChangeText={(text) => {
                const cleaned = text.replace(/[^0-9.,]/g, '').replace(',', '.');
@@ -263,7 +317,7 @@ export default function PagamentosModal() {
                 <Ionicons name="checkmark" size={14} color="#ffffff" />
               )}
             </View>
-            <Text style={styles.checkboxLabel}>Enviar recibo digital no WhatsApp do cliente</Text>
+            <Text style={[styles.checkboxLabel, { color: colors.text }]}>Enviar recibo digital no WhatsApp do cliente</Text>
           </TouchableOpacity>
         ) : null}
 
@@ -283,27 +337,30 @@ export default function PagamentosModal() {
 const styles = StyleSheet.create({
   wrapper: {
     flex: 1,
-    backgroundColor: theme.colors.card,
-    marginTop: Platform.OS === 'ios' ? 40 : 0,
   },
   header: {
+    padding: 16,
+    borderBottomWidth: 1,
+  },
+  headerInner: {
+    width: '100%',
+    alignSelf: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-    backgroundColor: theme.colors.inputBg,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    flex: 1,
+    marginRight: 12,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: theme.colors.textMain,
-    marginRight: 8,
   },
   headerBadge: {
     backgroundColor: '#d1fae5',
@@ -315,7 +372,10 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   closeBtn: {
-    padding: 4,
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   closeText: {
     fontSize: 18,
@@ -339,69 +399,87 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginBottom: 4,
   },
-  custChip: {
+  dropdownSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: theme.colors.inputBg,
     borderWidth: 1,
     borderColor: theme.colors.border,
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    minHeight: 38,
     borderRadius: theme.borderRadius.sm,
+  },
+  dropdownSelectorText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.textMain,
+    flex: 1,
     marginRight: 8,
   },
-  custChipActive: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primaryDark,
-  },
-  custChipText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: theme.colors.textMuted,
-  },
-  custChipTextActive: {
-    color: '#ffffff',
-  },
-  debtPreviewBox: {
-    backgroundColor: '#f8fafc',
+  dropdownList: {
+    backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: theme.borderRadius.sm,
-    padding: 12,
+    marginTop: 4,
+    ...theme.shadows.sm,
+  },
+  dropdownCreateBtn: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+    backgroundColor: '#f8fafc',
   },
-  debtPreviewLabel: {
-    fontSize: 13,
-    color: theme.colors.textMuted,
+  dropdownCreateText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.primary,
   },
-  debtPreviewVal: {
-    fontSize: 18,
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.inputBg,
+  },
+  dropdownItemActive: {
+    backgroundColor: '#f0fdf4',
+  },
+  dropdownItemText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: theme.colors.textMain,
+  },
+  dropdownItemTextActive: {
     fontWeight: '700',
-    color: theme.colors.accent,
-    fontFamily: 'Outfit',
+    color: theme.colors.primary,
   },
+
   methodsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 6,
   },
   methodBtn: {
     flex: 1,
-    height: 44,
+    minHeight: 36,
     backgroundColor: theme.colors.inputBg,
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: theme.borderRadius.sm,
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: 4,
+    paddingHorizontal: 4,
   },
   methodBtnActive: {
     backgroundColor: theme.colors.successBg,
     borderColor: theme.colors.success,
   },
   methodText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: theme.colors.textMuted,
   },
@@ -414,33 +492,36 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: theme.colors.border,
     borderRadius: theme.borderRadius.md,
-    height: 64,
+    height: 52,
     alignItems: 'center',
     justifyContent: 'center',
   },
   amountText: {
-    fontSize: 32,
+    fontSize: 26,
     fontWeight: '700',
     color: theme.colors.primaryDark,
     fontFamily: 'Outfit',
   },
   shortcutsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    flexWrap: 'wrap',
+    gap: 8,
     marginTop: 10,
   },
   shortcutBtn: {
     backgroundColor: '#d1fae5',
     borderWidth: 1,
     borderColor: '#a7f3d0',
-    paddingVertical: 8,
+    minHeight: 36,
     paddingHorizontal: 16,
     borderRadius: theme.borderRadius.sm,
-    width: '45%',
+    flexGrow: 1,
+    flexBasis: 180,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   shortcutText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     color: theme.colors.primaryDark,
   },

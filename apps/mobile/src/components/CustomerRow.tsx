@@ -23,6 +23,7 @@ export interface CustomerRowProps {
   onSwipeLeft: () => void; // Payment
   onSwipeRight: () => void; // Add Debt
   pixKey?: string;
+  selected?: boolean;
 }
 
 export const CustomerRow: React.FC<CustomerRowProps> = ({
@@ -31,9 +32,10 @@ export const CustomerRow: React.FC<CustomerRowProps> = ({
   onSwipeLeft,
   onSwipeRight,
   pixKey,
+  selected,
 }) => {
   const swipeableRef = useRef<Swipeable>(null);
-  const { deleteCustomer, deleteHistoryItem } = useFiadoStore();
+  const { deleteCustomer, deleteHistoryItem, businessConfig } = useFiadoStore();
   const isZero = customer.total_debt === 0;
 
   // Verifica atraso crítico (> 15 dias)
@@ -50,6 +52,7 @@ export const CustomerRow: React.FC<CustomerRowProps> = ({
       lastItems: customer.history.map((h) => ({ description: h.description, amount: h.amount })),
       phone: customer.phone,
       pixKey,
+      businessName: businessConfig.businessName,
     });
   };
 
@@ -164,7 +167,7 @@ export const CustomerRow: React.FC<CustomerRowProps> = ({
       renderRightActions={renderRightActions}
       friction={2}
     >
-      <View style={styles.cardContainer}>
+      <View style={[styles.cardContainer, selected && styles.cardSelected]}>
         <TouchableOpacity style={styles.mainArea} onPress={onPress} activeOpacity={0.7}>
           <View style={styles.leftInfo}>
             <View
@@ -192,7 +195,33 @@ export const CustomerRow: React.FC<CustomerRowProps> = ({
               <Text style={styles.nameText} numberOfLines={1}>
                 {customer.full_name}
               </Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+              {(customer.phone || customer.documentValue) ? (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 2 }}>
+                  {customer.phone ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                      <Ionicons name="call-outline" size={10} color={theme.colors.textMuted} />
+                      <Text style={styles.metadataText}>{customer.phone}</Text>
+                    </View>
+                  ) : null}
+                  {customer.documentValue ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                      <Ionicons name="card-outline" size={10} color={theme.colors.textMuted} />
+                      <Text style={styles.metadataText}>
+                        {customer.documentType?.toUpperCase()}: {customer.documentValue}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
+              {customer.address ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 }}>
+                  <Ionicons name="pin-outline" size={10} color={theme.colors.textMuted} />
+                  <Text style={styles.metadataText} numberOfLines={1}>
+                    {customer.address}
+                  </Text>
+                </View>
+              ) : null}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
                 <Ionicons name="time-outline" size={11} color={theme.colors.textMuted} />
                 <Text style={[styles.lastItemText, { marginTop: 0 }]} numberOfLines={1}>
                   {lastItem}
@@ -256,6 +285,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     ...theme.shadows.sm,
+  },
+  cardSelected: {
+    borderColor: theme.colors.primary,
+    borderWidth: 2,
+    backgroundColor: '#f0fdf4',
   },
   mainArea: {
     flexDirection: 'row',
@@ -405,5 +439,10 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
+  },
+  metadataText: {
+    fontSize: 10,
+    color: theme.colors.textMuted,
+    fontWeight: '600',
   },
 });

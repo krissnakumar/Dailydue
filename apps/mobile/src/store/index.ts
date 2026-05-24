@@ -27,6 +27,7 @@ export interface CustomerClient {
   business_id: string;
   full_name: string;
   phone: string;
+  whatsapp?: string;
   total_debt: number;
   created_at: string;
   history: HistoryItem[];
@@ -314,10 +315,10 @@ export const useFiadoStore = create<FiadoMobileState>()(
                 max_customers: row.max_customers,
                 max_transactions_per_month: row.max_transactions_per_month,
                 is_premium: !!row.is_premium,
-                status: 'active',
-                current_period_end: null,
+                status: row.status || 'active',
+                current_period_end: row.current_period_end || null,
                 is_simulated: false,
-                source: 'cloud',
+                source: row.source === 'google_play' ? 'play' : 'cloud',
               }
             });
           }
@@ -515,6 +516,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
           business_id: 'biz_production_br_01',
           full_name: name.trim(),
           phone: cleanPhone,
+          whatsapp: cleanPhone,
           total_debt: 0,
           created_at: new Date().toISOString(),
           history: [],
@@ -579,6 +581,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
                 ...c,
                 full_name: name.trim() || c.full_name,
                 phone: cleanPhone,
+                whatsapp: cleanPhone,
                 cep: cep !== undefined ? cep : c.cep,
                 address: address !== undefined ? address : c.address,
                 documentType: documentType !== undefined ? documentType : c.documentType,
@@ -678,6 +681,11 @@ export const useFiadoStore = create<FiadoMobileState>()(
           if (txCount >= sub.max_transactions_per_month) {
             throw new Error('FREE_PLAN_TRANSACTION_LIMIT_REACHED');
           }
+        }
+
+        const customer = get().customers.find((c) => c.id === customerId);
+        if (customer && amount > customer.total_debt) {
+          throw new Error('PAYMENT_EXCEEDS_DEBT');
         }
 
         const methodLabel = method === 'PIX' ? 'Pagamento PIX' : method === 'cartao' ? 'Pagamento Cartão' : 'Pagamento Dinheiro';
@@ -1294,7 +1302,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
                description: t.description || '',
                amount: t.amount,
                created_at: t.created_at,
-               type: t.type as 'debt' | 'payment' | 'system',
+               type: (t.type || t.transaction_type) as 'debt' | 'payment' | 'system',
                created_by: t.created_by_name || 'Dono',
             }));
             
@@ -1308,8 +1316,9 @@ export const useFiadoStore = create<FiadoMobileState>()(
             mappedCustomers.push({
                id: sc.id,
                business_id: sc.business_id,
-               full_name: sc.name || '',
+               full_name: sc.name || (sc as any).full_name || '',
                phone: sc.phone || '',
+               whatsapp: sc.phone || '',
                total_debt: total_debt_calc,
                created_at: sc.created_at,
                history,

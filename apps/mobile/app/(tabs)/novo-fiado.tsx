@@ -15,10 +15,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../src/components/Button';
 import { theme } from '../../src/theme';
 import { useFiadoStore } from '../../src/store';
+import { useAdaptiveColors, useResponsive } from '../../src/utils/responsive';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function NovoFiadoPage() {
   const router = useRouter();
   const params = useLocalSearchParams<{ customerId?: string }>();
+  const layout = useResponsive();
+  const colors = useAdaptiveColors();
+  const insets = useSafeAreaInsets();
 
   const { customers, getSmartSuggestions, addDebt, subscription, getCurrentMonthTransactionsCount } = useFiadoStore();
 
@@ -125,13 +130,15 @@ export default function NovoFiadoPage() {
   };
 
   return (
-    <View style={styles.wrapper}>
-      <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.7}>
-          <Ionicons name="chevron-back" size={22} color={theme.colors.textMain} />
-        </TouchableOpacity>
-        <Text style={styles.topBarTitle}>Novo Fiado</Text>
-        <View style={{ width: 36 }} />
+    <View style={[styles.wrapper, { backgroundColor: colors.background }]}>
+      <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 12), backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <View style={[styles.topBarInner, { maxWidth: layout.formMaxWidth + layout.spacing.screen * 2 }]}>
+          <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: colors.mutedSurface, borderColor: colors.border }]} activeOpacity={0.7}>
+            <Ionicons name="chevron-back" size={22} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={[styles.topBarTitle, { color: colors.text }]}>Novo Fiado</Text>
+          <View style={styles.topBarSpacer} />
+        </View>
       </View>
 
       <KeyboardAvoidingView
@@ -141,24 +148,33 @@ export default function NovoFiadoPage() {
       >
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              maxWidth: layout.formMaxWidth,
+              alignSelf: 'center',
+              width: '100%',
+              paddingHorizontal: layout.spacing.screen,
+              paddingBottom: layout.spacing.xl + insets.bottom + 24,
+            },
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
         >
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>Lançamento Rápido</Text>
+          <View style={[styles.header, { backgroundColor: colors.mutedSurface, borderColor: colors.border }]}>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>Lançamento Rápido</Text>
             <Text style={styles.headerBadge}>Balcão em 5s</Text>
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>1. Selecione o Cliente *</Text>
+            <Text style={[styles.label, { color: colors.text }]}>1. Selecione o Cliente *</Text>
             <TouchableOpacity
-              style={styles.dropdownSelector}
+              style={[styles.dropdownSelector, { backgroundColor: colors.mutedSurface, borderColor: colors.border }]}
               onPress={() => setShowCustomerDropdown(!showCustomerDropdown)}
               activeOpacity={0.8}
             >
-              <Text style={styles.dropdownSelectorText}>
+              <Text style={[styles.dropdownSelectorText, { color: colors.text }]} numberOfLines={1}>
                 {selectedCustId ? customers.find((c) => c.id === selectedCustId)?.full_name || 'Selecione um…' : 'Selecione um…'}
               </Text>
               <Ionicons
@@ -169,7 +185,7 @@ export default function NovoFiadoPage() {
             </TouchableOpacity>
 
             {showCustomerDropdown && (
-              <View style={styles.dropdownList}>
+              <View style={[styles.dropdownList, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 <TouchableOpacity
                   style={styles.dropdownCreateBtn}
                   onPress={() => {
@@ -184,13 +200,13 @@ export default function NovoFiadoPage() {
                 {customers.map((c) => (
                   <TouchableOpacity
                     key={c.id}
-                    style={[styles.dropdownItem, selectedCustId === c.id && styles.dropdownItemActive]}
+                    style={[styles.dropdownItem, { borderBottomColor: colors.border }, selectedCustId === c.id && styles.dropdownItemActive]}
                     onPress={() => {
                       setSelectedCustId(c.id);
                       setShowCustomerDropdown(false);
                     }}
                   >
-                    <Text style={[styles.dropdownItemText, selectedCustId === c.id && styles.dropdownItemTextActive]}>{c.full_name}</Text>
+                    <Text style={[styles.dropdownItemText, { color: colors.text }, selectedCustId === c.id && styles.dropdownItemTextActive]} numberOfLines={1}>{c.full_name}</Text>
                     {selectedCustId === c.id && <Ionicons name="checkmark" size={18} color={theme.colors.primary} />}
                   </TouchableOpacity>
                 ))}
@@ -199,9 +215,9 @@ export default function NovoFiadoPage() {
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>2. O que levou?</Text>
+            <Text style={[styles.label, { color: colors.text }]}>2. O que levou?</Text>
             <TextInput
-              style={styles.descInput}
+              style={[styles.descInput, { backgroundColor: colors.mutedSurface, borderColor: colors.border, color: colors.text }]}
               placeholder="Digite para buscar ou adicionar item..."
               placeholderTextColor={theme.colors.textMuted}
               value={descInput}
@@ -213,35 +229,35 @@ export default function NovoFiadoPage() {
             />
 
             {showSuggestions && suggestions.length > 0 && (
-              <View style={styles.suggestBox}>
+              <View style={[styles.suggestBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 {suggestions.map((s, i) => (
                   <TouchableOpacity
                     key={s.name + i}
-                    style={styles.suggestRow}
+                    style={[styles.suggestRow, { borderBottomColor: colors.border }]}
                     onPress={() => handleChipSelect(s.name, s.price)}
                   >
-                    <Text style={styles.suggestName}>{s.name}</Text>
+                    <Text style={[styles.suggestName, { color: colors.text }]} numberOfLines={1}>{s.name}</Text>
                     <Text style={styles.suggestPrice}>R$ {s.price.toFixed(2)}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
             )}
 
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.quickTagsScroll} keyboardShouldPersistTaps="handled">
+            <View style={styles.quickTagsWrap}>
               {suggestions.slice(0, 5).map((s, i) => (
-                <TouchableOpacity key={'tag' + i} style={styles.tagBtn} onPress={() => handleChipSelect(s.name, s.price)}>
-                  <Text style={styles.tagBtnText}>
+                <TouchableOpacity key={'tag' + i} style={[styles.tagBtn, { backgroundColor: colors.mutedSurface, borderColor: colors.border }]} onPress={() => handleChipSelect(s.name, s.price)}>
+                  <Text style={[styles.tagBtnText, { color: colors.text }]} numberOfLines={1}>
                     {s.name} <Text style={{ opacity: 0.6 }}>R$ {s.price.toFixed(2)}</Text>
                   </Text>
                 </TouchableOpacity>
               ))}
-            </ScrollView>
+            </View>
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>3. Valor da Compra (R$) *</Text>
+            <Text style={[styles.label, { color: colors.text }]}>3. Valor da Compra (R$) *</Text>
             <TextInput
-              style={[styles.amountDisplay, styles.amountText]}
+              style={[styles.amountDisplay, styles.amountText, { backgroundColor: colors.mutedSurface, borderColor: colors.border }]}
               value={amountStr}
               onChangeText={(text) => {
                 const cleaned = text.replace(/[^0-9.,]/g, '').replace(',', '.');
@@ -262,10 +278,10 @@ export default function NovoFiadoPage() {
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Lembrete Inteligente (Dias para Cobrança)</Text>
+            <Text style={[styles.label, { color: colors.text }]}>Lembrete Inteligente (Dias para Cobrança)</Text>
             <View style={styles.reminderRow}>
               <TextInput
-                style={styles.reminderInput}
+                style={[styles.reminderInput, { backgroundColor: colors.mutedSurface, borderColor: colors.border, color: colors.text }]}
                 placeholder="Quantos dias até a cobrança?"
                 placeholderTextColor={theme.colors.textMuted}
                 keyboardType="number-pad"
@@ -311,35 +327,40 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   topBar: {
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+  },
+  topBarInner: {
+    width: '100%',
+    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-    backgroundColor: theme.colors.card,
   },
   backBtn: {
-    width: 36,
-    height: 36,
+    minWidth: 44,
+    minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 18,
-    backgroundColor: theme.colors.inputBg,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: theme.colors.border,
   },
   topBarTitle: {
     fontSize: 16,
     fontWeight: '800',
     color: theme.colors.textMain,
   },
+  topBarSpacer: {
+    width: 44,
+    height: 44,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
     padding: 16,
     borderWidth: 1,
     borderColor: theme.colors.border,
@@ -352,6 +373,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: theme.colors.textMain,
     marginRight: 8,
+    flexShrink: 1,
   },
   headerBadge: {
     backgroundColor: '#ffedd5',
@@ -366,7 +388,6 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'flex-start',
     padding: 16,
-    paddingBottom: Platform.OS === 'android' ? 280 : 40,
   },
   formGroup: {
     marginBottom: 16,
@@ -385,13 +406,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    minHeight: 38,
     borderRadius: theme.borderRadius.sm,
   },
   dropdownSelectorText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
     color: theme.colors.textMain,
+    flex: 1,
+    marginRight: 8,
   },
   dropdownList: {
     backgroundColor: '#ffffff',
@@ -404,13 +427,13 @@ const styles = StyleSheet.create({
   dropdownCreateBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    padding: 10,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
     backgroundColor: '#f8fafc',
   },
   dropdownCreateText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
     color: theme.colors.primary,
   },
@@ -418,7 +441,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 12,
+    padding: 10,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.inputBg,
   },
@@ -426,7 +449,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0fdf4',
   },
   dropdownItemText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '500',
     color: theme.colors.textMain,
   },
@@ -439,9 +462,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: theme.borderRadius.sm,
-    height: 48,
+    minHeight: 38,
     paddingHorizontal: 12,
-    fontSize: 15,
+    fontSize: 14,
   },
   suggestBox: {
     backgroundColor: '#ffffff',
@@ -460,12 +483,12 @@ const styles = StyleSheet.create({
     borderBottomColor: theme.colors.inputBg,
   },
   suggestName: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: theme.colors.textMain,
   },
   suggestPrice: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: theme.colors.primary,
   },
@@ -473,14 +496,21 @@ const styles = StyleSheet.create({
     marginTop: 8,
     flexDirection: 'row',
   },
+  quickTagsWrap: {
+    marginTop: 8,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
   tagBtn: {
     backgroundColor: theme.colors.inputBg,
     borderWidth: 1,
     borderColor: theme.colors.border,
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    minHeight: 36,
     borderRadius: theme.borderRadius.full,
-    marginRight: 6,
+    justifyContent: 'center',
+    maxWidth: '100%',
   },
   tagBtnText: {
     fontSize: 12,
@@ -492,12 +522,12 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: theme.colors.border,
     borderRadius: theme.borderRadius.md,
-    height: 52,
+    height: 48,
     justifyContent: 'center',
     paddingHorizontal: 16,
   },
   amountText: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700',
     color: theme.colors.accent,
   },
@@ -526,18 +556,21 @@ const styles = StyleSheet.create({
   },
   shortcutsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 8,
     marginTop: 8,
   },
   shortcutBtn: {
     backgroundColor: '#ffedd5',
     borderWidth: 1,
     borderColor: '#fed7aa',
-    paddingVertical: 6,
-    paddingHorizontal: 4,
+    minHeight: 36,
+    paddingHorizontal: 12,
     borderRadius: theme.borderRadius.sm,
-    width: '23%',
+    flexGrow: 1,
+    flexBasis: 120,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   shortcutText: {
     fontSize: 12,
@@ -545,4 +578,3 @@ const styles = StyleSheet.create({
     color: theme.colors.accent,
   },
 });
-

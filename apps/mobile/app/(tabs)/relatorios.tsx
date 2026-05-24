@@ -6,6 +6,8 @@ import { formatCurrency, generateStatementPDF } from '../../src/utils';
 import { theme } from '../../src/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { AdaptiveGrid } from '../../src/components';
+import { useResponsive } from '../../src/utils/responsive';
 
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -14,6 +16,7 @@ import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 export default function RelatoriosScreen() {
   const router = useRouter();
   const { customers } = useFiadoStore();
+  const layout = useResponsive();
 
   let totalDebts = 0;
   let totalPayments = 0;
@@ -99,7 +102,18 @@ export default function RelatoriosScreen() {
         }
       />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            maxWidth: layout.contentMaxWidth,
+            alignSelf: 'center',
+            width: '100%',
+            paddingHorizontal: layout.spacing.screen,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
         <Animated.View entering={FadeInDown.duration(0)}>
           <Text style={styles.sectionTitle}>Métricas Globais Acumuladas</Text>
 
@@ -123,7 +137,7 @@ export default function RelatoriosScreen() {
 
         <Animated.View entering={FadeInDown.delay(0).duration(0)}>
           <Text style={styles.sectionTitle}>Opções de Exportação</Text>
-          <View style={styles.exportGrid}>
+          <AdaptiveGrid minItemWidth={240} maxColumns={2} style={styles.exportGrid}>
             <Button
               title="Exportar Extrato (PDF)"
               leftIcon={<Ionicons name="document-text-outline" size={16} color={theme.colors.textMain} style={{ marginRight: 6 }} />}
@@ -138,7 +152,7 @@ export default function RelatoriosScreen() {
               style={styles.exportBtn}
               onPress={handleExportExcel}
             />
-          </View>
+          </AdaptiveGrid>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(0).duration(0)}>
@@ -245,7 +259,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   exportBtn: {
-    width: '48%',
+    width: '100%',
     backgroundColor: theme.colors.card,
   },
   tableCard: {
