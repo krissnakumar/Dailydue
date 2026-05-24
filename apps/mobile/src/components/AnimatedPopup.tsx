@@ -3,7 +3,7 @@ import {
   View,
   StyleSheet,
   Modal,
-  Dimensions,
+  useWindowDimensions,
   TouchableWithoutFeedback,
   KeyboardAvoidingView,
   Platform,
@@ -18,8 +18,6 @@ import Animated, {
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import { theme } from '../theme';
 
-const { height } = Dimensions.get('window');
-
 interface AnimatedPopupProps {
   visible: boolean;
   onClose: () => void;
@@ -31,11 +29,13 @@ export const AnimatedPopup: React.FC<AnimatedPopupProps> = ({
   onClose,
   children,
 }) => {
+  const { height } = useWindowDimensions();
   const backdropOpacity = useSharedValue(0);
   const contentTranslateY = useSharedValue(height);
   const startY = useSharedValue(0);
 
   useEffect(() => {
+    // If height changes, ensure closed state stays synced with screen height
     if (visible) {
       backdropOpacity.value = withTiming(1, { duration: 300 });
       contentTranslateY.value = withTiming(0, { duration: 260, easing: Easing.out(Easing.cubic) });
@@ -46,7 +46,7 @@ export const AnimatedPopup: React.FC<AnimatedPopupProps> = ({
         easing: Easing.out(Easing.quad),
       });
     }
-  }, [visible]);
+  }, [visible, height]);
 
   const panGesture = Gesture.Pan()
     .onStart(() => {
@@ -73,6 +73,7 @@ export const AnimatedPopup: React.FC<AnimatedPopupProps> = ({
 
   const contentStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: contentTranslateY.value }],
+    maxHeight: height * 0.9,
   }));
 
   if (!visible) return null;
@@ -117,7 +118,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     minHeight: 250,
-    maxHeight: height * 0.9,
     ...theme.shadows.lg,
   },
   keyboardAvoider: {

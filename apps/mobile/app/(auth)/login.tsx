@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Dimensions,
   TouchableOpacity,
   Image,
   TextInput,
@@ -29,8 +28,6 @@ import { theme } from '../../src/theme';
 import { Button } from '../../src/components';
 import { supabase, extractUserMetadata } from '@controle-fiado/api';
 import { getGoogleIdTokenViaNative, isGoogleNativeEnabled } from '../../src/auth/googleNative';
-
-const { width, height } = Dimensions.get('window');
 
 WebBrowser.maybeCompleteAuthSession();
 

@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Header, Card, Button, AnimatedPopup } from '../../src/components';
@@ -15,8 +14,6 @@ import { formatCurrency, sendWhatsappReminder } from '../../src/utils';
 import { theme } from '../../src/theme';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-
-const { width } = Dimensions.get('window');
 
 export default function CobrancasScreen() {
   const router = useRouter();
