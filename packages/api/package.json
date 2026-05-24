@@ -5,7 +5,7 @@
   "types": "./index.ts",
   "private": true,
   "dependencies": {
-    "@supabase/supabase-js": "^2.43.0",
+    "@supabase/supabase-js": "2.105.4",
     "@controle-fiado/types": "*",
     "expo-crypto": "~15.0.9"
   }
