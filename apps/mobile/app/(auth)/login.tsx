@@ -56,15 +56,15 @@ function replaceLocalhostForPhysicalDevice(uri: string): string {
 }
 
 function getOAuthRedirectUri(): string {
+  if (Platform.OS === 'web') {
+    return Linking.createURL(AUTH_CALLBACK_PATH);
+  }
+
   if (Constants.executionEnvironment === 'storeClient' || Constants.appOwnership === 'expo') {
     return replaceLocalhostForPhysicalDevice(Linking.createURL(AUTH_CALLBACK_PATH));
   }
 
-  if (Platform.OS !== 'web') {
-    return NATIVE_REDIRECT_URI;
-  }
-
-  return Linking.createURL(AUTH_CALLBACK_PATH, { scheme: APP_SCHEME });
+  return NATIVE_REDIRECT_URI;
 }
 
 function getProviderConfigMessage(provider: 'Google' | 'Facebook', errorMessage?: string) {
@@ -86,6 +86,16 @@ async function openTrackedAuthSession(url: string, redirectTo: string) {
   } finally {
     globalAuthState[AUTH_SESSION_ACTIVE_KEY] = false;
   }
+}
+
+async function startWebOAuth(provider: 'google' | 'facebook', redirectTo: string) {
+  const { error: oauthErr } = await supabase.auth.signInWithOAuth({
+    provider,
+    options: {
+      redirectTo,
+    },
+  });
+  if (oauthErr) throw oauthErr;
 }
 
 export default function LoginScreen() {
@@ -231,6 +241,11 @@ export default function LoginScreen() {
       const redirectTo = getOAuthRedirectUri();
       console.log('[Auth] Google RedirectTo URI:', redirectTo);
 
+      if (Platform.OS === 'web') {
+        await startWebOAuth('google', redirectTo);
+        return;
+      }
+
       const { data, error: oauthErr } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -337,6 +352,11 @@ export default function LoginScreen() {
     try {
       const redirectTo = getOAuthRedirectUri();
       console.log('[Auth] Facebook RedirectTo URI:', redirectTo);
+
+      if (Platform.OS === 'web') {
+        await startWebOAuth('facebook', redirectTo);
+        return;
+      }
 
       const { data, error: oauthErr } = await supabase.auth.signInWithOAuth({
         provider: 'facebook',
