@@ -20,6 +20,7 @@ export interface SendReminderParams {
   lastItems: Array<{ description: string; amount: number }>;
   phone?: string;
   pixKey?: string;
+  messageType?: 'simple' | 'detailed';
 }
 
 export async function sendWhatsappReminder({
@@ -28,14 +29,20 @@ export async function sendWhatsappReminder({
   lastItems,
   phone,
   pixKey = 'mercadinho@bairro.com.br',
+  messageType = 'detailed',
 }: SendReminderParams) {
   const firstName = customerName.split(' ')[0];
-  let itemsText = '';
-  lastItems.slice(0, 5).forEach((item) => {
-    itemsText += `\n▫️ ${item.description} - ${formatCurrency(item.amount)}`;
-  });
+  let msg = '';
 
-  const msg = `Olá, ${firstName}! Tudo bem? ✅ 📖\nPassando para enviar o resumo da sua continha no nosso Caderninho de Fiado.\n\n*Total devendo:* ${formatCurrency(totalDebt)}\n\n*Últimos itens anotados:*${itemsText}\n\nFacilite o pagamento com a nossa chave PIX Copia e Cola: *${pixKey}*\n\nObrigado pela preferência e amizade de sempre! 🙏`;
+  if (messageType === 'simple') {
+    msg = `Olá, ${firstName}! Tudo bem? ✅ 📖\nPassando para enviar o lembrete de pagamento do seu saldo no Caderninho.\n\n*Valor pendente:* ${formatCurrency(totalDebt)}\n\nFacilite o pagamento com a nossa chave PIX Copia e Cola: *${pixKey}*\n\nObrigado pela preferência! 🙏`;
+  } else {
+    let itemsText = '';
+    lastItems.slice(0, 5).forEach((item) => {
+      itemsText += `\n▫️ ${item.description} - ${formatCurrency(item.amount)}`;
+    });
+    msg = `Olá, ${firstName}! Tudo bem? ✅ 📖\nPassando para enviar o resumo da sua continha no nosso Caderninho de Fiado.\n\n*Total devendo:* ${formatCurrency(totalDebt)}\n\n*Últimos itens anotados:*${itemsText}\n\nFacilite o pagamento com a nossa chave PIX Copia e Cola: *${pixKey}*\n\nObrigado pela preferência e amizade de sempre! 🙏`;
+  }
 
   const encodedMsg = encodeURIComponent(msg);
   const cleanPhone = sanitizePhone(phone || '');
@@ -178,3 +185,4 @@ export async function generateStatementPDF(
     await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
   }
 }
+export * from './responsive';

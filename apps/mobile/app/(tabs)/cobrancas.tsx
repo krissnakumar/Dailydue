@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,8 @@ export default function CobrancasScreen() {
 
   const [activeFilter, setActiveFilter] = useState<'all' | 'acima50' | 'atrasados'>('all');
   const [selectedForNotice, setSelectedForNotice] = useState<any>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [messageType, setMessageType] = useState<'simple' | 'detailed'>('detailed');
 
   const totalEmAberto = customers.reduce((acc, curr) => acc + curr.total_debt, 0);
   const totalDevedores = customers.filter((c) => c.total_debt > 0).length;
@@ -36,6 +38,35 @@ export default function CobrancasScreen() {
     return true;
   });
 
+  // Automatically select clients with valid phone numbers when filter or list updates
+  useEffect(() => {
+    const validPhones = devedores
+      .filter((c) => c.phone && c.phone.length >= 10)
+      .map((c) => c.id);
+    setSelectedIds(new Set(validPhones));
+  }, [activeFilter, customers]);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    const allSelected = devedores.every((d) => selectedIds.has(d.id));
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(devedores.map((d) => d.id)));
+    }
+  };
+
   const handleSendReminder = (customer: any) => {
     sendWhatsappReminder({
       customerName: customer.full_name,
@@ -43,14 +74,16 @@ export default function CobrancasScreen() {
       lastItems: customer.history.map((h: any) => ({ description: h.description, amount: h.amount })),
       phone: customer.phone,
       pixKey: businessConfig.pixKey,
+      messageType,
     });
     setSelectedForNotice(null);
   };
 
   const handleSendBatch = () => {
-    const comCelular = devedores.filter((c) => c.phone && c.phone.length >= 10);
+    const selectedList = devedores.filter((c) => selectedIds.has(c.id));
+    const comCelular = selectedList.filter((c) => c.phone && c.phone.length >= 10);
     if (comCelular.length === 0) {
-      Alert.alert('Aviso', 'Nenhum cliente listado possui celular/WhatsApp válido cadastrado.');
+      Alert.alert('Aviso', 'Nenhum dos clientes selecionados possui celular/WhatsApp válido cadastrado.');
       return;
     }
 
@@ -61,7 +94,7 @@ export default function CobrancasScreen() {
         const customer = comCelular[currentIndex];
         Alert.alert(
           'Próximo Envio',
-          `Enviar cobrança para ${customer.full_name}? (${currentIndex + 1}/${comCelular.length})`,
+          `Enviar cobrança (${messageType === 'simple' ? 'Simplificada' : 'Detalhada'}) para ${customer.full_name}? (${currentIndex + 1}/${comCelular.length})`,
           [
             { text: 'Parar', style: 'cancel' },
             {
@@ -88,7 +121,7 @@ export default function CobrancasScreen() {
 
     Alert.alert(
       'Cobrança em Lote',
-      `Iniciar envio sequencial para ${comCelular.length} cliente(s)?`,
+      `Iniciar envio sequencial (${messageType === 'simple' ? 'Simplificado' : 'Detalhado'}) para ${comCelular.length} cliente(s) selecionado(s)?`,
       [
         { text: 'Não', style: 'cancel' },
         { text: 'Sim, Iniciar', onPress: sendNext },
@@ -149,22 +182,80 @@ export default function CobrancasScreen() {
         entering={FadeInDown.delay(0).duration(0)}
         style={styles.batchBox}
       >
-        <View style={styles.batchIconBox}>
-          <Ionicons name="chatbubbles-outline" size={20} color="#0369a1" />
+        <View style={styles.batchHeader}>
+          <View style={styles.batchIconBox}>
+            <Ionicons name="chatbubbles-outline" size={20} color="#0369a1" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.batchTitle}>Lembretes em Massa</Text>
+            <Text style={styles.batchDesc}>
+              Selecione os clientes abaixo para enviar cobranças no WhatsApp.
+            </Text>
+          </View>
         </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.batchTitle}>Lembretes em Massa</Text>
-          <Text style={styles.batchDesc}>
-            Selecione um filtro e envie mensagens personalizadas com sua chave PIX.
+
+        <View style={styles.batchDivider} />
+
+        <View style={styles.batchConfigRow}>
+          <View style={styles.batchCountBox}>
+            <Text style={styles.batchConfigLabel}>Selecionados</Text>
+            <Text style={styles.batchCountText}>
+              {selectedIds.size} de {devedores.length}
+            </Text>
+          </View>
+
+          <View style={styles.batchModelBox}>
+            <Text style={styles.batchConfigLabel}>Modelo de Lembrete</Text>
+            <View style={styles.toggleGroup}>
+              <TouchableOpacity
+                style={[styles.toggleBtn, messageType === 'simple' && styles.toggleBtnActive]}
+                onPress={() => setMessageType('simple')}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.toggleText, messageType === 'simple' && styles.toggleTextActive]}>
+                  Só o Total
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.toggleBtn, messageType === 'detailed' && styles.toggleBtnActive]}
+                onPress={() => setMessageType('detailed')}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.toggleText, messageType === 'detailed' && styles.toggleTextActive]}>
+                  Detalhado
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          style={[
+            styles.batchSendBtn,
+            (selectedIds.size === 0) && styles.batchSendBtnDisabled
+          ]}
+          onPress={handleSendBatch}
+          disabled={selectedIds.size === 0}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="logo-whatsapp" size={18} color="#ffffff" style={{ marginRight: 8 }} />
+          <Text style={styles.batchSendText}>
+            Enviar no WhatsApp ({selectedIds.size})
           </Text>
-        </View>
-        <TouchableOpacity style={styles.batchActionBtn} onPress={handleSendBatch}>
-          <Text style={styles.batchActionText}>Iniciar</Text>
         </TouchableOpacity>
       </Animated.View>
 
       <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
-        <Text style={styles.listTitle}>Lista de Contatos ({devedores.length})</Text>
+        <View style={styles.listHeaderRow}>
+          <Text style={styles.listTitle}>Lista de Contatos ({devedores.length})</Text>
+          {devedores.length > 0 && (
+            <TouchableOpacity onPress={toggleSelectAll} activeOpacity={0.7} style={styles.selectAllBtn}>
+              <Text style={styles.selectAllText}>
+                {devedores.every((d) => selectedIds.has(d.id)) ? "Desmarcar Todos" : "Selecionar Todos"}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
         {devedores.length === 0 ? (
           <View style={styles.emptyState}>
@@ -183,27 +274,62 @@ export default function CobrancasScreen() {
                 key={c.id}
                 entering={FadeInDown.delay(0).duration(0)}
               >
-                <TouchableOpacity
-                  style={[styles.clientCard, isAtrasado && styles.clientCardAtrasado]}
-                  activeOpacity={0.7}
-                  onPress={() => setSelectedForNotice(c)}
-                >
-                  <View style={styles.clientInfo}>
-                    <View style={styles.avatar}>
-                      <Text style={styles.avatarText}>{c.full_name[0]}</Text>
+                <View style={[styles.clientCard, isAtrasado && styles.clientCardAtrasado]}>
+                  {/* Checkbox */}
+                  <TouchableOpacity
+                    style={styles.checkboxContainer}
+                    onPress={() => toggleSelect(c.id)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name={selectedIds.has(c.id) ? "checkmark-circle" : "ellipse-outline"}
+                      size={22}
+                      color={selectedIds.has(c.id) ? theme.colors.primaryBrand : theme.colors.textMuted}
+                    />
+                  </TouchableOpacity>
+
+                  {/* Body Content */}
+                  <TouchableOpacity
+                    style={styles.cardMainContent}
+                    activeOpacity={0.7}
+                    onPress={() => setSelectedForNotice(c)}
+                  >
+                    <View style={styles.clientInfo}>
+                      <View style={styles.avatar}>
+                        <Text style={styles.avatarText}>{c.full_name[0].toUpperCase()}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.clientName} numberOfLines={1}>{c.full_name}</Text>
+                        <Text style={styles.phoneText} numberOfLines={1}>
+                          {hasPhone ? `WhatsApp: +55 ${c.phone}` : 'Sem WhatsApp'}
+                        </Text>
+                      </View>
+                      <View style={styles.debtBox}>
+                        <Text style={styles.debtLabel}>Deve</Text>
+                        <Text style={styles.debtValue}>{formatCurrency(c.total_debt)}</Text>
+                      </View>
                     </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.clientName}>{c.full_name}</Text>
-                      <Text style={styles.phoneText}>
-                        {hasPhone ? `WhatsApp: +55 ${c.phone}` : 'Sem WhatsApp'}
-                      </Text>
-                    </View>
-                    <View style={styles.debtBox}>
-                      <Text style={styles.debtLabel}>Deve</Text>
-                      <Text style={styles.debtValue}>{formatCurrency(c.total_debt)}</Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
+                  </TouchableOpacity>
+
+                  {/* Direct Send Icon */}
+                  <TouchableOpacity
+                    style={[styles.quickSendBtn, !hasPhone && styles.quickSendBtnDisabled]}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      if (hasPhone) {
+                        handleSendReminder(c);
+                      } else {
+                        setSelectedForNotice(c);
+                      }
+                    }}
+                  >
+                    <Ionicons
+                      name={hasPhone ? "logo-whatsapp" : "share-social-outline"}
+                      size={20}
+                      color={hasPhone ? "#25D366" : theme.colors.textMuted}
+                    />
+                  </TouchableOpacity>
+                </View>
               </Animated.View>
             );
           })
@@ -219,11 +345,37 @@ export default function CobrancasScreen() {
               Deseja enviar o lembrete de pagamento para <Text style={{ fontWeight: 'bold' }}>{selectedForNotice.full_name}</Text>?
             </Text>
 
+            {/* Custom Model Toggle inside Popup */}
+            <View style={{ marginBottom: 16 }}>
+              <Text style={styles.popupSectionLabel}>Modelo de Mensagem</Text>
+              <View style={[styles.toggleGroup, { alignSelf: 'flex-start', marginTop: 8 }]}>
+                <TouchableOpacity
+                  style={[styles.toggleBtn, messageType === 'simple' && styles.toggleBtnActive]}
+                  onPress={() => setMessageType('simple')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.toggleText, messageType === 'simple' && styles.toggleTextActive]}>
+                    Só o Total
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.toggleBtn, messageType === 'detailed' && styles.toggleBtnActive]}
+                  onPress={() => setMessageType('detailed')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.toggleText, messageType === 'detailed' && styles.toggleTextActive]}>
+                    Detalhado
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
             <View style={styles.previewBox}>
               <Text style={styles.previewLabel}>Conteúdo da Mensagem:</Text>
               <Text style={styles.previewText}>
-                Olá {selectedForNotice.full_name}, passando para lembrar da sua conta no Caderninho...
-                Valor total: {formatCurrency(selectedForNotice.total_debt)}
+                {messageType === 'simple'
+                  ? `Olá ${selectedForNotice.full_name.split(' ')[0]}! Tudo bem? Passando para enviar o lembrete de pagamento do seu saldo no Caderninho. Valor pendente: ${formatCurrency(selectedForNotice.total_debt)}`
+                  : `Olá ${selectedForNotice.full_name.split(' ')[0]}! Tudo bem? Passando para enviar o resumo da sua continha no nosso Caderninho de Fiado. Total devendo: ${formatCurrency(selectedForNotice.total_debt)}`}
               </Text>
             </View>
 
@@ -333,30 +485,29 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   batchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: '#e0f2fe',
     marginHorizontal: 16,
     marginTop: 16,
-    padding: 12,
-    borderRadius: 12,
+    padding: 16,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: '#bae6fd',
   },
+  batchHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   batchIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
-  },
-  batchIcon: {
-    fontSize: 20,
+    marginRight: 10,
   },
   batchTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: '#0369a1',
   },
@@ -364,17 +515,82 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#075985',
     lineHeight: 14,
+    marginTop: 2,
   },
-  batchActionBtn: {
-    backgroundColor: '#0369a1',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  batchDivider: {
+    height: 1,
+    backgroundColor: '#bae6fd',
+    marginVertical: 12,
+  },
+  batchConfigRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+    gap: 8,
+  },
+  batchCountBox: {
+    flex: 1,
+  },
+  batchModelBox: {
+    flex: 1.5,
+    alignItems: 'flex-end',
+  },
+  batchConfigLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#0369a1',
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  batchCountText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#075985',
+  },
+  toggleGroup: {
+    flexDirection: 'row',
+    backgroundColor: '#bae6fd',
     borderRadius: 8,
-    marginLeft: 8,
+    padding: 2,
   },
-  batchActionText: {
+  toggleBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  toggleBtnActive: {
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    elevation: 1,
+  },
+  toggleText: {
+    fontSize: 10,
+    color: '#0369a1',
+    fontWeight: '600',
+  },
+  toggleTextActive: {
+    color: theme.colors.primaryBrand,
+    fontWeight: '700',
+  },
+  batchSendBtn: {
+    flexDirection: 'row',
+    backgroundColor: '#25D366',
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...theme.shadows.sm,
+  },
+  batchSendBtnDisabled: {
+    backgroundColor: '#94a3b8',
+    opacity: 0.6,
+  },
+  batchSendText: {
     color: '#ffffff',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
   },
   listContent: {
@@ -382,17 +598,34 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 40,
   },
+  listHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   listTitle: {
     fontSize: 13,
     fontWeight: '700',
     color: theme.colors.textMuted,
     textTransform: 'uppercase',
-    marginBottom: 12,
+  },
+  selectAllBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    backgroundColor: '#f1f5f9',
+  },
+  selectAllText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: theme.colors.primaryBrand,
   },
   clientCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#ffffff',
     borderRadius: 16,
-    padding: 12,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: theme.colors.border,
@@ -402,56 +635,75 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.danger,
     backgroundColor: '#fffafb',
   },
+  checkboxContainer: {
+    paddingLeft: 12,
+    paddingRight: 6,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cardMainContent: {
+    flex: 1,
+    paddingVertical: 12,
+  },
   clientInfo: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: theme.colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 10,
   },
   avatarText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: theme.colors.primaryDark,
   },
   clientName: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: theme.colors.textMain,
   },
   phoneText: {
-    fontSize: 12,
+    fontSize: 11,
     color: theme.colors.textMuted,
     marginTop: 2,
   },
   debtBox: {
     alignItems: 'flex-end',
+    paddingRight: 8,
   },
   debtLabel: {
-    fontSize: 10,
+    fontSize: 9,
     color: theme.colors.textMuted,
     textTransform: 'uppercase',
     fontWeight: '600',
   },
   debtValue: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
     color: theme.colors.accent,
     fontFamily: 'Outfit',
   },
+  quickSendBtn: {
+    paddingHorizontal: 12,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderLeftWidth: 1,
+    borderLeftColor: '#f1f5f9',
+  },
+  quickSendBtnDisabled: {
+    opacity: 0.5,
+  },
   emptyState: {
     alignItems: 'center',
     paddingVertical: 40,
-  },
-  emptyIcon: {
-    fontSize: 40,
-    marginBottom: 10,
   },
   emptyText: {
     color: theme.colors.textMuted,
@@ -470,6 +722,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.colors.textMuted,
     marginBottom: 20,
+  },
+  popupSectionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: theme.colors.textMuted,
+    textTransform: 'uppercase',
   },
   previewBox: {
     backgroundColor: theme.colors.inputBg,
