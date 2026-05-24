@@ -209,7 +209,13 @@ export default function LoginScreen() {
           });
           if (idTokenErr) throw idTokenErr;
 
-          const sess = data?.session;
+          let sess: any = data?.session;
+          if (!sess) {
+            // Fallback: fetch session directly from supabase client in case it wasn't returned in the response
+            const { data: sessionData } = await supabase.auth.getSession();
+            sess = sessionData?.session;
+          }
+
           if (sess) {
             const meta = extractUserMetadata(sess.user.user_metadata);
             setUser({
@@ -217,8 +223,10 @@ export default function LoginScreen() {
               email: sess.user.email || undefined,
               full_name: meta.full_name,
             });
+            router.replace('/welcome');
+          } else {
+            throw new Error('Sessão do Google não encontrada após o login.');
           }
-          router.replace('/welcome');
           return;
         }
       }

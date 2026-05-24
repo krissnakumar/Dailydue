@@ -150,14 +150,22 @@ export default function RootLayout() {
         if (!active) return;
         const sess = data.session;
         if (!sess) {
-          setUser(null);
+          const currentUser = useFiadoStore.getState().user;
+          if (!currentUser) {
+            setUser(null);
+          }
           return;
         }
         applySessionUser(sess);
       })
       .catch((error) => {
         console.warn('Failed to get Supabase session (network or DB down):', error);
-        if (active) setUser(null);
+        if (active) {
+          const currentUser = useFiadoStore.getState().user;
+          if (!currentUser) {
+            setUser(null);
+          }
+        }
       })
       .finally(() => {
         if (active) setAuthChecked(true);
