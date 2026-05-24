@@ -7,6 +7,7 @@ import {
   TouchableWithoutFeedback,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -16,6 +17,7 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '../theme';
 
 interface AnimatedPopupProps {
@@ -30,6 +32,7 @@ export const AnimatedPopup: React.FC<AnimatedPopupProps> = ({
   children,
 }) => {
   const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const backdropOpacity = useSharedValue(0);
   const contentTranslateY = useSharedValue(height);
   const startY = useSharedValue(0);
@@ -92,10 +95,19 @@ export const AnimatedPopup: React.FC<AnimatedPopupProps> = ({
             </View>
             <KeyboardAvoidingView
               style={styles.keyboardAvoider}
-              behavior="padding"
-              keyboardVerticalOffset={Platform.OS === 'android' ? 24 : 0}
+              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             >
-              {children}
+              <ScrollView
+                style={styles.scrollView}
+                contentContainerStyle={[
+                  styles.scrollContent,
+                  { paddingBottom: Math.max(insets.bottom, 16) }
+                ]}
+                bounces={false}
+                showsVerticalScrollIndicator={false}
+              >
+                {children}
+              </ScrollView>
             </KeyboardAvoidingView>
           </Animated.View>
         </GestureDetector>
@@ -122,6 +134,13 @@ const styles = StyleSheet.create({
   },
   keyboardAvoider: {
     flex: 1,
+  },
+  scrollView: {
+    flexGrow: 0,
+  },
+  scrollContent: {
+    paddingHorizontal: 24,
+    paddingTop: 8,
   },
   handleContainer: {
     height: 30,

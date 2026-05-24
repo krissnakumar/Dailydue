@@ -248,8 +248,15 @@ export default function CobrancasScreen() {
                 style={{ flex: 1 }}
               />
               <Button
-                title="Enviar Agora"
+                title={selectedForNotice.phone ? "Enviar WhatsApp" : "Compartilhar"}
                 variant="primary"
+                leftIcon={
+                  selectedForNotice.phone ? (
+                    <Ionicons name="logo-whatsapp" size={18} color="#ffffff" style={{ marginRight: 6 }} />
+                  ) : (
+                    <Ionicons name="share-social-outline" size={18} color="#ffffff" style={{ marginRight: 6 }} />
+                  )
+                }
                 onPress={() => handleSendReminder(selectedForNotice)}
                 style={{ flex: 2 }}
               />
