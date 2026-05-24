@@ -158,8 +158,16 @@ export default function RootLayout() {
         }
         applySessionUser(sess);
       })
-      .catch((error) => {
+      .catch(async (error) => {
         console.warn('Failed to get Supabase session (network or DB down):', error);
+        const errStr = String(error);
+        if (errStr.includes('Refresh Token') || errStr.includes('refresh_token') || errStr.includes('AuthApiError')) {
+          try {
+            await supabase.auth.signOut();
+          } catch (signOutErr) {
+            console.warn('Failed to signOut after invalid refresh token:', signOutErr);
+          }
+        }
         if (active) {
           const currentUser = useFiadoStore.getState().user;
           if (!currentUser) {
