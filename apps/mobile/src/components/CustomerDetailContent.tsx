@@ -13,7 +13,8 @@ import {
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
-import { Card, Button } from './index';
+import { Card } from './Card';
+import { Button } from './Button';
 import { useFiadoStore, HistoryItem } from '../store';
 import { formatCurrency, sendWhatsappReminder, generateStatementPDF } from '../utils';
 import { theme } from '../theme';
@@ -399,7 +400,12 @@ export function CustomerDetailContent({
   }, [customer.history, customer.total_debt]);
 
   return (
-    <View style={styles.wrapper}>
+    <ScrollView
+      style={styles.wrapper}
+      contentContainerStyle={styles.scrollContainer}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
       {/* Cabeçalho da Visão Interna */}
       <Animated.View
         entering={FadeInDown.duration(0)}
@@ -578,7 +584,7 @@ export function CustomerDetailContent({
       </Animated.View>
 
       {/* Scrollable Timeline (Folha de Caderno) */}
-      <ScrollView contentContainerStyle={styles.timelineScroll} showsVerticalScrollIndicator={false}>
+      <View style={styles.timelineScroll}>
         <Animated.View
           entering={FadeInDown.delay(0).duration(0)}
           style={styles.timelineHeader}
@@ -596,9 +602,10 @@ export function CustomerDetailContent({
               const isPay = item.type === 'payment';
               const isSys = item.type === 'system';
 
-              const dtStr = new Date(item.created_at).toLocaleDateString('pt-BR', {
+              const dtStr = new Date(item.created_at).toLocaleString('pt-BR', {
                 day: '2-digit',
                 month: '2-digit',
+                year: '2-digit',
                 hour: '2-digit',
                 minute: '2-digit',
               });
@@ -688,7 +695,7 @@ export function CustomerDetailContent({
         <TouchableOpacity style={styles.deleteProfileWrapper} onPress={handleDeleteProfile}>
           <Text style={styles.deleteProfileText}>Excluir Cadastro Permanentemente</Text>
         </TouchableOpacity>
-      </ScrollView>
+      </View>
 
       {/* Modal Edição do Cliente */}
       <Modal
@@ -894,7 +901,7 @@ export function CustomerDetailContent({
           </View>
         </View>
       </Modal>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -902,6 +909,10 @@ const styles = StyleSheet.create({
   wrapper: {
     flex: 1,
     backgroundColor: theme.colors.background,
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    paddingBottom: 40,
   },
   center: {
     alignItems: 'center',

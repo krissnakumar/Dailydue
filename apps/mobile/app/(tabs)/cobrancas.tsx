@@ -193,6 +193,13 @@ export default function CobrancasScreen() {
     <View style={styles.wrapper}>
       <Header showTotal={false} title="Painel de Cobranças" />
 
+      <ScrollView
+        style={styles.contentScroll}
+        contentContainerStyle={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+
       <Animated.View
         entering={FadeInDown.duration(0)}
         style={styles.summaryWrapper}
@@ -280,7 +287,7 @@ export default function CobrancasScreen() {
         </TouchableOpacity>
       </Animated.View>
 
-      <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
+      <View style={styles.listContent}>
         <View style={styles.listHeaderRow}>
           <Text style={styles.listTitle}>Lista de Contatos ({devedores.length})</Text>
           {devedores.length > 0 && (
@@ -354,6 +361,8 @@ export default function CobrancasScreen() {
             );
           })
         )}
+      </View>
+
       </ScrollView>
 
       {/* Popup de Confirmação de Envio */}
@@ -490,6 +499,13 @@ const styles = StyleSheet.create({
   wrapper: {
     flex: 1,
     backgroundColor: theme.colors.background,
+  },
+  contentScroll: {
+    flex: 1,
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    paddingBottom: 40,
   },
   summaryWrapper: {
     flexDirection: 'row',

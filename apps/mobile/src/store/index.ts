@@ -901,29 +901,37 @@ export const useFiadoStore = create<FiadoMobileState>()(
 
         // Garante que existe um profile/business associado ao usuário antes de usar RPCs que dependem de business_id.
         // (Sem isso, get_current_business_id() pode retornar null e quebrar inserts.)
+        let bizId = null;
         try {
-          const phone = (businessConfig.phone || '').replace(/\D/g, '');
-          if (phone && !get().hasBootstrappedProfile) {
-            await bootstrapOwnerProfile({
-              business_name: businessConfig.businessName || 'Meu Estabelecimento',
-              owner_name: user?.full_name || 'Dono',
-              phone,
-            });
-            set({ hasBootstrappedProfile: true });
-          }
-        } catch (e: any) {
-          console.log('[Sync] Falha ao inicializar perfil/loja:', e?.message || e);
-        }
-
-        try {
-          const { data: bizId } = await supabase.rpc('get_current_business_id');
-          if (!bizId) {
-            console.log('[Sync] business_id ausente. Configure o telefone da loja em Config e tente novamente.');
-            set({ isSyncing: false });
-            return;
-          }
+          const { data } = await supabase.rpc('get_current_business_id');
+          bizId = data;
         } catch (e: any) {
           console.log('[Sync] Não foi possível validar business_id:', e?.message || e);
+        }
+
+        if (!bizId) {
+          console.log('[Sync] business_id ausente no servidor. Tentando inicializar perfil/loja...');
+          try {
+            const phone = (businessConfig.phone || (user as any)?.phone || '').replace(/\D/g, '');
+            const newBizId = await bootstrapOwnerProfile({
+              business_name: businessConfig.businessName || 'Meu Estabelecimento',
+              owner_name: user?.full_name || user?.email?.split('@')[0] || 'Dono',
+              phone: phone || undefined,
+            });
+            if (newBizId) {
+              bizId = newBizId;
+              set({ hasBootstrappedProfile: true });
+              console.log('[Sync] Perfil/loja inicializado com sucesso. business_id:', bizId);
+            }
+          } catch (e: any) {
+            console.log('[Sync] Falha ao inicializar perfil/loja:', e?.message || e);
+          }
+        }
+
+        if (!bizId) {
+          console.log('[Sync] business_id ausente. Configure o telefone da loja em Config e tente novamente.');
+          set({ isSyncing: false });
+          return;
         }
 
         console.log(`[Sync] Iniciando sincronização em lote de ${syncQueue.length} itens...`);
@@ -1313,6 +1321,20 @@ export const useFiadoStore = create<FiadoMobileState>()(
             });
             total_debt_calc = Number(Math.max(0, total_debt_calc).toFixed(2));
             
+            const addressParts = sc.address ? sc.address.split(' • CEP: ') : [];
+            const parsedAddress = addressParts[0] || sc.address || '';
+            const parsedCep = addressParts[1] || '';
+
+            let parsedDocType: 'cpf' | 'cnpj' | undefined = undefined;
+            let parsedDocValue = '';
+            if (sc.notes && sc.notes.startsWith('Documento (')) {
+              const match = sc.notes.match(/^Documento \((CPF|CNPJ)\):\s*(.+)$/i);
+              if (match) {
+                parsedDocType = match[1].toLowerCase() as 'cpf' | 'cnpj';
+                parsedDocValue = match[2];
+              }
+            }
+
             mappedCustomers.push({
                id: sc.id,
                business_id: sc.business_id,
@@ -1322,10 +1344,10 @@ export const useFiadoStore = create<FiadoMobileState>()(
                total_debt: total_debt_calc,
                created_at: sc.created_at,
                history,
-               cep: undefined,
-               address: sc.address || undefined,
-               documentType: undefined,
-               documentValue: undefined,
+               cep: parsedCep || undefined,
+               address: parsedAddress || undefined,
+               documentType: parsedDocType,
+               documentValue: parsedDocValue || undefined,
                picture: undefined,
                picture_storage_path: sc.picture_storage_path || null,
                picture_mime_type: sc.picture_mime_type || null,

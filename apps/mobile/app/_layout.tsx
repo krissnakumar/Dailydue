@@ -75,7 +75,11 @@ export default function RootLayout() {
       const normalizedUrl = url.replace('#', url.includes('?') ? '&' : '?');
       const parsed = Linking.parse(normalizedUrl);
       const isNativeCallback = url.startsWith('controlefiado://');
-      const isExpoGoCallback = parsed.path === 'auth/callback' || parsed.path?.endsWith('/--/auth/callback');
+      const isExpoGoCallback =
+        parsed.path === 'auth/callback' ||
+        parsed.path === '--/auth/callback' ||
+        parsed.path?.endsWith('/--/auth/callback') ||
+        parsed.path?.endsWith('--/auth/callback');
       if (!isNativeCallback && !isExpoGoCallback) return;
 
       const params = (parsed.queryParams || {}) as Record<string, string | string[] | undefined>;
