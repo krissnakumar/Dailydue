@@ -10,7 +10,7 @@ create extension if not exists pgcrypto;
 -- ============================================================================
 -- Helpers
 -- ============================================================================
-drop function if exists public.set_updated_at();
+-- drop function if exists public.set_updated_at();
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql

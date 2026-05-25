@@ -12,7 +12,7 @@ create extension if not exists "uuid-ossp";
 
 -- TABELA: businesses (Lojas / Estabelecimentos)
 create table if not exists public.businesses (
-    id uuid primary key default uuid_generate_v4(),
+    id uuid primary key default gen_random_uuid(),
     business_name text not null,
     owner_name text not null,
     phone text not null unique,
@@ -32,7 +32,7 @@ create table if not exists public.users (
 
 -- TABELA: customers (Clientes do Caderninho)
 create table if not exists public.customers (
-    id uuid primary key default uuid_generate_v4(),
+    id uuid primary key default gen_random_uuid(),
     business_id uuid not null references public.businesses(id) on delete cascade,
     full_name text not null,
     phone text not null,
@@ -49,7 +49,7 @@ create index if not exists idx_customers_business_id on public.customers(busines
 
 -- TABELA: transactions (Histórico de Compras e Baixas/Pagamentos)
 create table if not exists public.transactions (
-    id uuid primary key default uuid_generate_v4(),
+    id uuid primary key default gen_random_uuid(),
     business_id uuid not null references public.businesses(id) on delete cascade,
     customer_id uuid not null references public.customers(id) on delete cascade,
     type text not null check (type in ('debt', 'payment')),
@@ -64,7 +64,7 @@ create index if not exists idx_transactions_customer_id on public.transactions(c
 
 -- TABELA: whatsapp_logs (Histórico de Envios de Cobrança)
 create table if not exists public.whatsapp_logs (
-    id uuid primary key default uuid_generate_v4(),
+    id uuid primary key default gen_random_uuid(),
     customer_id uuid not null references public.customers(id) on delete cascade,
     phone text not null,
     message text not null,
@@ -204,7 +204,7 @@ create trigger trg_update_debt_on_transaction
 -- ====================================================================
 
 create table if not exists public.quick_items (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   business_id uuid not null references public.businesses(id) on delete cascade,
   name text not null,
   default_price numeric(12, 2) default 0.00,

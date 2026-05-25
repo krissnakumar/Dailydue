@@ -80,7 +80,7 @@ end $$;
 
 -- 2) Subscriptions: source of truth from provider webhooks (in production)
 create table if not exists public.user_subscriptions (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   plan text not null check (plan in ('free', 'premium_monthly')),
   status text not null check (status in ('active', 'trialing', 'past_due', 'canceled')),
@@ -108,6 +108,7 @@ create policy "Service role manages subscriptions"
   with check (auth.role() = 'service_role');
 
 -- 3) Plan resolution
+drop function if exists public.get_current_plan(uuid);
 create or replace function public.get_current_plan(user_uuid uuid)
 returns table (
   plan_id text,
@@ -161,6 +162,8 @@ end;
 $$;
 
 -- 4) Limits enforcement helpers (backend source of truth)
+drop function if exists public.can_create_customer(uuid);
+drop function if exists public.can_create_customer();
 create or replace function public.can_create_customer(user_uuid uuid)
 returns boolean
 language plpgsql security definer set search_path = public
@@ -188,6 +191,8 @@ begin
 end;
 $$;
 
+drop function if exists public.can_create_transaction(uuid);
+drop function if exists public.can_create_transaction();
 create or replace function public.can_create_transaction(user_uuid uuid)
 returns boolean
 language plpgsql security definer set search_path = public
@@ -219,6 +224,8 @@ end;
 $$;
 
 -- 5) RPCs that enforce limits and set business_id server-side
+drop function if exists public.create_customer_secure(text, text, text, text, text, numeric, text, text, text);
+drop function if exists public.create_customer_secure(text, text, text, text, text, numeric, text, text);
 create or replace function public.create_customer_secure(
   p_full_name text,
   p_phone text,
@@ -265,6 +272,8 @@ begin
 end;
 $$;
 
+drop function if exists public.update_customer_enforced(uuid, text, text, text, text, text, numeric, text, text, boolean);
+drop function if exists public.update_customer_enforced(uuid, text, text, text, text, text, numeric, text, text);
 create or replace function public.update_customer_enforced(
   p_customer_id uuid,
   p_full_name text default null,
@@ -309,6 +318,7 @@ begin
 end;
 $$;
 
+drop function if exists public.create_customer_transaction_secure(uuid, text, numeric, text);
 create or replace function public.create_customer_transaction_secure(
   p_customer_id uuid,
   p_type text,
@@ -440,6 +450,7 @@ create policy "Customer pictures delete own folder"
   );
 
 -- 7) Bootstrap: create business + owner profile for first-time users
+drop function if exists public.bootstrap_owner_profile(text, text, text);
 create or replace function public.bootstrap_owner_profile(
   p_business_name text,
   p_owner_name text,
@@ -539,6 +550,7 @@ begin
 end $$;
 
 -- 9) Balance view (source of truth for UI)
+drop view if exists public.customer_balance_view cascade;
 create or replace view public.customer_balance_view as
 select
   c.id as customer_id,
