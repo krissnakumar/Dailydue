@@ -109,7 +109,8 @@ create policy "Service role manages subscriptions"
 
 -- 3) Plan resolution
 drop function if exists public.get_current_plan(uuid);
-create or replace function public.get_current_plan(user_uuid uuid)
+drop function if exists public.get_current_plan();
+create or replace function public.get_current_plan()
 returns table (
   plan_id text,
   plan_name text,
@@ -128,14 +129,10 @@ begin
     raise exception 'NOT_AUTHENTICATED';
   end if;
 
-  if user_uuid <> auth.uid() then
-    raise exception 'NOT_AUTHORIZED';
-  end if;
-
   select exists (
     select 1
     from public.user_subscriptions s
-    where s.user_id = user_uuid
+    where s.user_id = auth.uid()
       and s.plan = 'premium_monthly'
       and (s.status = 'active' or s.status = 'trialing')
       and (s.current_period_end is null or s.current_period_end > now())
@@ -172,7 +169,7 @@ declare
   p record;
   active_count integer;
 begin
-  select * into p from public.get_current_plan(user_uuid) limit 1;
+  select * into p from public.get_current_plan() limit 1;
 
   if p.max_customers is null then
     return true;
@@ -202,7 +199,7 @@ declare
   used_count integer;
   start_month timestamptz;
 begin
-  select * into p from public.get_current_plan(user_uuid) limit 1;
+  select * into p from public.get_current_plan() limit 1;
 
   if p.max_transactions_per_month is null then
     return true;

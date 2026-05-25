@@ -7,7 +7,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Linking from 'expo-linking';
-import { LogBox } from 'react-native';
+import { LogBox, AppState } from 'react-native';
 import { useFiadoStore } from '../src/store';
 import { supabase, extractUserMetadata } from '@controle-fiado/api';
 
@@ -131,9 +131,40 @@ export default function RootLayout() {
 
   useEffect(() => {
     mounted.current = true;
+
+    // Clean up invalid local image URIs (file:// or content://) from customer picture fields
+    // since scoped storage permissions are revoked by the OS on cold start/app restart.
+    try {
+      const state = useFiadoStore.getState();
+      if (state.customers && state.customers.length > 0) {
+        const cleaned = state.customers.map((c) => {
+          if (c.picture && (c.picture.startsWith('file:') || c.picture.startsWith('content:'))) {
+            return { ...c, picture: undefined };
+          }
+          return c;
+        });
+        useFiadoStore.setState({ customers: cleaned });
+      }
+    } catch (e) {
+      console.warn('[Layout] Failed to clean local URIs on cold start:', e);
+    }
+
     // Tenta sincronizar a fila offline ao inicializar o app
     attemptBackgroundSync();
   }, []);
+
+  useEffect(() => {
+    // Listen for AppState changes to automatically refresh expired picture signed URLs and resume sync
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        refreshCustomerPictureUrls();
+        attemptBackgroundSync();
+      }
+    });
+    return () => {
+      subscription.remove();
+    };
+  }, [refreshCustomerPictureUrls, attemptBackgroundSync]);
 
   useEffect(() => {
     if (!user?.id) {

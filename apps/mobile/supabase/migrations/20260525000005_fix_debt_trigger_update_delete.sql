@@ -115,3 +115,9 @@ set total_debt = greatest(0, coalesce((
   from public.customer_transactions t
   where t.customer_id = c.id
 ), 0));
+
+-- ============================================================================
+-- 5. Add DB-level constraint to prevent negative total_debt
+-- ============================================================================
+alter table public.customers drop constraint if exists customers_total_debt_check;
+alter table public.customers add constraint customers_total_debt_check check (total_debt >= 0);

@@ -468,35 +468,7 @@ as $$
   limit 1;
 $$;
 
-drop function if exists public.get_current_plan(uuid);
-create or replace function public.get_current_plan(user_uuid uuid)
-returns table (
-  plan_id text,
-  plan_name text,
-  price_brl numeric,
-  max_customers integer,
-  max_transactions_per_month integer,
-  is_premium boolean,
-  status text,
-  current_period_end timestamptz,
-  source text
-)
-language plpgsql
-security definer
-set search_path = public
-stable
-as $$
-begin
-  if auth.uid() is null then
-    raise exception 'NOT_AUTHENTICATED';
-  end if;
-  if user_uuid <> auth.uid() then
-    raise exception 'NOT_AUTHORIZED';
-  end if;
 
-  return query select * from public.get_current_plan();
-end;
-$$;
 
 drop function if exists public.can_create_customer();
 create or replace function public.can_create_customer()
@@ -895,7 +867,6 @@ grant execute on function public.get_current_business_id() to authenticated;
 grant execute on function public.bootstrap_owner_profile(text, text, text) to authenticated;
 grant execute on function public.update_owner_profile(text, text, text, text, text, text, boolean) to authenticated;
 grant execute on function public.get_current_plan() to authenticated;
-grant execute on function public.get_current_plan(uuid) to authenticated;
 grant execute on function public.can_create_customer() to authenticated;
 grant execute on function public.can_create_transaction() to authenticated;
 grant execute on function public.create_customer_secure(text, text, text, text, text, numeric, text, text) to authenticated;

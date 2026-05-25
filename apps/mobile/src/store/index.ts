@@ -9,8 +9,7 @@ import {
   updateCustomer,
   deleteCustomer as apiDeleteCustomer,
   deleteTransaction as apiDeleteTransaction,
-  getCustomers,
-  getTransactionsByCustomer,
+  getCustomersWithTransactions,
 } from '@controle-fiado/api';
 import * as Haptics from 'expo-haptics';
 
@@ -21,6 +20,13 @@ import * as Haptics from 'expo-haptics';
  * Format: "<prefix>_<ms>_<rand>" e.g. "hist_1716643200000_x7k2q"
  */
 function localId(prefix: string): string {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return `${prefix}_${crypto.randomUUID()}`;
+    }
+  } catch (e) {
+    // fallback if crypto is not yet initialized or in environments without it
+  }
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 }
 export interface HistoryItem {
@@ -51,6 +57,7 @@ export interface CustomerClient {
   picture?: string;
   picture_storage_path?: string | null;
   picture_mime_type?: string | null;
+  picture_updated_at?: string;
 }
 
 export interface QuickItemClient {
@@ -494,6 +501,16 @@ export const useFiadoStore = create<FiadoMobileState>()(
             if (isEmoji(c.picture)) return null;
             const path = String(c.picture_storage_path || '').trim();
             if (!path) return null;
+
+            // Check age: if picture URL exists and was updated less than 6 days ago (expiry is 7 days), skip!
+            if (c.picture && c.picture_updated_at) {
+              const ageMs = Date.now() - new Date(c.picture_updated_at).getTime();
+              const sixDaysMs = 6 * 24 * 60 * 60 * 1000;
+              if (ageMs < sixDaysMs) {
+                return null;
+              }
+            }
+
             try {
               const url = await signedUrlForCustomerPicture(path);
               if (url) return { id: c.id, url };
@@ -510,7 +527,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
           set((state) => ({
             customers: state.customers.map((c) => {
               const u = updates.find((x) => x.id === c.id);
-              return u ? { ...c, picture: u.url } : c;
+              return u ? { ...c, picture: u.url, picture_updated_at: new Date().toISOString() } : c;
             }),
           }));
         } catch {
@@ -1121,6 +1138,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
                         const path = `${userId}/${resolvedId}/avatar.${ext}`;
                         try {
                           const resp = await fetch(localUri);
+                          if (!resp.ok) throw new Error('FETCH_FAILED');
                           const blob = await resp.blob();
                           const { error: upErr } = await supabase.storage
                             .from('customer-pictures')
@@ -1130,8 +1148,17 @@ export const useFiadoStore = create<FiadoMobileState>()(
                           picture_mime_type = mime;
                         } catch (e: any) {
                           console.log(
-                            `[Sync] Falha upload foto cliente. item=${item.id} customerId=${resolvedId} payloadKeys=${safePayloadKeys(item.payload).join(',')}`,
+                            `[Sync] Falha upload foto cliente (URI local inválida ou erro de rede). item=${item.id} customerId=${resolvedId}`,
+                            e
                           );
+                          const isNetworkErr = isTransientNetworkError(e);
+                          if (!isNetworkErr) {
+                            set((state) => ({
+                              customers: state.customers.map((c) =>
+                                c.id === resolvedId ? { ...c, picture: undefined, picture_storage_path: null, picture_mime_type: null, picture_updated_at: undefined } : c
+                              ),
+                            }));
+                          }
                           throw e;
                         }
                       }
@@ -1157,6 +1184,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
                                   picture: url || c.picture,
                                   picture_storage_path: String(picture_storage_path),
                                   picture_mime_type: picture_mime_type ?? null,
+                                  picture_updated_at: new Date().toISOString(),
                                 }
                               : c,
                           ),
@@ -1334,7 +1362,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
 
       loadSupabaseData: async () => {
         try {
-          const serverCustomers = await getCustomers();
+          const serverCustomers = await getCustomersWithTransactions();
           if (!serverCustomers || serverCustomers.length === 0) {
              set({ customers: [] });
              return;
@@ -1342,12 +1370,12 @@ export const useFiadoStore = create<FiadoMobileState>()(
           
           const mappedCustomers: CustomerClient[] = [];
           for (const sc of serverCustomers) {
-            const txs = await getTransactionsByCustomer(sc.id);
+            const txs = (sc as any).customer_transactions;
             const history: HistoryItem[] = (txs || []).map((t: any) => ({
                id: t.id,
                description: t.description || '',
                amount: t.amount,
-               created_at: t.created_at,
+               created_at: t.transaction_date || t.created_at,
                type: (t.type || t.transaction_type) as 'debt' | 'payment' | 'system',
                created_by: t.created_by_name || 'Dono',
             }));
@@ -1394,6 +1422,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
           }
           
           set({ customers: mappedCustomers });
+          await get().refreshCustomerPictureUrls();
         } catch (error) {
           console.error('[loadSupabaseData] Erro ao carregar do Supabase:', error);
         }

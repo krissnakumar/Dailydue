@@ -28,6 +28,12 @@ function installReactNativeWebCryptoPolyfill() {
       return ExpoCrypto.digest(name as any, data);
     };
   }
+
+  if (typeof currentCrypto.randomUUID !== 'function' && typeof ExpoCrypto.randomUUID === 'function') {
+    currentCrypto.randomUUID = (): string => {
+      return ExpoCrypto.randomUUID();
+    };
+  }
 }
 
 installReactNativeWebCryptoPolyfill();
@@ -212,6 +218,26 @@ export async function getCustomers() {
     .order('created_at', { ascending: false });
   if (error) throw error;
   return data as Customer[];
+}
+
+export async function getCustomersWithTransactions() {
+  const { data, error } = await supabase
+    .from('customers')
+    .select('*, customer_transactions(*)')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+
+  // Sort nested transactions by transaction_date descending
+  if (data) {
+    data.forEach((c: any) => {
+      if (c.customer_transactions) {
+        c.customer_transactions.sort((a: any, b: any) => {
+          return new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime();
+        });
+      }
+    });
+  }
+  return data;
 }
 
 export async function getCustomerBalances() {
