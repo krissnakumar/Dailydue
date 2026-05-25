@@ -93,7 +93,6 @@ export interface FiadoMobileState {
   getActiveCustomersCount: () => number;
   getCurrentMonthTransactionsCount: () => number;
 
-  // Customers Cache
   customers: CustomerClient[];
   quickItems: QuickItemClient[];
   syncQueue: PendingQueueItem[];
@@ -101,6 +100,8 @@ export interface FiadoMobileState {
   customerIdMap: Record<string, string>;
   isSyncing: boolean;
   hasBootstrappedProfile: boolean;
+  /** Real business UUID resolved from the server. Null until first successful sync. */
+  currentBusinessId: string | null;
 
   // Novo Fiado Popup State
   novoFiadoState: { isOpen: boolean; customerId?: string };
@@ -264,6 +265,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
         pixKey: 'mercadinho@bairro.com.br',
         phone: '11999999999',
       },
+      currentBusinessId: null,
       setUser: (user) => {
         set({ user });
         if (user) {
@@ -518,7 +520,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
         const cleanPhone = phone.replace(/\D/g, '');
         const newCust: CustomerClient = {
           id: 'cust_' + Date.now(),
-          business_id: 'biz_production_br_01',
+          business_id: get().currentBusinessId || 'pending_sync',
           name: name.trim(),
           full_name: name.trim(),
           phone: cleanPhone,
@@ -927,6 +929,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
         try {
           const { data } = await supabase.rpc('get_current_business_id');
           bizId = data;
+          if (bizId) set({ currentBusinessId: String(bizId) });
         } catch (e: any) {
           console.log('[Sync] Não foi possível validar business_id:', e?.message || e);
         }
@@ -942,7 +945,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
             });
             if (newBizId) {
               bizId = newBizId;
-              set({ hasBootstrappedProfile: true });
+              set({ hasBootstrappedProfile: true, currentBusinessId: String(newBizId) });
               console.log('[Sync] Perfil/loja inicializado com sucesso. business_id:', bizId);
             }
           } catch (e: any) {
@@ -1010,14 +1013,17 @@ export const useFiadoStore = create<FiadoMobileState>()(
 
                 // Substitui ID local temporário pelo UUID real e reescreve itens pendentes que referenciam o ID antigo.
                 if (oldId && isTempCustomerId(oldId) && created?.id) {
+                  const realBizId: string | undefined = (created as any).business_id;
                   set((state) => ({
+                    // Persist the real business UUID so future addCustomer calls use it.
+                    currentBusinessId: realBizId || state.currentBusinessId,
                     customerIdMap: { ...state.customerIdMap, [oldId]: String(created.id) },
 	                    customers: state.customers.map((c) =>
 	                      c.id === oldId
 	                        ? {
 	                            ...c,
 	                            id: String(created.id),
-	                            business_id: (created as any).business_id || c.business_id,
+	                            business_id: realBizId || c.business_id,
 	                            full_name: (created as any).full_name || c.full_name,
 	                            phone: (created as any).phone || c.phone,
 	                            picture_storage_path: (created as any).picture_storage_path ?? c.picture_storage_path ?? null,
