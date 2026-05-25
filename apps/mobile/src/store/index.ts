@@ -13,6 +13,16 @@ import {
   getTransactionsByCustomer,
 } from '@controle-fiado/api';
 import * as Haptics from 'expo-haptics';
+
+/**
+ * Generates a collision-resistant local ID by combining a millisecond
+ * timestamp with a random 5-character base-36 suffix.
+ * Replaces plain Date.now() IDs which collide on rapid taps or batch ops.
+ * Format: "<prefix>_<ms>_<rand>" e.g. "hist_1716643200000_x7k2q"
+ */
+function localId(prefix: string): string {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+}
 export interface HistoryItem {
   id: string;
   description: string;
@@ -519,7 +529,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
 
         const cleanPhone = phone.replace(/\D/g, '');
         const newCust: CustomerClient = {
-          id: 'cust_' + Date.now(),
+          id: localId('cust'),
           business_id: get().currentBusinessId || 'pending_sync',
           name: name.trim(),
           full_name: name.trim(),
@@ -576,7 +586,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
               const cleanPhone = phone.replace(/\D/g, '');
               const newHistory = [
                 {
-                  id: 'hist_' + Date.now(),
+                  id: localId('hist'),
                   description: 'Perfil Atualizado',
                   amount: 0,
                   created_at: new Date().toISOString(),
@@ -657,7 +667,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
           const updated = state.customers.map((c) => {
             if (c.id === customerId) {
               const newItem: HistoryItem = {
-                id: 'hist_' + Date.now(),
+                id: localId('hist'),
                 description: cleanDesc,
                 amount,
                 created_at: new Date().toISOString(),
@@ -702,7 +712,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
           const updated = state.customers.map((c) => {
             if (c.id === customerId) {
               const newItem: HistoryItem = {
-                id: 'hist_' + Date.now(),
+                id: localId('hist'),
                 description: methodLabel,
                 amount,
                 created_at: new Date().toISOString(),
@@ -762,7 +772,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
 
               // Log de auditoria
               const auditLog: HistoryItem = {
-                id: 'hist_' + Date.now(),
+                id: localId('hist'),
                 description: `Auditoria: Edição do item`,
                 amount: 0,
                 created_at: new Date().toISOString(),
@@ -790,7 +800,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
           customer_id: customerId,
           amount: newAmount,
           description: (newDesc.trim() || originalItem.description),
-          local_id: 'hist_edit_' + Date.now(),
+          local_id: localId('hist_edit'),
         });
       },
 
@@ -815,7 +825,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
               const total_debt = Number(Math.max(0, debts - pays).toFixed(2));
 
               const auditLog: HistoryItem = {
-                id: 'hist_' + Date.now(),
+                id: localId('hist'),
                 description: `Estorno: Removido item (${target?.amount || 0})`,
                 amount: 0,
                 created_at: new Date().toISOString(),
@@ -888,7 +898,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
 
       enqueueSync: (type, payload) => {
         const item: PendingQueueItem = {
-          id: 'sync_' + Date.now(),
+          id: localId('sync'),
           type,
           payload,
           added_at: new Date().toISOString(),
