@@ -774,6 +774,22 @@ export const useFiadoStore = create<FiadoMobileState>()(
           });
           return { customers: updated };
         });
+
+        // Persist to DB: delete the old transaction row then recreate with the
+        // new values. The DB trigger recomputes total_debt on DELETE + INSERT
+        // automatically — no manual update needed.
+        if (!itemId.startsWith('hist_')) {
+          get().enqueueSync('delete_transaction', { id: itemId });
+        }
+        const txType = (originalItem.type === 'debt' || originalItem.type === 'payment')
+          ? originalItem.type
+          : 'debt';
+        get().enqueueSync(txType, {
+          customer_id: customerId,
+          amount: newAmount,
+          description: (newDesc.trim() || originalItem.description),
+          local_id: 'hist_edit_' + Date.now(),
+        });
       },
 
       deleteHistoryItem: (customerId, itemId) => {
