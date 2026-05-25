@@ -25,6 +25,9 @@ export interface HistoryItem {
 export interface CustomerClient {
   id: string;
   business_id: string;
+  /** Canonical name field — matches the `name` column added in 20260524. */
+  name: string;
+  /** Kept in sync with `name` by DB trigger — use `name` as primary reference. */
   full_name: string;
   phone: string;
   whatsapp?: string;
@@ -160,9 +163,11 @@ function normalizeCustomerForSupabase(input: CustomerNormalizeInput): {
   name: string | null;
   full_name: string | null;
 } {
+  // `name` is the canonical DB column (added in migration 20260524).
+  // `full_name` is kept in sync by trigger. Prefer `name` first.
   const raw =
-    input?.full_name ??
     input?.name ??
+    input?.full_name ??
     input?.nome ??
     input?.customer_name ??
     input?.customerName ??
@@ -514,6 +519,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
         const newCust: CustomerClient = {
           id: 'cust_' + Date.now(),
           business_id: 'biz_production_br_01',
+          name: name.trim(),
           full_name: name.trim(),
           phone: cleanPhone,
           whatsapp: cleanPhone,
@@ -1338,6 +1344,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
             mappedCustomers.push({
                id: sc.id,
                business_id: sc.business_id,
+               name: sc.name || (sc as any).full_name || '',
                full_name: sc.name || (sc as any).full_name || '',
                phone: sc.phone || '',
                whatsapp: sc.phone || '',

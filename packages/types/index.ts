@@ -29,7 +29,10 @@ export interface Customer {
   id: string;
   business_id: string;
   user_id?: string;
+  /** Canonical name column (added in migration 20260524, kept in sync with full_name by trigger). */
   name: string;
+  /** Legacy alias kept in sync with `name` by DB trigger. Use `name` as the primary reference. */
+  full_name?: string;
   phone: string;
   email?: string | null;
   address?: string | null;
