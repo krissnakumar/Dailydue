@@ -376,17 +376,21 @@ export async function getRecentTransactions(limit = 20) {
 }
 
 export async function deleteCustomer(customer_id: string) {
-  const { error } = await supabase
-    .from('customers')
-    .delete()
-    .eq('id', customer_id);
+  // Uses delete_customer_secure RPC instead of a direct table delete.
+  // The RPC enforces ownership (user_id = auth.uid()) server-side with
+  // SECURITY DEFINER — immune to future RLS policy changes.
+  const { error } = await supabase.rpc('delete_customer_secure', {
+    p_customer_id: customer_id,
+  });
   if (error) throw error;
 }
 
 export async function deleteTransaction(transaction_id: string) {
-  const { error } = await supabase
-    .from('customer_transactions')
-    .delete()
-    .eq('id', transaction_id);
+  // Uses delete_transaction_secure RPC instead of a direct table delete.
+  // The RPC enforces ownership server-side and fires the debt-recompute
+  // trigger automatically on delete.
+  const { error } = await supabase.rpc('delete_transaction_secure', {
+    p_transaction_id: transaction_id,
+  });
   if (error) throw error;
 }
