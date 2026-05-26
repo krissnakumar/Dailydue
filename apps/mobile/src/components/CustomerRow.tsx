@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Image, Alert, AlertButton } from 'react-native';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
-import { CustomerClient, useFiadoStore } from '../store';
+import { CustomerClient, useFiadoStore, HistoryItem } from '../store';
 import { formatCurrency, sendWhatsappReminder } from '../utils';
 import { theme } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -40,7 +40,7 @@ export const CustomerRow: React.FC<CustomerRowProps> = ({
 
   // Verifica atraso crítico (> 15 dias)
   const isAtrasado = customer.history.some(
-    (h) => h.type === 'debt' && (Date.now() - new Date(h.created_at).getTime()) / 86400000 > 15
+    (h: HistoryItem) => h.type === 'debt' && (Date.now() - new Date(h.created_at).getTime()) / 86400000 > 15
   );
 
   const lastItem = customer.history.length > 0 ? customer.history[0].description : 'Sem lançamentos';
@@ -49,7 +49,7 @@ export const CustomerRow: React.FC<CustomerRowProps> = ({
     sendWhatsappReminder({
       customerName: customer.full_name,
       totalDebt: customer.total_debt,
-      lastItems: customer.history.map((h) => ({ description: h.description, amount: h.amount })),
+      lastItems: customer.history.map((h: HistoryItem) => ({ description: h.description, amount: h.amount })),
       phone: customer.phone,
       pixKey,
       businessName: businessConfig.businessName,
@@ -58,7 +58,7 @@ export const CustomerRow: React.FC<CustomerRowProps> = ({
 
   const handleMorePress = () => {
     const lastTx = customer.history.find(
-      (h) => h.type === 'debt' || h.type === 'payment'
+      (h: HistoryItem) => h.type === 'debt' || h.type === 'payment'
     );
 
     const options: AlertButton[] = [
