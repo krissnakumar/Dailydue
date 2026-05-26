@@ -23,7 +23,17 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { customers, user, setUser, subscription } = useFiadoStore();
+  const {
+    customers,
+    user,
+    setUser,
+    subscription,
+    syncQueue,
+    isSyncing,
+    flushSyncQueue,
+    backupOfflineUserData,
+    resetDemoData,
+  } = useFiadoStore();
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
@@ -52,37 +62,102 @@ export const Header: React.FC<HeaderProps> = ({
   const totalRecebiveis = customers.reduce((acc, curr) => acc + (curr.total_debt || 0), 0);
 
   const handleAccountAction = () => {
-    if (user) {
-      const doLogout = async () => {
-        try {
-          await supabase.auth.signOut();
-        } catch (error) {
-          console.warn('Erro ao desconectar', error);
-        } finally {
-          setUser(null);
-          router.replace('/(auth)/login');
-        }
-      };
+    if (!user || user.id === 'usr_offline') {
+      router.push('/config');
+      return;
+    }
 
-      if (Platform.OS === 'web') {
-        if (window.confirm('Deseja realmente desconectar e voltar para a tela inicial?')) {
-          void doLogout();
-        }
-        return;
+    const pendingCount = syncQueue.length;
+
+    const performSyncAndLogout = async () => {
+      try {
+        console.log('[Header Logout] Sincronizando dados pendentes...');
+        await flushSyncQueue();
+      } catch (err) {
+        console.warn('[Header Logout] Falha na sincronização final:', err);
       }
 
-      Alert.alert('Sair da Conta', 'Deseja realmente desconectar e voltar para a tela inicial?', [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Sair',
-          style: 'destructive',
-          onPress: () => {
+      const remainingCount = useFiadoStore.getState().syncQueue.length;
+      if (remainingCount > 0) {
+        if (Platform.OS === 'web') {
+          if (window.confirm(`Atenção: Você ainda possui ${remainingCount} alterações pendentes de sincronização (talvez esteja offline). Se você sair agora, essas alterações serão perdidas. Deseja sair mesmo assim?`)) {
             void doLogout();
-          },
-        },
-      ]);
+          }
+        } else {
+          Alert.alert(
+            'Dados não salvos!',
+            `Você ainda possui ${remainingCount} alterações pendentes que não foram salvas na nuvem. Se sair agora, elas serão perdidas.\n\nDeseja sair mesmo assim?`,
+            [
+              { text: 'Cancelar', style: 'cancel' },
+              {
+                text: 'Tentar Sincronizar Novamente',
+                onPress: () => {
+                  void performSyncAndLogout();
+                }
+              },
+              {
+                text: 'Sair e Perder Dados',
+                style: 'destructive',
+                onPress: () => {
+                  void doLogout();
+                }
+              }
+            ]
+          );
+        }
+      } else {
+        void doLogout();
+      }
+    };
+
+    const doLogout = async () => {
+      try {
+        if (user?.id && user.id !== 'usr_offline') {
+          console.log('[Header Logout] Criando backup de segurança dos dados offline...');
+          await backupOfflineUserData(user.id);
+        }
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        await supabase.auth.signOut();
+      } catch (error) {
+        console.warn('Erro ao desconectar', error);
+      } finally {
+        setUser(null);
+        resetDemoData();
+        router.replace('/(auth)/login');
+      }
+    };
+
+    if (pendingCount > 0) {
+      if (Platform.OS === 'web') {
+        if (window.confirm(`Você possui ${pendingCount} alterações pendentes de sincronização. Deseja tentar salvá-las antes de sair?`)) {
+          void performSyncAndLogout();
+        } else {
+          void doLogout();
+        }
+      } else {
+        Alert.alert(
+          'Sincronizar antes de sair?',
+          `Você possui ${pendingCount} alterações locais que ainda não foram salvas na nuvem. Deseja sincronizá-las antes de sair?`,
+          [
+            {
+              text: 'Sincronizar e Sair',
+              onPress: () => {
+                void performSyncAndLogout();
+              }
+            },
+            {
+              text: 'Sair Sem Salvar',
+              style: 'destructive',
+              onPress: () => {
+                void doLogout();
+              }
+            },
+            { text: 'Cancelar', style: 'cancel' }
+          ]
+        );
+      }
     } else {
-      router.push('/config');
+      void doLogout();
     }
   };
 
@@ -94,9 +169,9 @@ export const Header: React.FC<HeaderProps> = ({
             {leftAction}
             <Text style={styles.titleText}>{title}</Text>
             <TouchableOpacity onPress={() => router.push('/subscription')} style={styles.planBadgeContainer}>
-               <Animated.View style={[styles.planBadge, subscription.is_premium ? styles.planBadgePremium : styles.planBadgeBasic, subscription.is_premium && { transform: [{ scale: pulseAnim }] }]}>
+                <Animated.View style={[styles.planBadge, subscription.is_premium ? styles.planBadgePremium : styles.planBadgeFree, subscription.is_premium && { transform: [{ scale: pulseAnim }] }]}>
                   <Ionicons name={subscription.is_premium ? "star" : "leaf"} size={10} color="#fff" />
-                  <Text style={styles.planBadgeText}>{subscription.is_premium ? 'PRO' : 'BÁSICO'}</Text>
+                  <Text style={styles.planBadgeText}>{subscription.is_premium ? 'PRO' : 'GRÁTIS'}</Text>
                </Animated.View>
             </TouchableOpacity>
           </View>
@@ -110,9 +185,9 @@ export const Header: React.FC<HeaderProps> = ({
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Text style={styles.titleText}>{title}</Text>
               <View style={styles.planBadgeContainer}>
-                 <Animated.View style={[styles.planBadge, subscription.is_premium ? styles.planBadgePremium : styles.planBadgeBasic, subscription.is_premium && { transform: [{ scale: pulseAnim }] }]}>
+                  <Animated.View style={[styles.planBadge, subscription.is_premium ? styles.planBadgePremium : styles.planBadgeFree, subscription.is_premium && { transform: [{ scale: pulseAnim }] }]}>
                     <Ionicons name={subscription.is_premium ? "star" : "leaf"} size={10} color="#fff" />
-                    <Text style={styles.planBadgeText}>{subscription.is_premium ? 'PRO' : 'BÁSICO'}</Text>
+                    <Text style={styles.planBadgeText}>{subscription.is_premium ? 'PRO' : 'GRÁTIS'}</Text>
                  </Animated.View>
               </View>
             </View>
@@ -122,21 +197,15 @@ export const Header: React.FC<HeaderProps> = ({
         <View style={styles.actionsWrapper}>
           <TouchableOpacity
             accessibilityRole="button"
-            accessibilityLabel={user ? 'Sair' : 'Conta'}
-            style={[
-              styles.accountIconBtn,
-              user && {
-                backgroundColor: 'rgba(239, 68, 68, 0.2)',
-                borderColor: 'rgba(239, 68, 68, 0.3)',
-              },
-            ]}
+            accessibilityLabel={user && user.id !== 'usr_offline' ? 'Sair' : 'Conta'}
+            style={styles.accountIconBtn}
             onPress={handleAccountAction}
             activeOpacity={0.7}
           >
-            {user ? (
-              <Ionicons name="log-out-outline" size={18} color="#fecaca" />
+            {user && user.id !== 'usr_offline' ? (
+              <Ionicons name="log-out-outline" size={18} color="#ffffff" />
             ) : (
-              <Ionicons name="person-circle-outline" size={18} color="#ffffff" />
+              <Ionicons name="person-circle-outline" size={20} color="#ffffff" />
             )}
           </TouchableOpacity>
         </View>
@@ -214,8 +283,8 @@ const styles = StyleSheet.create({
   planBadgePremium: {
     backgroundColor: '#fbbf24', // Amber/gold for premium
   },
-  planBadgeBasic: {
-    backgroundColor: 'rgba(255,255,255,0.2)', // Semi-transparent for basic
+  planBadgeFree: {
+    backgroundColor: 'rgba(255,255,255,0.2)', // Semi-transparent for free
   },
   planBadgeText: {
     color: '#ffffff',

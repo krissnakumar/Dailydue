@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { Card } from './Card';
 import { Button } from './Button';
-import { useFiadoStore, HistoryItem } from '../store';
+import { useFiadoStore, HistoryItem, isTempCustomerId } from '../store';
 import { formatCurrency, sendWhatsappReminder, generateStatementPDF } from '../utils';
 import { theme } from '../theme';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
@@ -57,6 +57,7 @@ export function CustomerDetailContent({
     deleteCustomer,
     editHistoryItem,
     deleteHistoryItem,
+    syncQueue,
   } = useFiadoStore();
 
   const customer = customers.find((c) => c.id === id);
@@ -83,6 +84,9 @@ export function CustomerDetailContent({
   const [editDocValue, setEditDocValue] = useState('');
   const [editPicture, setEditPicture] = useState('');
 
+  const [cepStatus, setCepStatus] = useState<'idle' | 'loading' | 'valid' | 'invalid'>('idle');
+  const [docStatus, setDocStatus] = useState<'idle' | 'loading' | 'valid' | 'invalid'>('idle');
+
   // Modal Edição Item Histórico
   const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
   const [itemDesc, setItemDesc] = useState('');
@@ -91,7 +95,11 @@ export function CustomerDetailContent({
   // Helpers de Auto-busca de CEP e CNPJ
   const handleFetchCep = async (cep: string) => {
     const cleanCep = cep.replace(/\D/g, '');
-    if (cleanCep.length !== 8) return;
+    if (cleanCep.length !== 8) {
+      setCepStatus('idle');
+      return;
+    }
+    setCepStatus('loading');
     try {
       const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
       const data = await res.json();
@@ -103,18 +111,33 @@ export function CustomerDetailContent({
           data.uf
         ].filter(Boolean).join(', ');
         setEditAddress(fullAddr);
+        setCepStatus('valid');
+      } else {
+        setCepStatus('invalid');
       }
     } catch (e) {
       console.error(e);
+      setCepStatus('invalid');
     }
   };
 
   const handleFetchCnpj = async (cnpj: string) => {
     const cleanCnpj = cnpj.replace(/\D/g, '');
-    if (cleanCnpj.length !== 14) return;
+    if (cleanCnpj.length !== 14) {
+      setDocStatus('idle');
+      return;
+    }
+    setDocStatus('loading');
     try {
       const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanCnpj}`);
-      if (!res.ok) throw new Error("CNPJ não encontrado");
+      if (!res.ok) {
+        if (isValidCNPJ(cleanCnpj)) {
+          setDocStatus('valid');
+        } else {
+          setDocStatus('invalid');
+        }
+        return;
+      }
       const data = await res.json();
       if (data) {
         const name = data.nome_fantasia || data.razao_social || '';
@@ -135,10 +158,61 @@ export function CustomerDetailContent({
           handleFetchCep(cep);
         }
         if (fullAddr) setEditAddress(fullAddr);
+        setDocStatus('valid');
+      } else {
+        setDocStatus('invalid');
       }
     } catch (e) {
       console.error(e);
+      if (isValidCNPJ(cleanCnpj)) {
+        setDocStatus('valid');
+      } else {
+        setDocStatus('invalid');
+      }
     }
+  };
+
+  const isValidCPF = (cpf: string) => {
+    cpf = cpf.replace(/[^\d]+/g, '');
+    if (cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) return false;
+    let soma = 0;
+    for (let i = 0; i < 9; i++) soma += parseInt(cpf.charAt(i)) * (10 - i);
+    let rev = 11 - (soma % 11);
+    if (rev === 10 || rev === 11) rev = 0;
+    if (rev !== parseInt(cpf.charAt(9))) return false;
+    soma = 0;
+    for (let i = 0; i < 10; i++) soma += parseInt(cpf.charAt(i)) * (11 - i);
+    rev = 11 - (soma % 11);
+    if (rev === 10 || rev === 11) rev = 0;
+    if (rev !== parseInt(cpf.charAt(10))) return false;
+    return true;
+  };
+
+  const isValidCNPJ = (cnpj: string) => {
+    cnpj = cnpj.replace(/[^\d]+/g, '');
+    if (cnpj.length !== 14 || /^(\d)\1+$/.test(cnpj)) return false;
+    let tamanho = cnpj.length - 2;
+    let numeros = cnpj.substring(0, tamanho);
+    let digitos = cnpj.substring(tamanho);
+    let soma = 0;
+    let pos = tamanho - 7;
+    for (let i = tamanho; i >= 1; i--) {
+      soma += parseInt(numeros.charAt(tamanho - i)) * pos--;
+      if (pos < 2) pos = 9;
+    }
+    let resultado = soma % 11 < 2 ? 0 : 11 - (soma % 11);
+    if (resultado !== parseInt(digitos.charAt(0))) return false;
+    tamanho = tamanho + 1;
+    numeros = cnpj.substring(0, tamanho);
+    soma = 0;
+    pos = tamanho - 7;
+    for (let i = tamanho; i >= 1; i--) {
+      soma += parseInt(numeros.charAt(tamanho - i)) * pos--;
+      if (pos < 2) pos = 9;
+    }
+    resultado = soma % 11 < 2 ? 0 : 11 - (soma % 11);
+    if (resultado !== parseInt(digitos.charAt(1))) return false;
+    return true;
   };
 
   const formatDocValue = (val: string) => {
@@ -159,12 +233,43 @@ export function CustomerDetailContent({
     }
   };
 
+  const handleFetchCpf = async (cpf: string) => {
+    const cleanCpf = cpf.replace(/\D/g, '');
+    if (cleanCpf.length !== 11) {
+      setDocStatus('idle');
+      return;
+    }
+    setDocStatus('loading');
+    try {
+      const res = await fetch(`https://api.mix-br.com/cpf/${cleanCpf}`);
+      if (!res.ok) throw new Error("API Offline");
+      const data = await res.json();
+      if (data && data.status === false) {
+        setDocStatus('invalid');
+        Alert.alert('Ops!', 'CPF inválido de acordo com a validação da API. 📄', [{ text: 'OK' }]);
+      } else {
+        setDocStatus('valid');
+      }
+    } catch {
+      if (isValidCPF(cleanCpf)) {
+        setDocStatus('valid');
+      } else {
+        setDocStatus('invalid');
+        Alert.alert('Ops!', 'CPF inválido. Verifique os números digitados. 📄', [{ text: 'OK' }]);
+      }
+    }
+  };
+
   const handleDocChange = (val: string) => {
     const formatted = formatDocValue(val);
     setEditDocValue(formatted);
     const clean = formatted.replace(/\D/g, '');
     if (editDocType === 'cnpj' && clean.length === 14) {
       handleFetchCnpj(clean);
+    } else if (editDocType === 'cpf' && clean.length === 11) {
+      handleFetchCpf(clean);
+    } else {
+      setDocStatus('idle');
     }
   };
 
@@ -173,6 +278,8 @@ export function CustomerDetailContent({
     setEditCep(formatted);
     if (formatted.length === 8) {
       handleFetchCep(formatted);
+    } else {
+      setCepStatus('idle');
     }
   };
 
@@ -191,30 +298,19 @@ export function CustomerDetailContent({
         businessConfig.businessName,
         businessConfig.pixKey
       );
-    } catch (error) {
-      console.error(error);
-      Alert.alert('Erro', 'Não foi possível gerar o extrato PDF.');
+    } catch {
+      Alert.alert('Ops!', 'Não foi possível gerar a ficha de cobrança agora.');
     }
   };
 
-  if (!customer) {
-    return (
-      <View style={[styles.wrapper, styles.center]}>
-        <Text style={styles.errorText}>Cliente não encontrado ou excluído.</Text>
-        {showBackButton && (
-          <Button title="Voltar" onPress={() => { if (onBack) onBack(); else router.back(); }} style={{ marginTop: 12 }} />
-        )}
-      </View>
-    );
-  }
-
-  const isZero = customer.total_debt === 0;
-  const isAtrasado = customer.history.some(
+  const isZero = customer ? customer.total_debt === 0 : true;
+  const isAtrasado = customer ? customer.history.some(
     (h) => h.type === 'debt' && (Date.now() - new Date(h.created_at).getTime()) / 86400000 > 15
-  );
+  ) : false;
   const canEditProfilePicture = subscription.is_premium;
 
   const handleOpenEditProfile = () => {
+    if (!customer) return;
     setEditName(customer.full_name);
     setEditPhone(customer.phone || '');
     setEditCep(customer.cep || '');
@@ -226,6 +322,7 @@ export function CustomerDetailContent({
   };
 
   const handleSaveProfile = () => {
+    if (!customer) return;
     const name = editName.trim();
     const phoneDigits = (editPhone || '').replace(/\D/g, '');
     const cepDigits = (editCep || '').replace(/\D/g, '');
@@ -287,6 +384,7 @@ export function CustomerDetailContent({
   };
 
   const pickAndSaveProfilePhoto = async () => {
+    if (!customer) return;
     if (!canEditProfilePicture) {
       Alert.alert('Recurso Premium', 'Assine o Premium para colocar foto real no perfil do cliente.', [
         { text: 'Depois', style: 'cancel' },
@@ -328,6 +426,7 @@ export function CustomerDetailContent({
   };
 
   const handleDeleteProfile = () => {
+    if (!customer) return;
     Alert.alert(
       'Atenção Crítica',
       `Deseja realmente excluir "${customer.full_name}" permanentemente?\n\nTodo o histórico de anotações será estornado.`,
@@ -356,7 +455,7 @@ export function CustomerDetailContent({
   };
 
   const handleSaveItemEdit = () => {
-    if (!selectedItem) return;
+    if (!selectedItem || !customer) return;
     const amt = parseFloat(itemAmt.replace(',', '.'));
     if (isNaN(amt) || amt < 0) {
       Alert.alert('Erro', 'Informe um valor numérico válido.');
@@ -367,6 +466,7 @@ export function CustomerDetailContent({
   };
 
   const handleDeleteItem = (itemId: string) => {
+    if (!customer) return;
     Alert.alert('Confirmar Estorno', 'Deseja remover este lançamento e recalcular a caderneta?', [
       { text: 'Não', style: 'cancel' },
       {
@@ -378,6 +478,7 @@ export function CustomerDetailContent({
   };
 
   const triggerWhatsappNotice = () => {
+    if (!customer) return;
     sendWhatsappReminder({
       customerName: customer.full_name,
       totalDebt: customer.total_debt,
@@ -390,6 +491,7 @@ export function CustomerDetailContent({
 
   // Calcula saldos remanescentes retroativamente para auditoria na timeline
   const historyWithBalances = React.useMemo(() => {
+    if (!customer) return [];
     let currentBalance = customer.total_debt;
     return customer.history.map(item => {
       const balAtThisPoint = currentBalance;
@@ -397,7 +499,18 @@ export function CustomerDetailContent({
       if (item.type === 'payment') currentBalance += item.amount;
       return { ...item, balAtThisPoint };
     });
-  }, [customer.history, customer.total_debt]);
+  }, [customer?.history, customer?.total_debt]);
+
+  if (!customer) {
+    return (
+      <View style={[styles.wrapper, styles.center]}>
+        <Text style={styles.errorText}>Cliente não encontrado ou excluído.</Text>
+        {showBackButton && (
+          <Button title="Voltar" onPress={() => { if (onBack) onBack(); else router.back(); }} style={{ marginTop: 12 }} />
+        )}
+      </View>
+    );
+  }
 
   return (
     <ScrollView
@@ -449,6 +562,24 @@ export function CustomerDetailContent({
             <Text style={styles.custPhone}>
               {customer.phone ? `WhatsApp: +55 ${customer.phone}` : 'Sem celular cadastrado'}
             </Text>
+            {(() => {
+              const isTemp = isTempCustomerId(customer.id);
+              const isPendingSync = isTemp || syncQueue.some((q) => {
+                const qCustId = q.payload?.customer_id || q.payload?.customerId || q.payload?.client_id || q.payload?.clientId;
+                return String(qCustId) === String(customer.id) || (q.type === 'update_customer' && String(q.payload?.id) === String(customer.id));
+              });
+              return isPendingSync ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(245,158,11,0.08)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, alignSelf: 'flex-start', marginTop: 4 }}>
+                  <Ionicons name="cloud-offline-outline" size={11} color="#b06000" style={{ marginRight: 4 }} />
+                  <Text style={{ fontSize: 10, color: '#b06000', fontWeight: 'bold' }}>Salvo no dispositivo (Pendente de Nuvem)</Text>
+                </View>
+              ) : (
+                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(34,197,94,0.08)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, alignSelf: 'flex-start', marginTop: 4 }}>
+                  <Ionicons name="cloud-done-outline" size={11} color="#137333" style={{ marginRight: 4 }} />
+                  <Text style={{ fontSize: 10, color: '#137333', fontWeight: 'bold' }}>Sincronizado com a Nuvem</Text>
+                </View>
+              );
+            })()}
             {customer.documentValue ? (
               <View style={styles.custSubRow}>
                 <Ionicons name="card-outline" size={12} color={theme.colors.textMuted} style={{ marginRight: 4 }} />
@@ -732,6 +863,7 @@ export function CustomerDetailContent({
                     onPress={() => {
                       setEditDocType('cpf');
                       setEditDocValue('');
+                      setDocStatus('idle');
                     }}
                   >
                     <Text style={[styles.radioText, editDocType === 'cpf' && styles.radioTextActive]}>CPF</Text>
@@ -741,6 +873,7 @@ export function CustomerDetailContent({
                     onPress={() => {
                       setEditDocType('cnpj');
                       setEditDocValue('');
+                      setDocStatus('idle');
                     }}
                   >
                     <Text style={[styles.radioText, editDocType === 'cnpj' && styles.radioTextActive]}>CNPJ</Text>
@@ -749,7 +882,12 @@ export function CustomerDetailContent({
               </View>
 
               <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Documento ({editDocType.toUpperCase()})</Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={styles.formLabel}>Documento ({editDocType.toUpperCase()})</Text>
+                  {docStatus === 'loading' && <Text style={{ fontSize: 11, color: '#64748b', fontWeight: '500', marginBottom: 8 }}>Validando... ⏳</Text>}
+                  {docStatus === 'valid' && <Text style={{ fontSize: 11, color: '#059669', fontWeight: '500', marginBottom: 8 }}>Válido ✓</Text>}
+                  {docStatus === 'invalid' && <Text style={{ fontSize: 11, color: '#dc2626', fontWeight: '500', marginBottom: 8 }}>Inválido ✗</Text>}
+                </View>
                 <TextInput
                   style={styles.formInput}
                   keyboardType="numeric"
@@ -760,7 +898,12 @@ export function CustomerDetailContent({
               </View>
 
               <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>CEP</Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={styles.formLabel}>CEP</Text>
+                  {cepStatus === 'loading' && <Text style={{ fontSize: 11, color: '#64748b', fontWeight: '500', marginBottom: 8 }}>Buscando... ⏳</Text>}
+                  {cepStatus === 'valid' && <Text style={{ fontSize: 11, color: '#059669', fontWeight: '500', marginBottom: 8 }}>Válido ✓</Text>}
+                  {cepStatus === 'invalid' && <Text style={{ fontSize: 11, color: '#dc2626', fontWeight: '500', marginBottom: 8 }}>Inexistente ✗</Text>}
+                </View>
                 <TextInput
                   style={styles.formInput}
                   keyboardType="numeric"

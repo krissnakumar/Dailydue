@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Alert, Image, TouchableOpacity, Platform, KeyboardAvoidingView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, Alert, Image, TouchableOpacity, Platform, KeyboardAvoidingView, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Header, Card, Button } from '../../src/components';
 import { useFiadoStore } from '../../src/store';
@@ -20,6 +20,10 @@ export default function ConfiguracoesScreen() {
     subscription,
     getActiveCustomersCount,
     getCurrentMonthTransactionsCount,
+    syncQueue,
+    isSyncing,
+    failedSyncItems,
+    retryFailedSyncItems,
   } = useFiadoStore();
 
   const customersCount = getActiveCustomersCount();
@@ -105,32 +109,98 @@ export default function ConfiguracoesScreen() {
   };
 
   const handleLogout = () => {
+    const pendingCount = useFiadoStore.getState().syncQueue.length;
+
+    const performSyncAndLogout = async () => {
+      try {
+        console.log('[Logout] Sincronizando dados pendentes...');
+        await useFiadoStore.getState().flushSyncQueue();
+      } catch (err) {
+        console.warn('[Logout] Falha na sincronização final:', err);
+      }
+
+      const remainingCount = useFiadoStore.getState().syncQueue.length;
+      if (remainingCount > 0) {
+        if (Platform.OS === 'web') {
+          if (window.confirm(`Atenção: Você ainda possui ${remainingCount} alterações pendentes de sincronização (talvez esteja offline). Se você sair agora, essas alterações serão perdidas. Deseja sair mesmo assim?`)) {
+            void doLogout();
+          }
+        } else {
+          Alert.alert(
+            'Dados não salvos!',
+            `Você ainda possui ${remainingCount} alterações pendentes que não foram salvas na nuvem. Se sair agora, elas serão perdidas.\n\nDeseja sair mesmo assim?`,
+            [
+              { text: 'Cancelar', style: 'cancel' },
+              {
+                text: 'Tentar Sincronizar Novamente',
+                onPress: () => {
+                  void performSyncAndLogout();
+                }
+              },
+              {
+                text: 'Sair e Perder Dados',
+                style: 'destructive',
+                onPress: () => {
+                  void doLogout();
+                }
+              }
+            ]
+          );
+        }
+      } else {
+        void doLogout();
+      }
+    };
+
     const doLogout = async () => {
       try {
+        const currentUser = useFiadoStore.getState().user;
+        if (currentUser?.id && currentUser.id !== 'usr_offline') {
+          console.log('[Logout] Criando backup de segurança dos dados offline...');
+          await useFiadoStore.getState().backupOfflineUserData(currentUser.id);
+        }
+        await new Promise((resolve) => setTimeout(resolve, 500));
         await supabase.auth.signOut();
       } catch (error) {
         console.warn('Erro ao desconectar', error);
       } finally {
         setUser(null);
+        useFiadoStore.getState().resetDemoData();
         router.replace('/(auth)/login');
       }
     };
 
-    if (Platform.OS === 'web') {
-      if (window.confirm('Deseja desconectar a conta atual e voltar ao modo balcão offline?')) {
-        void doLogout();
+    if (pendingCount > 0) {
+      if (Platform.OS === 'web') {
+        if (window.confirm(`Você possui ${pendingCount} alterações pendentes de sincronização. Deseja tentar salvá-las antes de sair?`)) {
+          void performSyncAndLogout();
+        } else {
+          void doLogout();
+        }
+      } else {
+        Alert.alert(
+          'Sincronizar antes de sair?',
+          `Você possui ${pendingCount} alterações locais que ainda não foram salvas na nuvem. Deseja sincronizá-las antes de sair?`,
+          [
+            {
+              text: 'Sincronizar e Sair',
+              onPress: () => {
+                void performSyncAndLogout();
+              }
+            },
+            {
+              text: 'Sair Sem Salvar',
+              style: 'destructive',
+              onPress: () => {
+                void doLogout();
+              }
+            },
+            { text: 'Cancelar', style: 'cancel' }
+          ]
+        );
       }
     } else {
-      Alert.alert('Desconectar', 'Deseja desconectar a conta atual e voltar ao modo balcão offline?', [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Sim, Sair',
-          style: 'destructive',
-          onPress: () => {
-            void doLogout();
-          },
-        },
-      ]);
+      void doLogout();
     }
   };
 
@@ -159,6 +229,143 @@ export default function ConfiguracoesScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Status de Sincronização */}
+        <Text style={styles.sectionTitle}>Sincronização na Nuvem</Text>
+        <Card style={styles.syncCard}>
+          <View style={styles.syncContainer}>
+            {(() => {
+              if (!user || user.id === 'usr_offline') {
+                return (
+                  <>
+                    <View style={[styles.syncDot, { backgroundColor: '#eab308' }]} />
+                    <View style={{ flex: 1, marginLeft: 10 }}>
+                      <Text style={styles.syncTitle}>Modo Balcão Offline</Text>
+                      <Text style={styles.syncSubtitle}>
+                        Seus dados estão 100% seguros localmente no seu aparelho.
+                      </Text>
+                    </View>
+                  </>
+                );
+              }
+
+              if (isSyncing) {
+                return (
+                  <>
+                    <ActivityIndicator size="small" color={theme.colors.primary} style={{ marginRight: 10 }} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.syncTitle}>Sincronizando...</Text>
+                      <Text style={styles.syncSubtitle}>
+                        Enviando suas alterações recentes para a nuvem.
+                      </Text>
+                    </View>
+                  </>
+                );
+              }
+
+              if (syncQueue.length > 0) {
+                return (
+                  <>
+                    <View style={[styles.syncDot, { backgroundColor: '#f97316' }]} />
+                    <View style={{ flex: 1, marginLeft: 10 }}>
+                      <Text style={styles.syncTitle}>Alterações Pendentes ({syncQueue.length})</Text>
+                      <Text style={styles.syncSubtitle}>
+                        Há dados locais aguardando conexão com a internet para salvar na nuvem.
+                      </Text>
+                    </View>
+                  </>
+                );
+              }
+
+              return (
+                <>
+                  <View style={[styles.syncDot, { backgroundColor: '#22c55e' }]} />
+                  <View style={{ flex: 1, marginLeft: 10 }}>
+                    <Text style={styles.syncTitle}>Sincronizado</Text>
+                    <Text style={styles.syncSubtitle}>
+                      Suas alterações e dados estão atualizados na nuvem.
+                    </Text>
+                  </View>
+                </>
+              );
+            })()}
+          </View>
+        </Card>
+
+        {/* Histórico de Falhas de Sincronização */}
+        {failedSyncItems.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Erros de Sincronização</Text>
+            <Card style={styles.errorCard}>
+              <View style={styles.errorHeader}>
+                <Ionicons name="warning" size={20} color="#dc2626" />
+                <Text style={styles.errorTitle}>Falhas Recentes ({failedSyncItems.length})</Text>
+              </View>
+              {failedSyncItems.map((item: any, idx) => {
+                const errDetails = item.error_details || {};
+                const errMsg = errDetails.message || item.failed_reason || 'Erro desconhecido';
+                
+                return (
+                  <View key={item.id || idx} style={styles.errorItem}>
+                    <Text style={styles.errorItemType}>
+                      {item.type === 'create_customer' ? 'Criar Cliente' :
+                       item.type === 'update_customer' ? 'Atualizar Cliente' :
+                       item.type === 'delete_customer' ? 'Excluir Cliente' :
+                       item.type === 'delete_transaction' ? 'Excluir Lançamento' :
+                       item.type === 'debt' ? 'Nova Venda' :
+                       item.type === 'payment' ? 'Novo Pagamento' : item.type}
+                    </Text>
+                    <Text style={styles.errorItemMsg}>{errMsg}</Text>
+                    {errDetails.code && (
+                      <Text style={styles.errorItemCode}>Código do erro: {errDetails.code}</Text>
+                    )}
+                  </View>
+                );
+              })}
+              <TouchableOpacity
+                style={[styles.retryErrorsBtn, isSyncing && { opacity: 0.7 }]}
+                disabled={isSyncing}
+                onPress={async () => {
+                  try {
+                    await retryFailedSyncItems();
+                    Alert.alert('Sincronização', 'Tentando enviar itens pendentes...');
+                  } catch (err: any) {
+                    Alert.alert('Erro', err.message || 'Falha ao re-tentar.');
+                  }
+                }}
+              >
+                {isSyncing ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Ionicons name="refresh-outline" size={18} color="#fff" />
+                )}
+                <Text style={styles.retryErrorsBtnText}>
+                  {isSyncing ? 'Sincronizando...' : 'Re-tentar Sincronização'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.clearErrorsBtn}
+                onPress={() => {
+                  Alert.alert(
+                    'Limpar Erros',
+                    'Deseja limpar o histórico de erros de sincronização?',
+                    [
+                      { text: 'Cancelar', style: 'cancel' },
+                      {
+                        text: 'Limpar',
+                        style: 'destructive',
+                        onPress: () => useFiadoStore.setState({ failedSyncItems: [] }),
+                      },
+                    ]
+                  );
+                }}
+              >
+                <Text style={styles.clearErrorsBtnText}>Limpar Histórico de Erros</Text>
+              </TouchableOpacity>
+            </Card>
+          </>
+        )}
+
         {/* Plano de Assinatura e Limites */}
         <Text style={styles.sectionTitle}>Assinatura & Limites de Uso</Text>
         <Card style={styles.subCard}>
@@ -171,18 +378,26 @@ export default function ConfiguracoesScreen() {
                 style={{ marginRight: 8 }}
               />
               <Text style={styles.subTitle}>
-                {subscription.is_premium ? 'Plano Premium' : 'Plano Gratuito'}
+                {subscription.plan_id === 'premium_monthly'
+                  ? 'Plano Premium'
+                  : 'Plano Gratuito'}
               </Text>
             </View>
             <View style={[
               styles.badge,
-              subscription.is_premium ? styles.badgePremium : styles.badgeFree
+              subscription.plan_id === 'premium_monthly'
+                ? styles.badgePremium
+                : styles.badgeFree
             ]}>
               <Text style={[
                 styles.badgeText,
-                subscription.is_premium ? styles.badgeTextPremium : styles.badgeTextFree
+                subscription.plan_id === 'premium_monthly'
+                  ? styles.badgeTextPremium
+                  : styles.badgeTextFree
               ]}>
-                {subscription.is_premium ? 'Premium' : 'Básico'}
+                {subscription.plan_id === 'premium_monthly'
+                  ? 'Premium'
+                  : 'Grátis'}
               </Text>
             </View>
           </View>
@@ -274,13 +489,6 @@ export default function ConfiguracoesScreen() {
                 </View>
               </View>
               <Text style={styles.profileEmail}>Conta de Acesso: {user.email}</Text>
-              <Button
-                title="Desconectar / Sair da Conta"
-                variant="danger"
-                leftIcon={<Ionicons name="log-out-outline" size={16} color={theme.colors.danger} style={{ marginRight: 6 }} />}
-                onPress={handleLogout}
-                style={{ marginTop: 16 }}
-              />
             </View>
           ) : (
             <View style={{ alignItems: 'center', marginBottom: 24, paddingBottom: 24, borderBottomWidth: 1, borderBottomColor: theme.colors.border }}>
@@ -495,5 +703,96 @@ const styles = StyleSheet.create({
   progressBarFill: {
     height: '100%',
     borderRadius: 3,
+  },
+  syncCard: {
+    padding: 16,
+    marginBottom: 16,
+    backgroundColor: '#ffffff',
+  },
+  syncContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  syncDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  syncTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: theme.colors.textMain,
+  },
+  syncSubtitle: {
+    fontSize: 12,
+    color: theme.colors.textMuted,
+    marginTop: 2,
+  },
+  errorCard: {
+    padding: 16,
+    marginBottom: 16,
+    backgroundColor: '#fff5f5',
+    borderColor: '#feb2b2',
+    borderWidth: 1,
+  },
+  errorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  errorTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#c53030',
+    marginLeft: 8,
+  },
+  errorItem: {
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#fed7d7',
+  },
+  errorItemType: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: theme.colors.textMain,
+  },
+  errorItemMsg: {
+    fontSize: 12,
+    color: '#9b2c2c',
+    marginTop: 2,
+  },
+  errorItemCode: {
+    fontSize: 10,
+    color: '#a0aec0',
+    marginTop: 2,
+  },
+  clearErrorsBtn: {
+    marginTop: 12,
+    paddingVertical: 8,
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#fc8181',
+    borderRadius: theme.borderRadius.sm,
+  },
+  clearErrorsBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#e53e3e',
+  },
+  retryErrorsBtn: {
+    marginTop: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    backgroundColor: '#16a34a',
+    borderRadius: theme.borderRadius.sm,
+  },
+  retryErrorsBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#fff',
+    marginLeft: 6,
   },
 });

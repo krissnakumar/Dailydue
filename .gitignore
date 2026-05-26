@@ -54,3 +54,11 @@ pnpm-debug.log*
 *.sln
 *.swp
 *.keystore
+
+# Temporary and Scratch Directories
+.temp/
+scratch/
+apps/mobile/.temp/
+apps/mobile/scratch/
+apps/mobile/supabase/.temp/
+

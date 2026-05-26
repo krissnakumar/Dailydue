@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useRouter, useNavigation } from 'expo-router';
 import { Header, Button, CustomerRow, CustomerDetailContent } from '../../../src/components';
-import { useFiadoStore } from '../../../src/store';
+import { useFiadoStore, isTempCustomerId } from '../../../src/store';
 import { theme } from '../../../src/theme';
 import { useResponsive } from '../../../src/utils/responsive';
 import Animated from 'react-native-reanimated';
@@ -39,6 +39,7 @@ export default function ClientesScreen() {
     customers,
     businessConfig,
     subscription,
+    syncQueue,
   } = useFiadoStore();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -310,9 +311,24 @@ export default function ClientesScreen() {
                       <Text style={styles.clientNameText} numberOfLines={1}>{item.full_name}</Text>
                       <View style={[styles.statusDot, { backgroundColor: isZero ? '#22c55e' : isAtrasado ? '#ef4444' : '#f59e0b' }]} />
                     </View>
-                    {item.phone ? (
-                      <Text style={styles.clientPhoneText} numberOfLines={1}>{item.phone}</Text>
-                    ) : null}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                      {(() => {
+                        const isTemp = isTempCustomerId(item.id);
+                        const isPendingSync = isTemp || syncQueue.some((q) => {
+                          const qCustId = q.payload?.customer_id || q.payload?.customerId || q.payload?.client_id || q.payload?.clientId;
+                          return String(qCustId) === String(item.id) || (q.type === 'update_customer' && String(q.payload?.id) === String(item.id));
+                        });
+                        return isPendingSync ? (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 8, backgroundColor: 'rgba(245,158,11,0.08)', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4 }}>
+                            <Ionicons name="cloud-offline-outline" size={10} color="#b06000" style={{ marginRight: 2 }} />
+                            <Text style={{ fontSize: 9, color: '#b06000', fontWeight: 'bold' }}>Local</Text>
+                          </View>
+                        ) : null;
+                      })()}
+                      {item.phone ? (
+                        <Text style={styles.clientPhoneText} numberOfLines={1}>{item.phone}</Text>
+                      ) : null}
+                    </View>
                   </View>
                 </View>
 

@@ -42,6 +42,9 @@ export interface Customer {
   picture_mime_type?: string | null;
   total_debt?: number;
   is_active?: boolean;
+  cep?: string | null;
+  document_type?: 'cpf' | 'cnpj' | null;
+  document_value?: string | null;
   created_at: string;
 }
 

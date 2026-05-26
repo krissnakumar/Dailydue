@@ -13,6 +13,37 @@ import {
 } from '@controle-fiado/api';
 import * as Haptics from 'expo-haptics';
 
+const SYNC_RETRY_BASE_MS = 15_000;
+const SYNC_RETRY_MAX_MS = 5 * 60_000;
+let syncRetryTimer: ReturnType<typeof setTimeout> | null = null;
+let syncRetryDelayMs = SYNC_RETRY_BASE_MS;
+
+function scheduleSyncRetry(reason: string, retryFn: () => void) {
+  try {
+    if (syncRetryTimer) clearTimeout(syncRetryTimer);
+  } catch {}
+
+  const delay = Math.min(syncRetryDelayMs, SYNC_RETRY_MAX_MS);
+  console.log(`[Sync] Agendando retentativa em ${Math.round(delay / 1000)}s. reason=${reason}`);
+  syncRetryTimer = setTimeout(() => {
+    try {
+      retryFn();
+    } catch {}
+  }, delay);
+
+  syncRetryDelayMs = Math.min(syncRetryDelayMs * 2, SYNC_RETRY_MAX_MS);
+}
+
+function resetSyncRetryBackoff() {
+  syncRetryDelayMs = SYNC_RETRY_BASE_MS;
+  if (syncRetryTimer) {
+    try {
+      clearTimeout(syncRetryTimer);
+    } catch {}
+    syncRetryTimer = null;
+  }
+}
+
 /**
  * Generates a collision-resistant local ID by combining a millisecond
  * timestamp with a random 5-character base-36 suffix.
@@ -164,7 +195,11 @@ export interface FiadoMobileState {
   // Offline Background Sync
   enqueueSync: (type: PendingQueueItem['type'], payload: Record<string, any>) => void;
   attemptBackgroundSync: () => Promise<void>;
+  retryFailedSyncItems: () => Promise<void>;
   clearSyncQueue: () => void;
+  flushSyncQueue: () => Promise<void>;
+  backupOfflineUserData: (userId: string) => Promise<void>;
+  restoreOfflineUserData: (userId: string) => Promise<void>;
   resetDemoData: () => void;
   loadSupabaseData: () => Promise<void>;
 }
@@ -207,7 +242,7 @@ function isUuid(val: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(val);
 }
 
-function isTempCustomerId(val: string) {
+export function isTempCustomerId(val: string) {
   const id = String(val || '');
   if (!id) return false;
   if (id.startsWith('cust_') || id.startsWith('temp_') || id.startsWith('local_') || id.startsWith('pending_')) return true;
@@ -287,6 +322,9 @@ export const useFiadoStore = create<FiadoMobileState>()(
         set({ user });
         if (user) {
           get().fetchSubscription();
+          if (user.id) {
+            get().restoreOfflineUserData(user.id);
+          }
         } else {
           set({
             subscription: {
@@ -537,7 +575,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
 
       addCustomer: (name, phone = '', cep = '', address = '', documentType, documentValue = '', picture = '') => {
         const sub = get().subscription;
-        if (!sub.is_premium && sub.max_customers !== null) {
+        if (sub.max_customers !== null) {
           const activeCount = get().getActiveCustomersCount();
           if (activeCount >= sub.max_customers) {
             throw new Error('FREE_PLAN_CUSTOMER_LIMIT_REACHED');
@@ -930,9 +968,138 @@ export const useFiadoStore = create<FiadoMobileState>()(
         set({ syncQueue: [], failedSyncItems: [], customerIdMap: {} });
       },
 
+      flushSyncQueue: async () => {
+        if (get().syncQueue.length === 0) {
+          return;
+        }
+
+        if (get().isSyncing) {
+          console.log('[Sync] Já sincronizando. Aguardando conclusão para logout...');
+          while (get().isSyncing) {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+          return;
+        }
+
+        const { data } = await supabase.auth.getSession();
+        if (!data?.session) {
+          console.log('[Sync] Não há sessão ativa para esvaziar fila.');
+          return;
+        }
+
+        console.log('[Sync] Forçando sincronização imediata de toda a fila...');
+        await get().attemptBackgroundSync();
+
+        let retries = 50;
+        while (get().isSyncing && retries > 0) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          retries--;
+        }
+      },
+
+      backupOfflineUserData: async (userId: string) => {
+        if (!userId || userId === 'usr_offline') return;
+        try {
+          const { customers, syncQueue, failedSyncItems, customerIdMap } = get();
+          if (customers.length > 0 || syncQueue.length > 0) {
+            const dataToSave = {
+              customers,
+              syncQueue,
+              failedSyncItems,
+              customerIdMap,
+              savedAt: new Date().toISOString(),
+            };
+            const storageKey = `fiado_offline_data_${userId}`;
+            await AsyncStorage.setItem(storageKey, JSON.stringify(dataToSave));
+            console.log(`[Backup] Dados locais do usuário ${userId} salvos em backup offline.`);
+          }
+        } catch (err) {
+          console.warn('[Backup] Falha ao criar backup offline dos dados do usuário:', err);
+        }
+      },
+
+      restoreOfflineUserData: async (userId: string) => {
+        if (!userId || userId === 'usr_offline') return;
+        try {
+          const storageKey = `fiado_offline_data_${userId}`;
+          const raw = await AsyncStorage.getItem(storageKey);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed) {
+              console.log(`[Restore] Restaurando dados offline para o usuário ${userId}...`);
+              
+              const currentStore = get();
+              
+              const mergedCustomers = [...currentStore.customers];
+              const restoredCustomers = parsed.customers || [];
+              for (const rc of restoredCustomers) {
+                if (!mergedCustomers.some(c => c.id === rc.id)) {
+                  mergedCustomers.push(rc);
+                }
+              }
+
+              const mergedQueue = [...currentStore.syncQueue];
+              const restoredQueue = parsed.syncQueue || [];
+              for (const rq of restoredQueue) {
+                if (!mergedQueue.some(q => q.id === rq.id)) {
+                  mergedQueue.push(rq);
+                }
+              }
+
+              const mergedFailed = [...currentStore.failedSyncItems];
+              const restoredFailed = parsed.failedSyncItems || [];
+              for (const rf of restoredFailed) {
+                if (!mergedFailed.some(f => f.id === rf.id)) {
+                  mergedFailed.push(rf);
+                }
+              }
+
+              const mergedMap = { ...currentStore.customerIdMap, ...(parsed.customerIdMap || {}) };
+
+              set({
+                customers: mergedCustomers,
+                syncQueue: mergedQueue,
+                failedSyncItems: mergedFailed,
+                customerIdMap: mergedMap,
+              });
+
+              await AsyncStorage.removeItem(storageKey);
+              console.log(`[Restore] Dados restaurados com sucesso. Fila de sync: ${mergedQueue.length} itens.`);
+              
+              if (mergedQueue.length > 0) {
+                get().attemptBackgroundSync();
+              }
+            }
+          }
+        } catch (err) {
+          console.warn('[Restore] Falha ao restaurar backup offline dos dados:', err);
+        }
+      },
+
+      retryFailedSyncItems: async () => {
+        const { failedSyncItems, syncQueue } = get();
+        if (failedSyncItems.length === 0) return;
+
+        // Limpa os campos failed_reason, failed_at, error_details dos itens de falha
+        const restored = failedSyncItems.map((item) => {
+          const { failed_reason, failed_at, error_details, ...original } = item as any;
+          return original;
+        });
+
+        set({
+          syncQueue: [...restored, ...syncQueue],
+          failedSyncItems: [],
+        });
+
+        // Dispara a sincronização
+        await get().attemptBackgroundSync();
+      },
+
       attemptBackgroundSync: async () => {
         const { syncQueue, isSyncing, businessConfig, user } = get();
         if (isSyncing || syncQueue.length === 0) return;
+
+        set({ isSyncing: true });
 
         let sessionData = null;
         try {
@@ -941,6 +1108,9 @@ export const useFiadoStore = create<FiadoMobileState>()(
         } catch (e) {
           console.log('[Sync] Banco offline ou erro de rede. Sincronização pausada.');
           set({ isSyncing: false });
+          scheduleSyncRetry('SESSION_FETCH_FAILED', () => {
+            get().attemptBackgroundSync();
+          });
           return;
         }
 
@@ -954,22 +1124,60 @@ export const useFiadoStore = create<FiadoMobileState>()(
         // (Sem isso, get_current_business_id() pode retornar null e quebrar inserts.)
         let bizId = null;
         try {
-          const { data } = await supabase.rpc('get_current_business_id');
+          const { data, error } = await supabase.rpc('get_current_business_id');
+          if (error) throw error;
           bizId = data;
           if (bizId) set({ currentBusinessId: String(bizId) });
         } catch (e: any) {
-          console.log('[Sync] Não foi possível validar business_id:', e?.message || e);
+          const msg = e?.message || String(e || '');
+          if (msg.includes('JWT') || msg.includes('authenticated') || msg.includes('auth')) {
+            console.log('[Sync] Falha de autenticação ao buscar business_id. Tentando refresh de sessão...');
+            try {
+              const { data: refreshData, error: refreshErr } = await supabase.auth.refreshSession();
+              if (!refreshErr && refreshData?.session) {
+                console.log('[Sync] Sessão atualizada com sucesso. Refazendo chamada...');
+                const { data: retryData } = await supabase.rpc('get_current_business_id');
+                bizId = retryData;
+                if (bizId) set({ currentBusinessId: String(bizId) });
+              }
+            } catch (err: any) {
+              console.log('[Sync] Falha ao atualizar sessão:', err?.message || err);
+            }
+          } else {
+            console.log('[Sync] Não foi possível validar business_id:', msg);
+          }
         }
 
         if (!bizId) {
           console.log('[Sync] business_id ausente no servidor. Tentando inicializar perfil/loja...');
           try {
             const phone = (businessConfig.phone || (user as any)?.phone || '').replace(/\D/g, '');
-            const newBizId = await bootstrapOwnerProfile({
-              business_name: businessConfig.businessName || 'Meu Estabelecimento',
-              owner_name: user?.full_name || user?.email?.split('@')[0] || 'Dono',
-              phone: phone || undefined,
-            });
+            let newBizId = null;
+            try {
+              newBizId = await bootstrapOwnerProfile({
+                business_name: businessConfig.businessName || 'Meu Estabelecimento',
+                owner_name: user?.full_name || user?.email?.split('@')[0] || 'Dono',
+                phone: phone || undefined,
+              });
+            } catch (err: any) {
+              const msg = err?.message || String(err || '');
+              if (msg.includes('JWT') || msg.includes('authenticated') || msg.includes('auth')) {
+                console.log('[Sync] Falha de autenticação no bootstrap. Tentando refresh...');
+                const { data: refreshData, error: refreshErr } = await supabase.auth.refreshSession();
+                if (!refreshErr && refreshData?.session) {
+                  newBizId = await bootstrapOwnerProfile({
+                    business_name: businessConfig.businessName || 'Meu Estabelecimento',
+                    owner_name: user?.full_name || user?.email?.split('@')[0] || 'Dono',
+                    phone: phone || undefined,
+                  });
+                } else {
+                  throw err;
+                }
+              } else {
+                throw err;
+              }
+            }
+
             if (newBizId) {
               bizId = newBizId;
               set({ hasBootstrappedProfile: true, currentBusinessId: String(newBizId) });
@@ -1000,7 +1208,10 @@ export const useFiadoStore = create<FiadoMobileState>()(
           // Processa tudo em ordem (mantém consistência quando IDs temporários viram UUIDs)
           for (const item of remainingQueue) {
             let success = false;
-            try {
+            let retriesLeft = 1;
+
+            while (!success && retriesLeft >= 0) {
+              try {
               if (item.type === 'create_customer') {
                 // A tabela customers tem RLS com "Deny direct insert" — criar via RPC segura.
                 const oldId = String(item.payload.id || '');
@@ -1023,18 +1234,18 @@ export const useFiadoStore = create<FiadoMobileState>()(
                   continue;
                 }
 
-                const addressLine = [address, cep ? `CEP: ${cep}` : null].filter(Boolean).join(' • ') || null;
-                const notesLine = docValue ? `Documento (${(docType || 'doc').toUpperCase()}): ${docValue}` : null;
-
                 const { data: created, error: createErr } = await supabase.rpc('create_customer_secure', {
                   p_name: normalized.full_name,
                   p_phone: item.payload.phone || '',
                   p_email: item.payload.email || null,
-                  p_address: addressLine,
-                  p_notes: notesLine,
+                  p_address: address || null,
+                  p_notes: item.payload.notes || null,
                   p_credit_limit: 0,
                   p_picture_storage_path: item.payload.picture_storage_path || null,
                   p_picture_mime_type: item.payload.picture_mime_type || null,
+                  p_cep: cep || null,
+                  p_document_type: docType || null,
+                  p_document_value: docValue || null,
                 });
                 if (createErr) throw createErr;
 
@@ -1120,6 +1331,9 @@ export const useFiadoStore = create<FiadoMobileState>()(
                       phone: item.payload.phone,
                       address: item.payload.address,
                       clear_photo: true,
+                      cep: item.payload.cep,
+                      document_type: item.payload.documentType,
+                      document_value: item.payload.documentValue,
                     });
                     set((state) => ({
                       customers: state.customers.map((c) =>
@@ -1171,6 +1385,9 @@ export const useFiadoStore = create<FiadoMobileState>()(
                       address: item.payload.address,
                       picture_storage_path,
                       picture_mime_type,
+                      cep: item.payload.cep,
+                      document_type: item.payload.documentType,
+                      document_value: item.payload.documentValue,
                     });
 
                     if (picture_storage_path) {
@@ -1270,78 +1487,117 @@ export const useFiadoStore = create<FiadoMobileState>()(
                 await apiDeleteTransaction(txId);
                 success = true;
               }
-              
-              if (success) processedIds.push(item.id);
-            } catch (e: any) {
-              const msg = e?.message || String(e || '');
-              if (String(msg).includes('NOT_AUTHENTICATED')) {
-                console.log('[Sync] Sessão expirou. Sincronização pausada.');
-                set({ isSyncing: false });
-                return;
-              }
-              if (String(msg).includes('BUSINESS_CONTEXT_MISSING')) {
-                console.log('[Sync] Contexto da loja ausente. Configure o telefone da loja em Config e tente novamente.');
-                set({ isSyncing: false });
-                return;
-              }
-              if (isTransientNetworkError(e)) {
-                console.log('[Sync] Erro de rede temporário. Sincronização pausada.', msg);
-                set({ isSyncing: false });
-                return;
-              }
-              
-              // Se for um erro persistente (banco de dados, violação de regras de plano, etc.),
-              // removemos da fila de sincronização para evitar travamento infinito da fila.
-              console.warn(
-                `[Sync] Erro persistente no item ${item.id} (${item.type}). Removendo da fila. Erro:`,
-                msg
-              );
+              } catch (e: any) {
+                const msg = e?.message || String(e || '');
+                const isAuthError =
+                  String(msg).includes('NOT_AUTHENTICATED') ||
+                  String(msg).includes('JWT') ||
+                  String(msg).includes('authenticated') ||
+                  e?.status === 401 ||
+                  e?.status === 403;
 
-              // Se a criação do cliente falhou permanentemente,
-              // limpa todos os itens dependentes que usam o ID temporário deste cliente.
-              let dependentIdsToRemove: string[] = [];
-              if (item.type === 'create_customer') {
-                const tempId = item.payload?.id;
-                if (tempId && isTempCustomerId(tempId)) {
-                  const dependents = get().syncQueue.filter((q) => {
-                    if (q.id === item.id) return false;
-                    const qCustId = String(
-                      q.payload?.customer_id || q.payload?.customerId || q.payload?.client_id || q.payload?.clientId || ''
-                    );
-                    if (qCustId === tempId) return true;
-                    if (q.type === 'update_customer' && String(q.payload?.id) === tempId) return true;
-                    if (q.type === 'delete_customer' && String(q.payload?.id) === tempId) return true;
-                    return false;
-                  });
-
-                  for (const dep of dependents) {
-                    dependentIdsToRemove.push(dep.id);
+                if (isAuthError && retriesLeft > 0) {
+                  console.log(`[Sync] Falha de autenticação detectada para item ${item.id}. Tentando atualizar sessão e reenviar...`);
+                  retriesLeft--;
+                  try {
+                    const { data: refreshData, error: refreshErr } = await supabase.auth.refreshSession();
+                    if (!refreshErr && refreshData?.session) {
+                      console.log('[Sync] Sessão atualizada com sucesso. Retentando operação...');
+                      continue; // Retenta
+                    }
+                  } catch (refreshEx) {
+                    console.log('[Sync] Falha ao tentar atualizar sessão:', refreshEx);
                   }
                 }
-              }
 
-              set((state) => {
-                const depFailedItems = state.syncQueue
-                  .filter((q) => dependentIdsToRemove.includes(q.id))
-                  .map((q) => ({
-                    ...q,
-                    failed_reason: `PARENT_CUSTOMER_CREATION_FAILED (Parent error: ${msg})`,
-                    failed_at: new Date().toISOString(),
-                  }));
-
-                return {
-                  failedSyncItems: [
-                    ...state.failedSyncItems,
-                    { ...(item as any), failed_reason: msg, failed_at: new Date().toISOString() },
-                    ...depFailedItems,
-                  ].slice(-50),
+                // Se não é erro de auth, ou esgotou retentativas, entra na lógica de erro persistente / temporário
+                if (String(msg).includes('NOT_AUTHENTICATED')) {
+                  console.log('[Sync] Sessão expirou de forma definitiva. Sincronização pausada.');
+                  set({ isSyncing: false });
+                  return;
+                }
+                if (String(msg).includes('BUSINESS_CONTEXT_MISSING')) {
+                  console.log('[Sync] Contexto da loja ausente. Configure o telefone da loja em Config e tente novamente.');
+                  set({ isSyncing: false });
+                  return;
+                }
+                if (isTransientNetworkError(e)) {
+                  console.log('[Sync] Erro de rede temporário. Sincronização pausada.', msg);
+                  set({ isSyncing: false });
+                  scheduleSyncRetry('TRANSIENT_NETWORK', () => {
+                    get().attemptBackgroundSync();
+                  });
+                  return;
+                }
+                
+                const errorDetails = {
+                  message: e?.message || String(e || ''),
+                  code: e?.code || null,
+                  details: e?.details || null,
+                  hint: e?.hint || null,
+                  status: e?.status || null,
                 };
-              });
 
-              processedIds.push(item.id);
-              if (dependentIdsToRemove.length > 0) {
-                processedIds.push(...dependentIdsToRemove);
-                remainingQueue = remainingQueue.filter(q => !dependentIdsToRemove.includes(q.id));
+                // Se for um erro persistente (banco de dados, violação de regras de plano, etc.),
+                // removemos da fila de sincronização para evitar travamento infinito da fila.
+                console.warn(
+                  `[Sync] Erro persistente no item ${item.id} (${item.type}). Removendo da fila. Detalhes:`,
+                  JSON.stringify(errorDetails, null, 2)
+                );
+
+                // Se a criação do cliente falhou permanentemente,
+                // limpa todos os itens dependentes que usam o ID temporário deste cliente.
+                let dependentIdsToRemove: string[] = [];
+                if (item.type === 'create_customer') {
+                  const tempId = item.payload?.id;
+                  if (tempId && isTempCustomerId(tempId)) {
+                    const dependents = get().syncQueue.filter((q) => {
+                      if (q.id === item.id) return false;
+                      const qCustId = String(
+                        q.payload?.customer_id || q.payload?.customerId || q.payload?.client_id || q.payload?.clientId || ''
+                      );
+                      if (qCustId === tempId) return true;
+                      if (q.type === 'update_customer' && String(q.payload?.id) === tempId) return true;
+                      if (q.type === 'delete_customer' && String(q.payload?.id) === tempId) return true;
+                      return false;
+                    });
+
+                    for (const dep of dependents) {
+                      dependentIdsToRemove.push(dep.id);
+                    }
+                  }
+                }
+
+                set((state) => {
+                  const depFailedItems = state.syncQueue
+                    .filter((q) => dependentIdsToRemove.includes(q.id))
+                    .map((q) => ({
+                      ...q,
+                      failed_reason: `PARENT_CUSTOMER_CREATION_FAILED (Parent error: ${msg})`,
+                      failed_at: new Date().toISOString(),
+                      error_details: errorDetails,
+                    }));
+
+                  return {
+                    failedSyncItems: [
+                      ...state.failedSyncItems,
+                      {
+                        ...(item as any),
+                        failed_reason: msg,
+                        failed_at: new Date().toISOString(),
+                        error_details: errorDetails,
+                      },
+                      ...depFailedItems,
+                    ].slice(-50),
+                  };
+                });
+
+                processedIds.push(item.id);
+                if (dependentIdsToRemove.length > 0) {
+                  processedIds.push(...dependentIdsToRemove);
+                  remainingQueue = remainingQueue.filter(q => !dependentIdsToRemove.includes(q.id));
+                }
+                success = true; // Para sair do while e avançar para o próximo item!
               }
             }
           }
@@ -1350,6 +1606,9 @@ export const useFiadoStore = create<FiadoMobileState>()(
             syncQueue: state.syncQueue.filter(q => !processedIds.includes(q.id)),
             isSyncing: false
           }));
+
+          // Any successful batch run means connectivity/auth is OK again; reset retry backoff.
+          resetSyncRetryBackoff();
           
           if (processedIds.length > 0) {
             console.log(`[Sync] Lote finalizado. ${processedIds.length} itens sincronizados.`);
@@ -1363,15 +1622,18 @@ export const useFiadoStore = create<FiadoMobileState>()(
       loadSupabaseData: async () => {
         try {
           const serverCustomers = await getCustomersWithTransactions();
+          const localCustomers = get().customers;
+
           if (!serverCustomers || serverCustomers.length === 0) {
-             set({ customers: [] });
+             const tempCustomers = localCustomers.filter(c => isTempCustomerId(c.id));
+             set({ customers: tempCustomers });
              return;
           }
           
           const mappedCustomers: CustomerClient[] = [];
           for (const sc of serverCustomers) {
             const txs = (sc as any).customer_transactions;
-            const history: HistoryItem[] = (txs || []).map((t: any) => ({
+            const serverHistory: HistoryItem[] = (txs || []).map((t: any) => ({
                id: t.id,
                description: t.description || '',
                amount: t.amount,
@@ -1379,21 +1641,41 @@ export const useFiadoStore = create<FiadoMobileState>()(
                type: (t.type || t.transaction_type) as 'debt' | 'payment' | 'system',
                created_by: t.created_by_name || 'Dono',
             }));
+
+            const pendingTxItems = get().syncQueue.filter(q => 
+              (q.type === 'debt' || q.type === 'payment') && 
+              String(q.payload?.customer_id || q.payload?.customerId || q.payload?.client_id || q.payload?.clientId || '') === sc.id
+            );
+
+            const pendingHistory: HistoryItem[] = pendingTxItems.map(q => ({
+              id: q.payload?.local_id || q.id,
+              description: q.payload?.description || (q.type === 'payment' ? 'Pagamento Recebido' : 'Compra adicionada'),
+              amount: Number(q.payload?.amount || 0),
+              created_at: q.added_at || new Date().toISOString(),
+              type: q.type as 'debt' | 'payment',
+              created_by: 'Dono',
+            }));
+
+            const combinedHistory = [...serverHistory];
+            for (const ph of pendingHistory) {
+              if (!combinedHistory.some(ch => ch.id === ph.id)) {
+                combinedHistory.push(ph);
+              }
+            }
             
             let total_debt_calc = 0;
-            history.forEach(h => {
+            combinedHistory.forEach(h => {
               if (h.type === 'debt') total_debt_calc += h.amount;
               if (h.type === 'payment') total_debt_calc -= h.amount;
             });
             total_debt_calc = Number(Math.max(0, total_debt_calc).toFixed(2));
             
-            const addressParts = sc.address ? sc.address.split(' • CEP: ') : [];
-            const parsedAddress = addressParts[0] || sc.address || '';
-            const parsedCep = addressParts[1] || '';
+            const parsedCep = (sc as any).cep || (sc.address && sc.address.includes(' • CEP: ') ? sc.address.split(' • CEP: ')[1] : '') || '';
+            const parsedAddress = (sc as any).address && !(sc as any).address.includes(' • CEP: ') ? (sc as any).address : (sc.address ? sc.address.split(' • CEP: ')[0] : '') || '';
 
-            let parsedDocType: 'cpf' | 'cnpj' | undefined = undefined;
-            let parsedDocValue = '';
-            if (sc.notes && sc.notes.startsWith('Documento (')) {
+            let parsedDocType: 'cpf' | 'cnpj' | undefined = (sc as any).document_type || undefined;
+            let parsedDocValue = (sc as any).document_value || '';
+            if (!parsedDocType && !parsedDocValue && sc.notes && sc.notes.startsWith('Documento (')) {
               const match = sc.notes.match(/^Documento \((CPF|CNPJ)\):\s*(.+)$/i);
               if (match) {
                 parsedDocType = match[1].toLowerCase() as 'cpf' | 'cnpj';
@@ -1410,7 +1692,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
                whatsapp: sc.phone || '',
                total_debt: total_debt_calc,
                created_at: sc.created_at,
-               history,
+               history: combinedHistory,
                cep: parsedCep || undefined,
                address: parsedAddress || undefined,
                documentType: parsedDocType,
@@ -1421,7 +1703,9 @@ export const useFiadoStore = create<FiadoMobileState>()(
             });
           }
           
-          set({ customers: mappedCustomers });
+          const tempCustomers = localCustomers.filter(c => isTempCustomerId(c.id));
+          
+          set({ customers: [...mappedCustomers, ...tempCustomers] });
           await get().refreshCustomerPictureUrls();
         } catch (error) {
           console.error('[loadSupabaseData] Erro ao carregar do Supabase:', error);
@@ -1435,6 +1719,8 @@ export const useFiadoStore = create<FiadoMobileState>()(
           syncQueue: [],
           failedSyncItems: [],
           customerIdMap: {},
+          currentBusinessId: undefined,
+          hasBootstrappedProfile: false,
         });
       },
     }),

@@ -173,8 +173,18 @@ export default function RootLayout() {
     }
     if (user.id === 'usr_offline') return;
     
-    refreshCustomerPictureUrls();
-    loadSupabaseData();
+    // Restore offline backed-up data first, then refresh picture URLs and load cloud data
+    const initUserData = async () => {
+      try {
+        await useFiadoStore.getState().restoreOfflineUserData(user.id as string);
+      } catch (err) {
+        console.warn('[Layout] Failed to restore offline user data:', err);
+      }
+      refreshCustomerPictureUrls();
+      loadSupabaseData();
+    };
+
+    void initUserData();
   }, [user?.id, refreshCustomerPictureUrls, loadSupabaseData]);
 
   useEffect(() => {
@@ -221,6 +231,8 @@ export default function RootLayout() {
         return;
       }
       applySessionUser(sess);
+      // If the user just logged in (or session refreshed), immediately try to flush any pending offline writes.
+      attemptBackgroundSync();
     });
 
     return () => {
@@ -236,6 +248,15 @@ export default function RootLayout() {
     });
     return () => sub.remove();
   }, [completeAuthFromUrl]);
+
+  useEffect(() => {
+    // Failsafe background sync: if the device goes back online while the app stays open,
+    // periodically attempt to flush the offline queue automatically.
+    const interval = setInterval(() => {
+      attemptBackgroundSync();
+    }, 30_000);
+    return () => clearInterval(interval);
+  }, [attemptBackgroundSync]);
 
   useEffect(() => {
     if (splashHidden.current) return;

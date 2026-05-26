@@ -76,8 +76,8 @@ export default function NovoFiadoPage() {
       getCurrentMonthTransactionsCount() >= subscription.max_transactions_per_month
     ) {
       Alert.alert(
-        'Plano Básico 🔒',
-        'Limite de lançamentos do mês atingido. Mude para o Premium!',
+        'Limite do Plano Grátis 🔒',
+        'Limite de lançamentos do mês atingido. Faça o upgrade para o Premium!',
         [
           { text: 'Depois', style: 'cancel' },
           {
@@ -115,8 +115,8 @@ export default function NovoFiadoPage() {
     } catch (err: any) {
       if (err.message === 'FREE_PLAN_TRANSACTION_LIMIT_REACHED') {
         Alert.alert(
-          'Plano Básico 🔒',
-          'Limite de lançamentos atingido. Mude para o Premium!',
+          'Limite do Plano Grátis 🔒',
+          'Limite de lançamentos atingido. Faça o upgrade para o Premium!',
           [
             { text: 'Depois', style: 'cancel' },
             { text: 'Ver Planos', onPress: () => router.push('/subscription') },

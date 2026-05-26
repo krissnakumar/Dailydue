@@ -264,6 +264,9 @@ export async function createCustomerEnforced(params: {
   credit_limit?: number | null;
   picture_storage_path?: string | null;
   picture_mime_type?: string | null;
+  cep?: string | null;
+  document_type?: string | null;
+  document_value?: string | null;
 }) {
   const { data, error } = await supabase.rpc('create_customer_secure', {
     p_name: params.name,
@@ -274,6 +277,9 @@ export async function createCustomerEnforced(params: {
     p_credit_limit: params.credit_limit ?? null,
     p_picture_storage_path: params.picture_storage_path ?? null,
     p_picture_mime_type: params.picture_mime_type ?? null,
+    p_cep: params.cep ?? null,
+    p_document_type: params.document_type ?? null,
+    p_document_value: params.document_value ?? null,
   });
   if (error) throw error;
   return data as Customer;
@@ -290,6 +296,9 @@ export async function updateCustomer(params: {
   picture_storage_path?: string | null;
   picture_mime_type?: string | null;
   clear_photo?: boolean;
+  cep?: string | null;
+  document_type?: string | null;
+  document_value?: string | null;
 }) {
   try {
     const { data, error } = await supabase.rpc('update_customer_enforced', {
@@ -303,6 +312,9 @@ export async function updateCustomer(params: {
       p_picture_storage_path: params.picture_storage_path ?? null,
       p_picture_mime_type: params.picture_mime_type ?? null,
       p_clear_photo: Boolean(params.clear_photo),
+      p_cep: params.cep ?? null,
+      p_document_type: params.document_type ?? null,
+      p_document_value: params.document_value ?? null,
     });
     if (!error) return data as Customer;
   } catch {
@@ -317,6 +329,9 @@ export async function updateCustomer(params: {
   if (params.address !== undefined) payload.address = params.address;
   if (params.notes !== undefined) payload.notes = params.notes;
   if (params.credit_limit !== undefined) payload.credit_limit = params.credit_limit;
+  if (params.cep !== undefined) payload.cep = params.cep;
+  if (params.document_type !== undefined) payload.document_type = params.document_type;
+  if (params.document_value !== undefined) payload.document_value = params.document_value;
 
   if (params.clear_photo) {
     payload.picture_storage_path = null;

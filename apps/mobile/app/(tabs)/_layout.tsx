@@ -66,6 +66,12 @@ export default function TabsLayout() {
               <Ionicons name={focused ? 'people' : 'people-outline'} size={iconSize} color={color} />
             ),
           }}
+          listeners={{
+            tabPress: (e) => {
+              e.preventDefault();
+              router.navigate('/clientes');
+            },
+          }}
         />
         <Tabs.Screen
           name="relatorios"

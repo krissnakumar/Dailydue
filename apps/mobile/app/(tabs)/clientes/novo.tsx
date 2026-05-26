@@ -31,10 +31,10 @@ export default function NovoClientePage() {
   const customersCount = getActiveCustomersCount();
 
   useEffect(() => {
-    if (!subscription.is_premium && subscription.max_customers !== null && customersCount >= subscription.max_customers) {
+    if (subscription.max_customers !== null && customersCount >= subscription.max_customers) {
       Alert.alert(
-        'Plano Básico 🔒',
-        'Limite de clientes atingido. Mude para o Premium!',
+        'Limite do Plano Grátis 🔒',
+        'Você atingiu o limite de 2 clientes do plano Grátis. Faça o upgrade para o Premium para obter clientes ilimitados!',
         [
           { text: 'Voltar', onPress: () => router.back(), style: 'cancel' },
           { text: 'Ver Planos', onPress: () => router.replace('/subscription') },
@@ -53,29 +53,53 @@ export default function NovoClientePage() {
   const [newPicture, setNewPicture] = useState('');
   const [saving, setSaving] = useState(false);
 
+  const [cepStatus, setCepStatus] = useState<'idle' | 'loading' | 'valid' | 'invalid'>('idle');
+  const [docStatus, setDocStatus] = useState<'idle' | 'loading' | 'valid' | 'invalid'>('idle');
+
   const handleFetchCep = async (cep: string) => {
     const cleanCep = cep.replace(/\D/g, '');
-    if (cleanCep.length !== 8) return;
+    if (cleanCep.length !== 8) {
+      setCepStatus('idle');
+      return;
+    }
+    setCepStatus('loading');
     try {
       const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
       const data = await res.json();
       if (data && !data.erro) {
         const fullAddr = [data.logradouro, data.bairro, data.localidade, data.uf].filter(Boolean).join(', ');
         setNewAddress(fullAddr);
+        setCepStatus('valid');
+      } else {
+        setCepStatus('invalid');
       }
     } catch {
-      // silent
+      setCepStatus('invalid');
     }
   };
 
   const handleFetchCnpj = async (cnpj: string) => {
     const cleanCnpj = cnpj.replace(/\D/g, '');
-    if (cleanCnpj.length !== 14) return;
+    if (cleanCnpj.length !== 14) {
+      setDocStatus('idle');
+      return;
+    }
+    setDocStatus('loading');
     try {
       const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanCnpj}`);
-      if (!res.ok) return;
+      if (!res.ok) {
+        if (isValidCNPJ(cleanCnpj)) {
+          setDocStatus('valid');
+        } else {
+          setDocStatus('invalid');
+        }
+        return;
+      }
       const data = await res.json();
-      if (!data) return;
+      if (!data) {
+        setDocStatus('invalid');
+        return;
+      }
 
       const name = data.nome_fantasia || data.razao_social || '';
       const phone = `${data.ddd_telefone_1 || ''}${data.telefone || ''}`.replace(/\D/g, '');
@@ -97,8 +121,13 @@ export default function NovoClientePage() {
         handleFetchCep(cep);
       }
       if (fullAddr) setNewAddress(fullAddr);
+      setDocStatus('valid');
     } catch {
-      // silent
+      if (isValidCNPJ(cleanCnpj)) {
+        setDocStatus('valid');
+      } else {
+        setDocStatus('invalid');
+      }
     }
   };
 
@@ -172,11 +201,44 @@ export default function NovoClientePage() {
     return `(${clean.substring(0, 2)}) ${clean.substring(2, 7)}-${clean.substring(7)}`;
   };
 
+  const handleFetchCpf = async (cpf: string) => {
+    const cleanCpf = cpf.replace(/\D/g, '');
+    if (cleanCpf.length !== 11) {
+      setDocStatus('idle');
+      return;
+    }
+    setDocStatus('loading');
+    try {
+      const res = await fetch(`https://api.mix-br.com/cpf/${cleanCpf}`);
+      if (!res.ok) throw new Error("API Offline");
+      const data = await res.json();
+      if (data && data.status === false) {
+        setDocStatus('invalid');
+        Alert.alert('Ops!', 'CPF inválido de acordo com a validação da API. 📄', [{ text: 'OK' }]);
+      } else {
+        setDocStatus('valid');
+      }
+    } catch {
+      if (isValidCPF(cleanCpf)) {
+        setDocStatus('valid');
+      } else {
+        setDocStatus('invalid');
+        Alert.alert('Ops!', 'CPF inválido. Verifique os números digitados. 📄', [{ text: 'OK' }]);
+      }
+    }
+  };
+
   const handleDocChange = (val: string) => {
     const formatted = formatDocValue(val);
     setNewDocValue(formatted);
     const clean = formatted.replace(/\D/g, '');
-    if (newDocType === 'cnpj' && clean.length === 14) handleFetchCnpj(clean);
+    if (newDocType === 'cnpj' && clean.length === 14) {
+      handleFetchCnpj(clean);
+    } else if (newDocType === 'cpf' && clean.length === 11) {
+      handleFetchCpf(clean);
+    } else {
+      setDocStatus('idle');
+    }
   };
 
   const handlePhoneChange = (val: string) => {
@@ -186,10 +248,27 @@ export default function NovoClientePage() {
   const handleCepChange = (val: string) => {
     const formatted = val.replace(/\D/g, '').substring(0, 8);
     setNewCep(formatted);
-    if (formatted.length === 8) handleFetchCep(formatted);
+    if (formatted.length === 8) {
+      handleFetchCep(formatted);
+    } else {
+      setCepStatus('idle');
+    }
   };
 
   const pickCustomerPhoto = async () => {
+    if (!subscription.is_premium) {
+      Alert.alert(
+        'Recurso Premium 🔒',
+        'Fotos reais no perfil do cliente estão disponíveis apenas no plano Premium.',
+        [
+          { text: 'Depois', style: 'cancel' },
+          { text: 'Ver Planos', onPress: () => router.push('/subscription') },
+        ],
+        { cancelable: true }
+      );
+      return;
+    }
+
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
@@ -265,8 +344,8 @@ export default function NovoClientePage() {
     } catch (e: any) {
       if (e.message === 'FREE_PLAN_CUSTOMER_LIMIT_REACHED') {
         Alert.alert(
-          'Plano Básico 🔒',
-          'Limite de clientes atingido. Mude para o Premium!',
+          'Limite do Plano Grátis 🔒',
+          'Você atingiu o limite de 2 clientes do plano Grátis. Faça o upgrade para o Premium para obter clientes ilimitados!',
           [
             { text: 'Depois', style: 'cancel' },
             { text: 'Ver Planos', onPress: () => router.push('/subscription') },
@@ -292,7 +371,7 @@ export default function NovoClientePage() {
           <TouchableOpacity onPress={() => router.push('/subscription')} style={styles.badgeBtn} activeOpacity={0.7}>
             <View style={styles.badge}>
               <Ionicons name={subscription.is_premium ? 'star' : 'leaf'} size={10} color="#fff" />
-              <Text style={styles.badgeText}>{subscription.is_premium ? 'PRO' : 'BÁSICO'}</Text>
+              <Text style={styles.badgeText}>{subscription.is_premium ? 'PRO' : 'GRÁTIS'}</Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -367,7 +446,12 @@ export default function NovoClientePage() {
               />
             </View>
             <View style={[styles.formGroup, styles.formCol]}>
-              <Text style={[styles.formLabel, { color: colors.text }]}>CEP</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={[styles.formLabel, { color: colors.text }]}>CEP</Text>
+                {cepStatus === 'loading' && <Text style={{ fontSize: 11, color: '#64748b', fontWeight: '500' }}>Buscando... ⏳</Text>}
+                {cepStatus === 'valid' && <Text style={{ fontSize: 11, color: '#059669', fontWeight: '500' }}>Válido ✓</Text>}
+                {cepStatus === 'invalid' && <Text style={{ fontSize: 11, color: '#dc2626', fontWeight: '500' }}>Inexistente ✗</Text>}
+              </View>
               <TextInput
                 style={[styles.formInput, { backgroundColor: colors.mutedSurface, borderColor: colors.border, color: colors.text }]}
                 placeholder="01001000"
@@ -380,13 +464,19 @@ export default function NovoClientePage() {
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={[styles.formLabel, { color: colors.text }]}>Documento</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={[styles.formLabel, { color: colors.text }]}>Documento</Text>
+              {docStatus === 'loading' && <Text style={{ fontSize: 11, color: '#64748b', fontWeight: '500' }}>Validando... ⏳</Text>}
+              {docStatus === 'valid' && <Text style={{ fontSize: 11, color: '#059669', fontWeight: '500' }}>Válido ✓</Text>}
+              {docStatus === 'invalid' && <Text style={{ fontSize: 11, color: '#dc2626', fontWeight: '500' }}>Inválido ✗</Text>}
+            </View>
             <View style={styles.radioRow}>
               <TouchableOpacity
                 style={[styles.radioButton, newDocType === 'cpf' && styles.radioActive]}
                 onPress={() => {
                   setNewDocType('cpf');
                   setNewDocValue('');
+                  setDocStatus('idle');
                 }}
               >
                 <Text style={[styles.radioText, newDocType === 'cpf' && styles.radioTextActive]}>CPF</Text>
@@ -396,6 +486,7 @@ export default function NovoClientePage() {
                 onPress={() => {
                   setNewDocType('cnpj');
                   setNewDocValue('');
+                  setDocStatus('idle');
                 }}
               >
                 <Text style={[styles.radioText, newDocType === 'cnpj' && styles.radioTextActive]}>CNPJ</Text>
@@ -432,7 +523,7 @@ export default function NovoClientePage() {
             disabled={saving}
             style={{ marginTop: 8 }}
           />
-          {!subscription.is_premium && subscription.max_customers !== null ? (
+          {subscription.max_customers !== null ? (
             <Text style={styles.limitText}>
               Limite do plano: {getActiveCustomersCount()}/{subscription.max_customers}
             </Text>

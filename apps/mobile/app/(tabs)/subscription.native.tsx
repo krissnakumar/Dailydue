@@ -273,16 +273,36 @@ export default function SubscriptionNativeScreen() {
                 style={{ marginRight: 8 }}
               />
               <View>
-                <Text style={styles.subTitle}>{subscription.is_premium ? 'Plano Premium' : 'Plano Gratuito'}</Text>
+                <Text style={styles.subTitle}>
+                  {subscription.plan_id === 'premium_monthly'
+                    ? 'Plano Premium'
+                    : 'Plano Gratuito'}
+                </Text>
                 <Text style={styles.subMeta}>
                   Fonte: {subscription.source === 'play' ? 'Google Play' : subscription.source === 'cloud' ? 'Nuvem' : 'Simulado'}
                   {connected ? ' • Play OK' : ' • Play…'}
                 </Text>
               </View>
             </View>
-            <View style={[styles.badge, subscription.is_premium ? styles.badgePremium : styles.badgeFree]}>
-              <Text style={[styles.badgeText, subscription.is_premium ? styles.badgeTextPremium : styles.badgeTextFree]}>
-                {subscription.is_premium ? 'Premium' : 'Básico'}
+            <View
+              style={[
+                styles.badge,
+                subscription.plan_id === 'premium_monthly'
+                  ? styles.badgePremium
+                  : styles.badgeFree,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.badgeText,
+                  subscription.plan_id === 'premium_monthly'
+                    ? styles.badgeTextPremium
+                    : styles.badgeTextFree,
+                ]}
+              >
+                {subscription.plan_id === 'premium_monthly'
+                  ? 'Premium'
+                  : 'Grátis'}
               </Text>
             </View>
           </View>
@@ -390,9 +410,25 @@ export default function SubscriptionNativeScreen() {
         <Card style={styles.sandboxCard}>
           <View style={styles.sandboxRow}>
             <Text style={styles.sandboxLabel}>Ativar simulação (sem cobrança)</Text>
-            <Switch value={isSimulated} onValueChange={(val) => toggleSubscriptionSimulation(val)} />
+            <Switch value={isSimulated} onValueChange={(val) => toggleSubscriptionSimulation(val, 'premium_monthly')} />
           </View>
-          <Text style={styles.sandboxHint}>Útil para testar telas Premium sem pagar. (Apenas local)</Text>
+          {isSimulated && (
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 }}>
+              <TouchableOpacity
+                style={[styles.sandboxPlanBtn, subscription.plan_id === 'free' && styles.sandboxPlanBtnActive]}
+                onPress={() => toggleSubscriptionSimulation(true, 'free')}
+              >
+                <Text style={[styles.sandboxPlanText, subscription.plan_id === 'free' && styles.sandboxPlanTextActive]}>Grátis</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.sandboxPlanBtn, subscription.plan_id === 'premium_monthly' && styles.sandboxPlanBtnActive]}
+                onPress={() => toggleSubscriptionSimulation(true, 'premium_monthly')}
+              >
+                <Text style={[styles.sandboxPlanText, subscription.plan_id === 'premium_monthly' && styles.sandboxPlanTextActive]}>Premium</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          <Text style={styles.sandboxHint}>Útil para testar limites de clientes e lançamentos localmente.</Text>
         </Card>
       </ScrollView>
     </View>
@@ -452,6 +488,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#fde68a',
   },
+  badgeBasic: {
+    backgroundColor: '#dbeafe',
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+  },
   badgeFree: {
     backgroundColor: '#f1f5f9',
     borderWidth: 1,
@@ -463,6 +504,9 @@ const styles = StyleSheet.create({
   },
   badgeTextPremium: {
     color: '#b45309',
+  },
+  badgeTextBasic: {
+    color: '#1d4ed8',
   },
   badgeTextFree: {
     color: theme.colors.textMuted,
@@ -531,5 +575,27 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: theme.colors.textMuted,
     lineHeight: 16,
+  },
+  sandboxPlanBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    marginHorizontal: 4,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 8,
+    alignItems: 'center',
+    backgroundColor: theme.colors.card,
+  },
+  sandboxPlanBtnActive: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryLight,
+  },
+  sandboxPlanText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.colors.textMuted,
+  },
+  sandboxPlanTextActive: {
+    color: theme.colors.primary,
   },
 });
