@@ -8,6 +8,7 @@ import {
 } from '@controle-fiado/api';
 import { isTempCustomerId, isTransientNetworkError, localId } from '../utils';
 import { PendingQueueItem, CustomerClient, HistoryItem } from '../../types';
+import { LocalDatabase } from '../database/LocalDatabase';
 
 const SYNC_RETRY_BASE_MS = 15_000;
 const SYNC_RETRY_MAX_MS = 5 * 60_000;
@@ -564,6 +565,7 @@ export async function attemptBackgroundSync(getState: () => any, set: (fn: any) 
           }
           if (isTransientNetworkError(e)) {
             set({ isSyncing: false });
+            void LocalDatabase.getInstance().incrementOperationRetries(item.id, msg);
             scheduleSyncRetry('TRANSIENT_NETWORK', () => {
               getState().attemptBackgroundSync();
             });
@@ -643,6 +645,10 @@ export async function attemptBackgroundSync(getState: () => any, set: (fn: any) 
       syncQueue: state.syncQueue.filter((q: any) => !processedIds.includes(q.id)),
       isSyncing: false,
     }));
+
+    for (const id of processedIds) {
+      void LocalDatabase.getInstance().markOperationSynced(id);
+    }
 
     resetSyncRetryBackoff();
     if (processedIds.length > 0) {

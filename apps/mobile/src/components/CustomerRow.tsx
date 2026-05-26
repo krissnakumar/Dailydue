@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Image, Alert, AlertButton } from 'react-native';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
-import { CustomerClient, useFiadoStore, HistoryItem } from '../store';
+import { CustomerClient, useFiadoStore, HistoryItem, isTempCustomerId } from '../store';
 import { formatCurrency, sendWhatsappReminder } from '../utils';
 import { theme } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -35,8 +35,12 @@ export const CustomerRow: React.FC<CustomerRowProps> = ({
   selected,
 }) => {
   const swipeableRef = useRef<Swipeable>(null);
-  const { deleteCustomer, deleteHistoryItem, businessConfig } = useFiadoStore();
+  const { deleteCustomer, deleteHistoryItem, businessConfig, syncQueue } = useFiadoStore();
   const isZero = customer.total_debt === 0;
+  
+  const hasPendingSync = isTempCustomerId(customer.id) || syncQueue.some(
+    q => String(q.payload?.customer_id || q.payload?.customerId || q.payload?.client_id || q.payload?.clientId || q.payload?.id || '') === customer.id
+  );
 
   // Verifica atraso crítico (> 15 dias)
   const isAtrasado = customer.history.some(
@@ -192,9 +196,17 @@ export const CustomerRow: React.FC<CustomerRowProps> = ({
             </View>
 
             <View style={styles.textColumn}>
-              <Text style={styles.nameText} numberOfLines={1}>
-                {customer.full_name}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                <Text style={styles.nameText} numberOfLines={1}>
+                  {customer.full_name}
+                </Text>
+                {hasPendingSync && (
+                  <View style={styles.pendingBadge}>
+                    <Ionicons name="cloud-upload" size={11} color="#3b82f6" style={{ marginRight: 2 }} />
+                    <Text style={styles.pendingBadgeText}>Pendente</Text>
+                  </View>
+                )}
+              </View>
               {(customer.phone || customer.documentValue) ? (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 2 }}>
                   {customer.phone ? (
@@ -444,5 +456,21 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: theme.colors.textMuted,
     fontWeight: '600',
+  },
+  pendingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#eff6ff',
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 6,
+  },
+  pendingBadgeText: {
+    fontSize: 9,
+    color: '#1d4ed8',
+    fontWeight: '700',
+    fontFamily: 'Outfit',
   },
 });

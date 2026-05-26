@@ -12,6 +12,7 @@ import {
   isTempCustomerId,
   isEmoji,
 } from '../core/utils';
+import { LocalDatabase } from '../core/database/LocalDatabase';
 import {
   backupOfflineUserData,
   restoreOfflineUserData,
@@ -443,6 +444,8 @@ export const useFiadoStore = create<FiadoMobileState>()(
           customers: [newCust, ...state.customers],
         }));
 
+        void LocalDatabase.getInstance().insertCustomer(newCust);
+
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         get().enqueueSync('create_customer', {
           ...newCust,
@@ -486,7 +489,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
                 },
                 ...c.history,
               ];
-              return {
+              const updatedCust = {
                 ...c,
                 full_name: name.trim() || c.full_name,
                 phone: cleanPhone,
@@ -498,6 +501,8 @@ export const useFiadoStore = create<FiadoMobileState>()(
                 picture: picture !== undefined ? picture : c.picture,
                 history: newHistory,
               };
+              void LocalDatabase.getInstance().updateCustomer(id, updatedCust);
+              return updatedCust;
             }
             return c;
           });
@@ -536,6 +541,8 @@ export const useFiadoStore = create<FiadoMobileState>()(
           }),
         }));
 
+        void LocalDatabase.getInstance().deleteCustomer(id);
+
         if (!isTemp) {
           get().enqueueSync('delete_customer', { id });
         }
@@ -551,18 +558,20 @@ export const useFiadoStore = create<FiadoMobileState>()(
         }
 
         const localTxId = localId('hist');
+        const newHistoryItem: HistoryItem = {
+          id: localTxId,
+          description: description.trim() || 'Fiado',
+          amount,
+          created_at: new Date().toISOString(),
+          type: 'debt',
+          created_by: get().user?.full_name || 'Dono',
+        };
+
         set((state) => {
           const updated = state.customers.map((c) => {
             if (c.id === customerId) {
               const newHistory: HistoryItem[] = [
-                {
-                  id: localTxId,
-                  description: description.trim() || 'Fiado',
-                  amount,
-                  created_at: new Date().toISOString(),
-                  type: 'debt',
-                  created_by: state.user?.full_name || 'Dono',
-                },
+                newHistoryItem,
                 ...c.history,
               ];
               const total_debt = Number((c.total_debt + amount).toFixed(2));
@@ -572,6 +581,8 @@ export const useFiadoStore = create<FiadoMobileState>()(
           });
           return { customers: updated };
         });
+
+        void LocalDatabase.getInstance().addTransaction(customerId, newHistoryItem);
 
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         get().enqueueSync('debt', { customer_id: customerId, amount, description, local_id: localTxId });
@@ -588,19 +599,20 @@ export const useFiadoStore = create<FiadoMobileState>()(
 
         const localTxId = localId('hist');
         const methodLabel = method ? `Pago via ${method}` : 'Pagamento';
+        const newHistoryItem: HistoryItem = {
+          id: localTxId,
+          description: methodLabel,
+          amount,
+          created_at: new Date().toISOString(),
+          type: 'payment',
+          created_by: get().user?.full_name || 'Dono',
+        };
 
         set((state) => {
           const updated = state.customers.map((c) => {
             if (c.id === customerId) {
               const newHistory: HistoryItem[] = [
-                {
-                  id: localTxId,
-                  description: methodLabel,
-                  amount,
-                  created_at: new Date().toISOString(),
-                  type: 'payment',
-                  created_by: state.user?.full_name || 'Dono',
-                },
+                newHistoryItem,
                 ...c.history,
               ];
               const total_debt = Number(Math.max(0, c.total_debt - amount).toFixed(2));
@@ -610,6 +622,8 @@ export const useFiadoStore = create<FiadoMobileState>()(
           });
           return { customers: updated };
         });
+
+        void LocalDatabase.getInstance().addTransaction(customerId, newHistoryItem);
 
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         get().enqueueSync('payment', { customer_id: customerId, amount, description: methodLabel, local_id: localTxId });
@@ -669,6 +683,11 @@ export const useFiadoStore = create<FiadoMobileState>()(
           return { customers: updated };
         });
 
+        void LocalDatabase.getInstance().updateTransaction(customerId, itemId, {
+          description: newDesc.trim() || originalItem.description,
+          amount: newAmount,
+        });
+
         if (!itemId.startsWith('hist_')) {
           get().enqueueSync('delete_transaction', { id: itemId });
         }
@@ -718,6 +737,8 @@ export const useFiadoStore = create<FiadoMobileState>()(
           });
           return { customers: updated, syncQueue: syncQueueFiltered };
         });
+
+        void LocalDatabase.getInstance().deleteTransaction(customerId, itemId);
 
         if (!isTemp) {
           get().enqueueSync('delete_transaction', { id: itemId });
@@ -784,11 +805,15 @@ export const useFiadoStore = create<FiadoMobileState>()(
         set((state) => ({
           syncQueue: [...state.syncQueue, item],
         }));
+        
+        void LocalDatabase.getInstance().enqueueOperation(type, payload);
+        
         get().attemptBackgroundSync();
       },
 
       clearSyncQueue: () => {
         set({ syncQueue: [], failedSyncItems: [], customerIdMap: {} });
+        void LocalDatabase.getInstance().clearPendingOperations();
       },
 
       flushSyncQueue: async () => {
@@ -936,6 +961,8 @@ export const useFiadoStore = create<FiadoMobileState>()(
           const tempCustomers = localCustomers.filter(c => isTempCustomerId(c.id));
           
           set({ customers: [...mappedCustomers, ...tempCustomers] });
+          void LocalDatabase.getInstance().saveCustomers([...mappedCustomers, ...tempCustomers]);
+          
           await get().refreshCustomerPictureUrls();
         } catch (error) {
           console.error('[loadSupabaseData] Erro ao carregar do Supabase:', error);

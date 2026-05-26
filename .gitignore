@@ -61,4 +61,6 @@ scratch/
 apps/mobile/.temp/
 apps/mobile/scratch/
 apps/mobile/supabase/.temp/
+*.tar.gz
+
 

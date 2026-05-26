@@ -8,27 +8,10 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useResponsive } from '../../src/utils/responsive';
 import Constants from 'expo-constants';
-import { verifyGooglePlaySubscription } from '@controle-fiado/api';
+import { useBilling } from '../../src/features/billing/hooks/useBilling';
 
 const premiumSubId = process.env.EXPO_PUBLIC_GOOGLE_PLAY_PREMIUM_SUB_ID || '';
 const androidPackageName = Constants.expoConfig?.android?.package || 'br.com.controlefiado.app';
-
-function extractPurchaseToken(purchase: any): string | null {
-  const direct = purchase?.purchaseToken || purchase?.transactionReceipt?.purchaseToken || purchase?.dataAndroid?.purchaseToken;
-  if (direct) return String(direct);
-
-  const receipt = purchase?.transactionReceipt || purchase?.dataAndroid;
-  if (typeof receipt === 'string') {
-    try {
-      const parsed = JSON.parse(receipt);
-      return parsed?.purchaseToken || parsed?.token || null;
-    } catch {
-      return null;
-    }
-  }
-
-  return null;
-}
 
 export default function SubscriptionNativeScreen() {
   const router = useRouter();
@@ -38,126 +21,28 @@ export default function SubscriptionNativeScreen() {
     getActiveCustomersCount,
     getCurrentMonthTransactionsCount,
     toggleSubscriptionSimulation,
-    fetchSubscription,
   } = useFiadoStore();
 
   const customersCount = getActiveCustomersCount();
   const txCount = getCurrentMonthTransactionsCount();
-  const [loading, setLoading] = useState(false);
+  const [inAppLoading, setInAppLoading] = useState(false);
 
   const isSimulated = subscription.is_simulated;
 
-  let useIAPHook: any = null;
-  const isExpoGo = Constants.appOwnership === 'expo';
-  if (!isExpoGo) {
-    try {
-      // Lazy-load native-only dependency so the screen can render a helpful message
-      // when the dev client wasn't rebuilt after installing IAP deps.
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      useIAPHook = require('react-native-iap')?.useIAP;
-    } catch {
-      useIAPHook = null;
-    }
-  }
-
-  if (!useIAPHook) {
-    return (
-      <View style={styles.wrapper}>
-        <Header
-          showTotal={false}
-          title="Assinatura & Limites"
-          leftAction={
-            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-              <Ionicons name="arrow-back" size={22} color={theme.colors.textMain} />
-            </TouchableOpacity>
-          }
-        />
-        <ScrollView
-          contentContainerStyle={[
-            styles.scrollContent,
-            {
-              maxWidth: layout.contentMaxWidth,
-              alignSelf: 'center',
-              width: '100%',
-              paddingHorizontal: layout.spacing.screen,
-            },
-          ]}
-          showsVerticalScrollIndicator={false}
-        >
-          <Card style={styles.googleCard}>
-            <Text style={styles.googlePlayTitle}>Google Play Billing indisponível</Text>
-            <Text style={styles.googlePlayDesc}>
-              {isExpoGo
-                ? 'Assinaturas do Google Play não rodam no Expo Go. Use um development build ou AAB.'
-                : 'Refaça o build do app Android (dev client / AAB) após instalar as dependências de billing.'}
-            </Text>
-            <Button title="Ver instruções" variant="ghost" onPress={() => router.push('/config')} style={{ marginTop: 10 }} />
-          </Card>
-        </ScrollView>
-      </View>
-    );
-  }
-
-  const verifyAndRefresh = async (purchase: any) => {
-    if (!premiumSubId || purchase?.productId !== premiumSubId) return false;
-
-    const purchaseToken = extractPurchaseToken(purchase);
-    if (!purchaseToken) {
-      Alert.alert('Google Play', 'Não consegui ler o token da compra. Tente restaurar a assinatura em alguns segundos.');
-      return false;
-    }
-
-    const result = await verifyGooglePlaySubscription({
-      packageName: androidPackageName,
-      productId: premiumSubId,
-      purchaseToken,
-    });
-
-    await fetchSubscription();
-    return Boolean(result?.is_premium);
-  };
-
-  const {
-    connected,
-    subscriptions,
-    fetchProducts,
-    requestPurchase,
-    finishTransaction,
-    restorePurchases,
-    getAvailablePurchases,
-  } = useIAPHook({
-    onPurchaseSuccess: async (purchase: any) => {
-      try {
-        if (!premiumSubId || purchase.productId !== premiumSubId) return;
-        const active = await verifyAndRefresh(purchase);
-        if (!active) {
-          Alert.alert('Assinatura', 'Compra recebida, mas o Google Play ainda não confirmou uma assinatura ativa.');
-          return;
-        }
-        await finishTransaction({ purchase, isConsumable: false });
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert('Assinatura Ativada', 'Pagamento confirmado pelo Google Play. Premium liberado!');
-      } catch (e) {
-        console.warn('[IAP] purchase verification failed:', e);
-        Alert.alert('Validação pendente', 'Não foi possível validar a compra no servidor agora. Tente restaurar em alguns segundos.');
-      }
-    },
-    onPurchaseError: (e: any) => {
-      const msg = (e as any)?.message || 'Falha ao processar a compra pelo Google Play.';
-      Alert.alert('Ops!', msg);
-    },
-  });
+  const billing = useBilling();
 
   useEffect(() => {
     if (!premiumSubId) return;
-    if (!connected) return;
-    fetchProducts({ skus: [premiumSubId], type: 'subs' });
-  }, [connected, fetchProducts]);
+    if (!billing.connected) return;
+    billing.fetchProducts([premiumSubId]).catch((err) => {
+      console.warn('[Billing] Error fetching products:', err);
+    });
+  }, [billing.connected]);
 
   const premiumProduct = useMemo(() => {
     if (!premiumSubId) return null;
-    return subscriptions.find((s: any) => s?.id === premiumSubId) || null;
-  }, [subscriptions]);
+    return billing.subscriptions.find((s: any) => s?.id === premiumSubId) || null;
+  }, [billing.subscriptions]);
 
   const premiumPriceLabel =
     (premiumProduct as any)?.displayPrice ||
@@ -181,31 +66,25 @@ export default function SubscriptionNativeScreen() {
       Alert.alert('Configuração', 'Defina EXPO_PUBLIC_GOOGLE_PLAY_PREMIUM_SUB_ID para habilitar assinatura via Google Play.');
       return;
     }
-    if (!connected) {
-      Alert.alert('Google Play', 'Conectando ao Google Play… tente novamente em alguns segundos.');
+
+    if (billing.isOffline) {
+      Alert.alert('Modo Offline', 'Você está offline. Conecte-se à internet para realizar compras.');
       return;
     }
 
-    const offerToken =
-      (premiumProduct as any)?.subscriptionOffers?.[0]?.offerTokenAndroid ||
-      (premiumProduct as any)?.subscriptionOfferDetailsAndroid?.[0]?.offerToken ||
-      '';
-
-    if (!offerToken) {
-      Alert.alert('Google Play', 'Não encontrei uma oferta ativa. Crie Base Plan/Offer no Play Console.');
-      return;
-    }
-
-    setLoading(true);
+    setInAppLoading(true);
     try {
-      await requestPurchase({
-        type: 'subs',
-        request: {
-          google: { skus: [premiumSubId], subscriptionOffers: [{ sku: premiumSubId, offerToken }] },
-        },
-      } as any);
+      const success = await billing.handleUpgrade(premiumSubId, androidPackageName);
+      if (success) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Alert.alert('Upgrade', 'Upgrade solicitado com sucesso!');
+      } else {
+        Alert.alert('Cancelado/Erro', 'Não foi possível completar o upgrade pelo Google Play.');
+      }
+    } catch (e: any) {
+      Alert.alert('Ops!', e?.message || 'Falha ao processar assinatura.');
     } finally {
-      setLoading(false);
+      setInAppLoading(false);
     }
   };
 
@@ -214,27 +93,19 @@ export default function SubscriptionNativeScreen() {
       Alert.alert('Configuração', 'Defina EXPO_PUBLIC_GOOGLE_PLAY_PREMIUM_SUB_ID para restaurar compras.');
       return;
     }
-    setLoading(true);
+    setInAppLoading(true);
     try {
-      await restorePurchases({ includeSuspendedAndroid: true });
-      const availablePurchases =
-        typeof getAvailablePurchases === 'function'
-          ? await getAvailablePurchases({ onlyIncludeActiveItemsAndroid: true })
-          : [];
-      const premiumPurchase = (availablePurchases || []).find((purchase: any) => purchase?.productId === premiumSubId);
-
-      if (premiumPurchase) {
-        const active = await verifyAndRefresh(premiumPurchase);
-        Alert.alert('Restaurado', active ? 'Assinatura ativa confirmada.' : 'Nenhuma assinatura ativa foi confirmada pelo servidor.');
-        return;
+      const success = await billing.handleRestore(premiumSubId, androidPackageName);
+      if (success) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Alert.alert('Restaurado', 'Assinatura Premium ativa restaurada com sucesso!');
+      } else {
+        Alert.alert('Restauração', 'Nenhuma assinatura ativa encontrada ou falha ao restaurar.');
       }
-
-      await fetchSubscription();
-      Alert.alert('Restaurado', 'Plano revalidado pela nuvem. Se a assinatura acabou de ser comprada, tente novamente em alguns segundos.');
     } catch (e: any) {
       Alert.alert('Ops!', e?.message || 'Falha ao restaurar compras.');
     } finally {
-      setLoading(false);
+      setInAppLoading(false);
     }
   };
 
@@ -280,7 +151,7 @@ export default function SubscriptionNativeScreen() {
                 </Text>
                 <Text style={styles.subMeta}>
                   Fonte: {subscription.source === 'play' ? 'Google Play' : subscription.source === 'cloud' ? 'Nuvem' : 'Simulado'}
-                  {connected ? ' • Play OK' : ' • Play…'}
+                  {billing.connected ? ' • Play OK' : ' • Play…'}
                 </Text>
               </View>
             </View>
@@ -371,20 +242,20 @@ export default function SubscriptionNativeScreen() {
           {!subscription.is_premium ? (
             <>
               <Button
-                title={loading ? 'Abrindo Google Play…' : 'Assinar com Google Play'}
+                title={inAppLoading ? 'Abrindo Google Play…' : 'Assinar com Google Play'}
                 variant="primary"
                 leftIcon={
-                  loading ? (
+                  inAppLoading ? (
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
                     <Ionicons name="logo-google" size={16} color="#fff" style={{ marginRight: 6 }} />
                   )
                 }
-                disabled={loading}
+                disabled={inAppLoading}
                 onPress={handleUpgrade}
                 style={{ marginTop: 10, backgroundColor: '#10b981' }}
               />
-              <Button title="Restaurar compras" variant="ghost" disabled={loading} onPress={handleRestore} style={{ marginTop: 10 }} />
+              <Button title="Restaurar compras" variant="ghost" disabled={inAppLoading} onPress={handleRestore} style={{ marginTop: 10 }} />
             </>
           ) : (
             <>
@@ -398,7 +269,7 @@ export default function SubscriptionNativeScreen() {
               <Button
                 title="Restaurar / revalidar Premium"
                 variant="ghost"
-                disabled={loading}
+                disabled={inAppLoading}
                 onPress={handleRestore}
                 style={{ marginTop: 10 }}
               />

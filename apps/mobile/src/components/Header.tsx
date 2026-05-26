@@ -7,6 +7,7 @@ import { formatCurrency } from '../utils';
 import { theme } from '../theme';
 import { supabase } from '@controle-fiado/api';
 import { Ionicons } from '@expo/vector-icons';
+import { useNetworkStatus } from '../core/hooks/useNetworkStatus';
 
 export interface HeaderProps {
   showTotal?: boolean;
@@ -23,6 +24,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const isOffline = useNetworkStatus();
   const {
     customers,
     user,
@@ -36,6 +38,7 @@ export const Header: React.FC<HeaderProps> = ({
   } = useFiadoStore();
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const spinAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (subscription.is_premium) {
@@ -57,6 +60,25 @@ export const Header: React.FC<HeaderProps> = ({
       pulseAnim.setValue(1);
     }
   }, [subscription.is_premium, pulseAnim]);
+
+  useEffect(() => {
+    if (isSyncing) {
+      Animated.loop(
+        Animated.timing(spinAnim, {
+          toValue: 1,
+          duration: 1200,
+          useNativeDriver: true,
+        })
+      ).start();
+    } else {
+      spinAnim.setValue(0);
+    }
+  }, [isSyncing, spinAnim]);
+
+  const spin = spinAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
 
   // Calcula total geral a receber
   const totalRecebiveis = customers.reduce((acc, curr) => acc + (curr.total_debt || 0), 0);
@@ -211,6 +233,39 @@ export const Header: React.FC<HeaderProps> = ({
         </View>
       </View>
 
+      {/* Active Sync Status / Offline Indicators */}
+      {isSyncing ? (
+        <View style={styles.syncIndicatorRow}>
+          <Animated.View style={{ transform: [{ rotate: spin }] }}>
+            <Ionicons name="sync-outline" size={14} color="#10b981" />
+          </Animated.View>
+          <Text style={styles.syncIndicatorText}>Sincronizando com a nuvem...</Text>
+        </View>
+      ) : isOffline ? (
+        <View style={styles.syncIndicatorRow}>
+          <Ionicons name="cloud-offline-outline" size={14} color="#f59e0b" />
+          <Text style={styles.syncIndicatorText}>Aguardando conexão para sincronizar...</Text>
+        </View>
+      ) : syncQueue.length > 0 ? (
+        <View style={styles.syncIndicatorRow}>
+          <Ionicons name="cloud-upload-outline" size={14} color="#3b82f6" />
+          <Text style={styles.syncIndicatorText}>{syncQueue.length} alteração(ões) pendente(s)</Text>
+        </View>
+      ) : (
+        <View style={styles.syncIndicatorRow}>
+          <Ionicons name="checkmark-circle-outline" size={14} color="rgba(255, 255, 255, 0.6)" />
+          <Text style={[styles.syncIndicatorText, { color: 'rgba(255, 255, 255, 0.6)' }]}>Nuvem sincronizada</Text>
+        </View>
+      )}
+
+      {isOffline && (
+        <View style={styles.offlineBanner}>
+          <Ionicons name="wifi-outline" size={14} color="#fff" style={{ marginRight: 6 }} />
+          <Text style={styles.offlineBannerText}>
+            Sem internet. Alterações salvando localmente.
+          </Text>
+        </View>
+      )}
     </View>
   );
 };
@@ -291,5 +346,36 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
     marginLeft: 4,
+  },
+  syncIndicatorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  syncIndicatorText: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontWeight: '500',
+    fontFamily: 'Outfit',
+    marginLeft: 6,
+  },
+  offlineBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f59e0b', // Amber/orange warning
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  offlineBannerText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '600',
+    fontFamily: 'Outfit',
+    flex: 1,
   },
 });

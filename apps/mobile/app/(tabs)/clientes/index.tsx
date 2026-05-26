@@ -3,12 +3,13 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TextInput,
   TouchableOpacity,
   ScrollView,
   Image,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
+const OptimizedFlashList = FlashList as any;
 import { useRouter, useNavigation } from 'expo-router';
 import { Header, Button, CustomerRow, CustomerDetailContent } from '../../../src/components';
 import { useFiadoStore, isTempCustomerId } from '../../../src/store';
@@ -29,6 +30,74 @@ const isEmoji = (str?: string) => {
     return s.length <= 4 && !s.includes('/') && !s.startsWith('data:');
   }
 };
+
+interface CustomerTableRowProps {
+  item: any;
+  isSelected: boolean;
+  isPendingSync: boolean;
+  onPress: () => void;
+}
+
+const CustomerTableRow = React.memo(({ item, isSelected, isPendingSync, onPress }: CustomerTableRowProps) => {
+  const isZero = item.total_debt === 0;
+  const isAtrasado = item.total_debt > 0 && item.history.some(
+    (h: any) => h.type === 'debt' && (Date.now() - new Date(h.created_at).getTime()) / 86400000 > 15
+  );
+
+  return (
+    <TouchableOpacity
+      style={[
+        styles.tableRow,
+        isSelected && styles.tableRowSelected
+      ]}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      {/* Column 1: Client info */}
+      <View style={[styles.tdCell, { flex: 1, flexDirection: 'row', alignItems: 'center' }]}>
+        <View style={[styles.avatarMicro, { backgroundColor: isZero ? '#e6f4ea' : isAtrasado ? '#fce8e6' : '#fef7e0' }]}>
+          {item.picture ? (
+            isEmoji(item.picture) ? (
+              <Text style={styles.avatarMicroEmoji}>{item.picture}</Text>
+            ) : (
+              <Image source={{ uri: item.picture }} style={styles.avatarMicroImage} />
+            )
+          ) : (
+            <Ionicons
+              name="person"
+              size={12}
+              color={isZero ? '#137333' : isAtrasado ? '#c5221f' : '#b06000'}
+            />
+          )}
+        </View>
+        <View style={{ flex: 1, marginLeft: 10 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={styles.clientNameText} numberOfLines={1}>{item.full_name}</Text>
+            <View style={[styles.statusDot, { backgroundColor: isZero ? '#22c55e' : isAtrasado ? '#ef4444' : '#f59e0b' }]} />
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+            {isPendingSync ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 8, backgroundColor: 'rgba(245,158,11,0.08)', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4 }}>
+                <Ionicons name="cloud-offline-outline" size={10} color="#b06000" style={{ marginRight: 2 }} />
+                <Text style={{ fontSize: 9, color: '#b06000', fontWeight: 'bold' }}>Local</Text>
+              </View>
+            ) : null}
+            {item.phone ? (
+              <Text style={styles.clientPhoneText} numberOfLines={1}>{item.phone}</Text>
+            ) : null}
+          </View>
+        </View>
+      </View>
+
+      {/* Column 2: Debt amount */}
+      <View style={[styles.tdCell, { flex: 1, alignItems: 'flex-end' }]}>
+        <Text style={[styles.debtTableValue, isZero && styles.debtTableZero]}>
+          {formatCurrency(item.total_debt)}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+});
 
 export default function ClientesScreen() {
   const router = useRouter();
@@ -114,6 +183,34 @@ export default function ClientesScreen() {
     
     return list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 10);
   }, [customers]);
+
+  const handlePressRow = React.useCallback((itemId: string) => {
+    if (showSplitScreen) {
+      setSelectedCustomerId(itemId);
+    } else {
+      router.push(`/clientes/${itemId}`);
+    }
+  }, [showSplitScreen, router]);
+
+  const renderItem = React.useCallback(({ item }: { item: any }) => {
+    const isSelected = showSplitScreen && selectedCustomerId === item.id;
+    const isTemp = isTempCustomerId(item.id);
+    const isPendingSync = isTemp || syncQueue.some((q) => {
+      const qCustId = q.payload?.customer_id || q.payload?.customerId || q.payload?.client_id || q.payload?.clientId;
+      return String(qCustId) === String(item.id) || (q.type === 'update_customer' && String(q.payload?.id) === String(item.id));
+    });
+
+    return (
+      <CustomerTableRow
+        item={item}
+        isSelected={isSelected}
+        isPendingSync={isPendingSync}
+        onPress={() => handlePressRow(item.id)}
+      />
+    );
+  }, [showSplitScreen, selectedCustomerId, syncQueue, handlePressRow]);
+
+  const keyExtractor = React.useCallback((item: any) => item.id, []);
 
   const renderGlobalSummary = () => {
     return (
@@ -255,9 +352,10 @@ export default function ClientesScreen() {
           <Text style={[styles.thText, { flex: 1, textAlign: 'right' }]}>Total</Text>
         </View>
 
-        <FlatList
+        <OptimizedFlashList
           data={filteredCustomers}
-          keyExtractor={(item) => item.id}
+          keyExtractor={keyExtractor}
+          estimatedItemSize={60}
           contentContainerStyle={[
             styles.listContent,
             {
@@ -267,80 +365,7 @@ export default function ClientesScreen() {
             },
           ]}
           showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => {
-            const isSelected = showSplitScreen && selectedCustomerId === item.id;
-            const isZero = item.total_debt === 0;
-            const isAtrasado = item.total_debt > 0 && item.history.some(
-              (h) => h.type === 'debt' && (Date.now() - new Date(h.created_at).getTime()) / 86400000 > 15
-            );
-
-            return (
-              <TouchableOpacity
-                style={[
-                  styles.tableRow,
-                  isSelected && styles.tableRowSelected
-                ]}
-                onPress={() => {
-                  if (showSplitScreen) {
-                    setSelectedCustomerId(item.id);
-                  } else {
-                    router.push(`/clientes/${item.id}`);
-                  }
-                }}
-                activeOpacity={0.7}
-              >
-                {/* Column 1: Client info */}
-                <View style={[styles.tdCell, { flex: 1, flexDirection: 'row', alignItems: 'center' }]}>
-                  <View style={[styles.avatarMicro, { backgroundColor: isZero ? '#e6f4ea' : isAtrasado ? '#fce8e6' : '#fef7e0' }]}>
-                    {item.picture ? (
-                      isEmoji(item.picture) ? (
-                        <Text style={styles.avatarMicroEmoji}>{item.picture}</Text>
-                      ) : (
-                        <Image source={{ uri: item.picture }} style={styles.avatarMicroImage} />
-                      )
-                    ) : (
-                      <Ionicons
-                        name="person"
-                        size={12}
-                        color={isZero ? '#137333' : isAtrasado ? '#c5221f' : '#b06000'}
-                      />
-                    )}
-                  </View>
-                  <View style={{ flex: 1, marginLeft: 10 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <Text style={styles.clientNameText} numberOfLines={1}>{item.full_name}</Text>
-                      <View style={[styles.statusDot, { backgroundColor: isZero ? '#22c55e' : isAtrasado ? '#ef4444' : '#f59e0b' }]} />
-                    </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
-                      {(() => {
-                        const isTemp = isTempCustomerId(item.id);
-                        const isPendingSync = isTemp || syncQueue.some((q) => {
-                          const qCustId = q.payload?.customer_id || q.payload?.customerId || q.payload?.client_id || q.payload?.clientId;
-                          return String(qCustId) === String(item.id) || (q.type === 'update_customer' && String(q.payload?.id) === String(item.id));
-                        });
-                        return isPendingSync ? (
-                          <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 8, backgroundColor: 'rgba(245,158,11,0.08)', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4 }}>
-                            <Ionicons name="cloud-offline-outline" size={10} color="#b06000" style={{ marginRight: 2 }} />
-                            <Text style={{ fontSize: 9, color: '#b06000', fontWeight: 'bold' }}>Local</Text>
-                          </View>
-                        ) : null;
-                      })()}
-                      {item.phone ? (
-                        <Text style={styles.clientPhoneText} numberOfLines={1}>{item.phone}</Text>
-                      ) : null}
-                    </View>
-                  </View>
-                </View>
-
-                {/* Column 2: Debt amount */}
-                <View style={[styles.tdCell, { flex: 1, alignItems: 'flex-end' }]}>
-                  <Text style={[styles.debtTableValue, isZero && styles.debtTableZero]}>
-                    {formatCurrency(item.total_debt)}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            );
-          }}
+          renderItem={renderItem}
           ListEmptyComponent={() => (
             <View style={styles.emptyState}>
               <Ionicons name="folder-open-outline" size={48} color={theme.colors.textMuted} style={{ marginBottom: 12, opacity: 0.6 }} />

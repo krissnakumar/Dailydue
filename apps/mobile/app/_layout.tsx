@@ -10,6 +10,8 @@ import * as Linking from 'expo-linking';
 import { LogBox, AppState } from 'react-native';
 import { useFiadoStore } from '../src/store';
 import { supabase, extractUserMetadata } from '@controle-fiado/api';
+import { BillingProvider } from '../src/features/billing/providers/BillingProvider';
+import { ErrorBoundary } from '../src/components/ErrorBoundary';
 
 LogBox.ignoreLogs([
   'Network request failed',
@@ -22,14 +24,7 @@ LogBox.ignoreLogs([
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 2,
-      staleTime: 1000 * 60 * 5, // 5 minutos
-    },
-  },
-});
+import { queryClient } from '../src/core/services/query-client';
 
 const AUTH_SESSION_ACTIVE_KEY = '__fiadoAuthSessionActive';
 
@@ -303,16 +298,20 @@ export default function RootLayout() {
   }, [user, segments, navigationState?.key, authChecked, pendingAuthNavigation]);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <QueryClientProvider client={queryClient}>
-          <StatusBar style="light" backgroundColor="#064e3b" />
-          <Stack initialRouteName="index" screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="(auth)" options={{ headerShown: false, presentation: 'modal' }} />
-          </Stack>
-        </QueryClientProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <ErrorBoundary>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          <QueryClientProvider client={queryClient}>
+            <BillingProvider>
+              <StatusBar style="light" backgroundColor="#064e3b" />
+              <Stack initialRouteName="index" screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen name="(auth)" options={{ headerShown: false, presentation: 'modal' }} />
+              </Stack>
+            </BillingProvider>
+          </QueryClientProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </ErrorBoundary>
   );
 }
