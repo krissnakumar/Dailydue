@@ -92,7 +92,7 @@ android {
         applicationId 'br.com.controlefiado.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 4
+        versionCode 9
         versionName "1.0.3"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
@@ -104,19 +104,27 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        release {
+            // IMPORTANT: Generate a production keystore BEFORE release:
+            //   keytool -genkey -v -keystore release.keystore -alias fiado-release -keyalg RSA -keysize 2048 -validity 10000
+            // Then update storeFile, storePassword, keyAlias, keyPassword below.
+            // NEVER commit these credentials to version control.
+            storeFile file('release.keystore')
+            storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD') ?: ''
+            keyAlias System.getenv('ANDROID_KEY_ALIAS') ?: 'fiado-release'
+            keyPassword System.getenv('ANDROID_KEY_PASSWORD') ?: ''
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
-            def enableShrinkResources = findProperty('android.enableShrinkResourcesInReleaseBuilds') ?: 'false'
+            signingConfig signingConfigs.release
+            def enableShrinkResources = findProperty('android.enableShrinkResourcesInReleaseBuilds') ?: 'true'
             shrinkResources enableShrinkResources.toBoolean()
-            minifyEnabled enableMinifyInReleaseBuilds
-            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
             def enablePngCrunchInRelease = findProperty('android.enablePngCrunchInReleaseBuilds') ?: 'true'
             crunchPngs enablePngCrunchInRelease.toBoolean()
         }

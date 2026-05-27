@@ -1,4 +1,5 @@
 import React, { createContext, useState } from 'react';
+import Constants from 'expo-constants';
 import { useFiadoStore } from '../../../store';
 import { useIAP } from '../../../core/services/iap.native';
 import { useNetworkStatus } from '../../../core/hooks/useNetworkStatus';
@@ -21,10 +22,22 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [loading, setLoading] = useState(false);
   const isOffline = useNetworkStatus();
   const { fetchSubscription } = useFiadoStore();
+  const premiumSubId = process.env.EXPO_PUBLIC_GOOGLE_PLAY_PREMIUM_SUB_ID || '';
+  const androidPackageName = Constants.expoConfig?.android?.package || 'br.com.controlefiado.app';
 
   const iap = useIAP({
     onPurchaseSuccess: async (purchase) => {
       console.log('[IAP] Purchase success callback:', purchase);
+      try {
+        if (premiumSubId && purchase?.productId === premiumSubId) {
+          await billingService.verifyAndRefresh(purchase, premiumSubId, androidPackageName);
+        }
+      } catch (err) {
+        console.warn('[IAP] Purchase verification failed:', err);
+        tracker.trackBillingFailure(premiumSubId || 'unknown', String((err as any)?.message || err));
+      } finally {
+        await fetchSubscription();
+      }
     },
     onPurchaseError: (err) => {
       console.warn('[IAP] Purchase error callback:', err);

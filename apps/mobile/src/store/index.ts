@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   supabase,
   getCustomersWithTransactions,
@@ -19,6 +18,8 @@ import {
   restoreOfflineUserData,
   attemptBackgroundSync,
 } from '../core/sync/SyncEngine';
+import { syncSubscriptionRenewalReminders } from '../core/billing/subscription-reminders';
+import { EncryptedStorage } from '../core/security/encrypted-storage';
 import {
   CustomerClient,
   HistoryItem,
@@ -41,13 +42,62 @@ export const PICTURE_URL_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
 export const PICTURE_URL_REFRESH_THRESHOLD_MS = (PICTURE_URL_TTL_SECONDS - 60 * 60 * 24) * 1000; // 6 days
 
 // Fallback Portuguese suggestions list (Warning #15 Fix)
-export const FALLBACK_QUICK_ITEMS: QuickItemClient[] = [
-  { name: 'Pão', price: 5, count: 1, lastUsed: new Date().toISOString() },
-  { name: 'Coca-cola', price: 8, count: 1, lastUsed: new Date().toISOString() },
-  { name: 'Cerveja', price: 6, count: 1, lastUsed: new Date().toISOString() },
-  { name: 'Salgado', price: 7, count: 1, lastUsed: new Date().toISOString() },
-  { name: 'Doces', price: 3, count: 1, lastUsed: new Date().toISOString() },
-];
+const nowIso = () => new Date().toISOString();
+
+export const FALLBACK_QUICK_ITEMS_BY_BUSINESS: Record<string, QuickItemClient[]> = {
+  mercado: [
+    { name: 'Pão', price: 5, count: 1, lastUsed: nowIso() },
+    { name: 'Leite', price: 6.5, count: 1, lastUsed: nowIso() },
+    { name: 'Arroz 1kg', price: 8.5, count: 1, lastUsed: nowIso() },
+    { name: 'Feijão 1kg', price: 9, count: 1, lastUsed: nowIso() },
+    { name: 'Óleo', price: 7.5, count: 1, lastUsed: nowIso() },
+    { name: 'Coca-cola 2L', price: 10, count: 1, lastUsed: nowIso() },
+    { name: 'Salgado', price: 7, count: 1, lastUsed: nowIso() },
+    { name: 'Doces', price: 3, count: 1, lastUsed: nowIso() },
+  ],
+  padaria: [
+    { name: 'Pão Francês', price: 4.5, count: 1, lastUsed: nowIso() },
+    { name: 'Pão de Queijo', price: 6, count: 1, lastUsed: nowIso() },
+    { name: 'Café', price: 4, count: 1, lastUsed: nowIso() },
+    { name: 'Bolo Fatia', price: 8, count: 1, lastUsed: nowIso() },
+    { name: 'Salgado Assado', price: 7, count: 1, lastUsed: nowIso() },
+    { name: 'Misto Quente', price: 9, count: 1, lastUsed: nowIso() },
+    { name: 'Suco', price: 6.5, count: 1, lastUsed: nowIso() },
+    { name: 'Refrigerante Lata', price: 5.5, count: 1, lastUsed: nowIso() },
+  ],
+  bar: [
+    { name: 'Cerveja', price: 7, count: 1, lastUsed: nowIso() },
+    { name: 'Refrigerante', price: 6, count: 1, lastUsed: nowIso() },
+    { name: 'Água', price: 3.5, count: 1, lastUsed: nowIso() },
+    { name: 'Porção Batata', price: 22, count: 1, lastUsed: nowIso() },
+    { name: 'Espetinho', price: 9, count: 1, lastUsed: nowIso() },
+    { name: 'Hambúrguer', price: 18, count: 1, lastUsed: nowIso() },
+    { name: 'Marmita', price: 20, count: 1, lastUsed: nowIso() },
+    { name: 'Suco Natural', price: 8, count: 1, lastUsed: nowIso() },
+  ],
+  petshop: [
+    { name: 'Ração 1kg', price: 18, count: 1, lastUsed: nowIso() },
+    { name: 'Sachê', price: 4.5, count: 1, lastUsed: nowIso() },
+    { name: 'Areia Higiênica', price: 16, count: 1, lastUsed: nowIso() },
+    { name: 'Shampoo Pet', price: 22, count: 1, lastUsed: nowIso() },
+    { name: 'Coleira', price: 25, count: 1, lastUsed: nowIso() },
+    { name: 'Antipulgas', price: 38, count: 1, lastUsed: nowIso() },
+    { name: 'Petisco', price: 9, count: 1, lastUsed: nowIso() },
+    { name: 'Banho', price: 35, count: 1, lastUsed: nowIso() },
+  ],
+  outro: [
+    { name: 'Produto 1', price: 10, count: 1, lastUsed: nowIso() },
+    { name: 'Produto 2', price: 15, count: 1, lastUsed: nowIso() },
+    { name: 'Serviço 1', price: 20, count: 1, lastUsed: nowIso() },
+    { name: 'Serviço 2', price: 30, count: 1, lastUsed: nowIso() },
+    { name: 'Item Avulso', price: 8, count: 1, lastUsed: nowIso() },
+    { name: 'Pacote Básico', price: 25, count: 1, lastUsed: nowIso() },
+    { name: 'Complemento', price: 6, count: 1, lastUsed: nowIso() },
+    { name: 'Taxa Entrega', price: 5, count: 1, lastUsed: nowIso() },
+  ],
+};
+
+export const FALLBACK_QUICK_ITEMS: QuickItemClient[] = FALLBACK_QUICK_ITEMS_BY_BUSINESS.mercado;
 
 export interface FiadoMobileState {
   // Auth State
@@ -206,19 +256,20 @@ export const useFiadoStore = create<FiadoMobileState>()(
             });
           }
         } else {
+          const nextSubscription: UserSubscriptionState = {
+            plan_id: 'free',
+            plan_name: 'Free',
+            price_brl: 0,
+            max_customers: 2,
+            max_transactions_per_month: 30,
+            is_premium: false,
+            status: 'active',
+            current_period_end: null,
+            is_simulated: false,
+            source: 'cloud',
+          };
           set({
-            subscription: {
-              plan_id: 'free',
-              plan_name: 'Free',
-              price_brl: 0,
-              max_customers: 2,
-              max_transactions_per_month: 30,
-              is_premium: false,
-              status: 'active',
-              current_period_end: null,
-              is_simulated: false,
-              source: 'cloud',
-            },
+            subscription: nextSubscription,
             // Reset to default demo values on logout
             businessConfig: {
               businessName: 'Meu Mercadinho',
@@ -230,6 +281,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
               businessType: 'mercado',
             }
           });
+          void syncSubscriptionRenewalReminders(nextSubscription);
         }
       },
       setAuthChecked: (checked) => set({ authChecked: checked }),
@@ -263,20 +315,21 @@ export const useFiadoStore = create<FiadoMobileState>()(
           if (error) throw error;
           const row = Array.isArray(data) ? data[0] : data;
           if (row) {
-            set({
-              subscription: {
-                plan_id: row.plan_id || 'free',
-                plan_name: row.plan_name || 'Free',
-                price_brl: Number(row.price_brl || 0),
-                max_customers: row.max_customers,
-                max_transactions_per_month: row.max_transactions_per_month,
-                is_premium: !!row.is_premium,
-                status: row.status || 'active',
-                current_period_end: row.current_period_end || null,
-                is_simulated: false,
-                source: row.source === 'google_play' ? 'play' : 'cloud',
-              }
-            });
+            const nextSubscription = {
+              plan_id: row.plan_id || 'free',
+              plan_name: row.plan_name || 'Free',
+              price_brl: Number(row.price_brl || 0),
+              max_customers: row.max_customers,
+              max_transactions_per_month: row.max_transactions_per_month,
+              is_premium: !!row.is_premium,
+              status: row.status || 'active',
+              current_period_end: row.current_period_end || null,
+              is_simulated: false,
+              source: row.source === 'google_play' ? 'play' : 'cloud',
+            } as UserSubscriptionState;
+
+            set({ subscription: nextSubscription });
+            await syncSubscriptionRenewalReminders(nextSubscription);
           }
         } catch (err) {
           console.warn('[Store] Falha ao buscar assinatura da nuvem:', err);
@@ -284,6 +337,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
       },
 
       toggleSubscriptionSimulation: (enabled, planId = 'premium_monthly') => {
+        if (!__DEV__) return;
         if (enabled) {
           const isPremium = planId === 'premium_monthly';
           set({
@@ -330,6 +384,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
       },
 
       simulateSubscriptionUpgrade: (method) => {
+        if (!__DEV__) return;
         set({
           subscription: {
             plan_id: 'premium_monthly',
@@ -348,6 +403,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
       },
 
       simulateSubscriptionDowngrade: () => {
+        if (!__DEV__) return;
         set({
           subscription: {
             plan_id: 'free',
@@ -893,7 +949,8 @@ export const useFiadoStore = create<FiadoMobileState>()(
         });
 
         if (sorted.length === 0) {
-          sorted = FALLBACK_QUICK_ITEMS;
+          const businessType = String(get().businessConfig.businessType || 'mercado').toLowerCase();
+          sorted = FALLBACK_QUICK_ITEMS_BY_BUSINESS[businessType] || FALLBACK_QUICK_ITEMS_BY_BUSINESS.mercado;
         }
 
         const cleanQuery = query.toLowerCase().trim();
@@ -1129,7 +1186,11 @@ export const useFiadoStore = create<FiadoMobileState>()(
     }),
     {
       name: 'fiado-store',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => ({
+        getItem: (key) => EncryptedStorage.getItem(key),
+        setItem: (key, value) => EncryptedStorage.setItem(key, value),
+        removeItem: (key) => EncryptedStorage.removeItem(key),
+      })),
       version: 2,
       migrate: async (persistedState, _version) => {
         if (persistedState && typeof persistedState === 'object') {

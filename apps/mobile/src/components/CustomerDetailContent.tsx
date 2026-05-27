@@ -62,14 +62,22 @@ export function CustomerDetailContent({
 
   const customer = customers.find((c) => c.id === id);
   const redirectingRef = useRef(false);
+  const previousIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
     if (customer) return;
-    if (redirectingRef.current) return;
+    if (redirectingRef.current) {
+      // Prevent infinite loops by checking if we're trying to redirect to the same ID
+      if (previousIdRef.current === id) {
+        return;
+      }
+    }
+    
     const mapped = customerIdMap?.[String(id)];
-    if (mapped) {
+    if (mapped && mapped !== id) {
       redirectingRef.current = true;
+      previousIdRef.current = id;
       router.replace(`/clientes/${mapped}`);
     }
   }, [id, customer, customerIdMap, router]);
@@ -308,7 +316,7 @@ export function CustomerDetailContent({
   const isAtrasado = customer ? customer.history.some(
     (h) => h.type === 'debt' && (Date.now() - new Date(h.created_at).getTime()) / 86400000 > overdueDays
   ) : false;
-  const canEditProfilePicture = subscription.is_premium;
+  const canEditProfilePicture = true;
 
   const handleOpenEditProfile = () => {
     if (!customer) return;
@@ -355,14 +363,6 @@ export function CustomerDetailContent({
   };
 
   const pickEditPhoto = async () => {
-    if (!canEditProfilePicture) {
-      Alert.alert('Recurso Premium', 'Fotos reais no perfil do cliente estão disponíveis no plano Premium.', [
-        { text: 'Depois', style: 'cancel' },
-        { text: 'Ver Planos', onPress: () => router.push('/subscription') },
-      ]);
-      return;
-    }
-
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
@@ -386,13 +386,6 @@ export function CustomerDetailContent({
 
   const pickAndSaveProfilePhoto = async () => {
     if (!customer) return;
-    if (!canEditProfilePicture) {
-      Alert.alert('Recurso Premium', 'Assine o Premium para colocar foto real no perfil do cliente.', [
-        { text: 'Depois', style: 'cancel' },
-        { text: 'Ver Planos', onPress: () => router.push('/subscription') },
-      ]);
-      return;
-    }
 
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -925,48 +918,37 @@ export function CustomerDetailContent({
                 />
               </View>
 
-              {canEditProfilePicture ? (
-                <View style={styles.formGroup}>
-                  <Text style={styles.formLabel}>Foto do Cliente</Text>
-                  <View style={styles.photoRow}>
-                    <View style={styles.photoPreview}>
-                      {editPicture && !isEmoji(editPicture) ? (
-                        <Image source={{ uri: editPicture }} style={styles.photoPreviewImg} />
-                      ) : editPicture && isEmoji(editPicture) ? (
-                        <Text style={styles.photoPreviewText}>{editPicture}</Text>
-                      ) : (
-                        <Ionicons name="camera-outline" size={24} color={theme.colors.textMuted} />
-                      )}
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <View style={styles.photoActions}>
-                        <TouchableOpacity style={styles.photoBtn} onPress={pickEditPhoto} activeOpacity={0.8}>
-                          <Text style={styles.photoBtnText}>{editPicture && !isEmoji(editPicture) ? 'Trocar' : 'Escolher'}</Text>
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Foto do Cliente</Text>
+                <View style={styles.photoRow}>
+                  <View style={styles.photoPreview}>
+                    {editPicture && !isEmoji(editPicture) ? (
+                      <Image source={{ uri: editPicture }} style={styles.photoPreviewImg} />
+                    ) : editPicture && isEmoji(editPicture) ? (
+                      <Text style={styles.photoPreviewText}>{editPicture}</Text>
+                    ) : (
+                      <Ionicons name="camera-outline" size={24} color={theme.colors.textMuted} />
+                    )}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={styles.photoActions}>
+                      <TouchableOpacity style={styles.photoBtn} onPress={pickEditPhoto} activeOpacity={0.8}>
+                        <Text style={styles.photoBtnText}>{editPicture && !isEmoji(editPicture) ? 'Trocar' : 'Escolher'}</Text>
+                      </TouchableOpacity>
+                      {editPicture ? (
+                        <TouchableOpacity
+                          style={[styles.photoBtn, styles.photoBtnDanger]}
+                          onPress={() => setEditPicture('')}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={[styles.photoBtnText, styles.photoBtnTextDanger]}>Remover</Text>
                         </TouchableOpacity>
-                        {editPicture ? (
-                          <TouchableOpacity
-                            style={[styles.photoBtn, styles.photoBtnDanger]}
-                            onPress={() => setEditPicture('')}
-                            activeOpacity={0.8}
-                          >
-                            <Text style={[styles.photoBtnText, styles.photoBtnTextDanger]}>Remover</Text>
-                          </TouchableOpacity>
-                        ) : null}
-                      </View>
-                      <Text style={styles.photoHint}>Se escolher foto, ela será enviada quando houver internet.</Text>
+                      ) : null}
                     </View>
+                    <Text style={styles.photoHint}>Se escolher foto, ela será enviada quando houver internet.</Text>
                   </View>
                 </View>
-              ) : (
-                <TouchableOpacity
-                  style={styles.photoPremiumBox}
-                  onPress={() => router.push('/subscription')}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="lock-closed-outline" size={16} color={theme.colors.accent} style={{ marginRight: 8 }} />
-                  <Text style={styles.photoPremiumText}>Fotos reais do cliente são recurso Premium.</Text>
-                </TouchableOpacity>
-              )}
+              </View>
 
               <View style={styles.formGroup}>
                 <Text style={styles.formLabel}>Ou escolha um Avatar Emoji</Text>

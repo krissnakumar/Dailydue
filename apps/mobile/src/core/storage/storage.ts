@@ -1,22 +1,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
-
-function warnInsecureFallback(action: string, error: unknown) {
-  console.warn(`[Storage] Secure storage unavailable during ${action}.`, error);
-  if (!__DEV__) {
-    console.error('[Storage] Refusing to store sensitive data in AsyncStorage outside development.');
-  }
-}
+import { EncryptedStorage } from '../security/encrypted-storage';
 
 export const storage = {
   getItem: async (key: string): Promise<string | null> => {
-    return AsyncStorage.getItem(key);
+    return EncryptedStorage.getItem(key);
   },
   setItem: async (key: string, value: string): Promise<void> => {
-    return AsyncStorage.setItem(key, value);
+    return EncryptedStorage.setItem(key, value);
   },
   removeItem: async (key: string): Promise<void> => {
-    return AsyncStorage.removeItem(key);
+    return EncryptedStorage.removeItem(key);
   },
   clear: async (): Promise<void> => {
     return AsyncStorage.clear();
@@ -26,22 +20,14 @@ export const storage = {
     try {
       await SecureStore.setItemAsync(key, value);
     } catch (e) {
-      warnInsecureFallback('setSecureItem', e);
-      if (__DEV__) {
-        await AsyncStorage.setItem(`secure_${key}`, value);
-      } else {
-        throw e;
-      }
+      console.warn('[Storage] SecureStore unavailable — sensitive data will not be persisted.', e);
     }
   },
   getSecureItem: async (key: string): Promise<string | null> => {
     try {
       return await SecureStore.getItemAsync(key);
     } catch (e) {
-      warnInsecureFallback('getSecureItem', e);
-      if (__DEV__) {
-        return AsyncStorage.getItem(`secure_${key}`);
-      }
+      console.warn('[Storage] SecureStore unavailable for get.', e);
       return null;
     }
   },
@@ -49,10 +35,7 @@ export const storage = {
     try {
       await SecureStore.deleteItemAsync(key);
     } catch (e) {
-      warnInsecureFallback('removeSecureItem', e);
-      if (__DEV__) {
-        await AsyncStorage.removeItem(`secure_${key}`);
-      }
+      console.warn('[Storage] SecureStore unavailable for remove.', e);
     }
   },
 };

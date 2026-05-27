@@ -71,6 +71,15 @@ function getOAuthRedirectUri(): string {
   return NATIVE_REDIRECT_URI;
 }
 
+function getPasswordResetRedirectUri(): string {
+  // For password reset, use the web callback or app scheme
+  if (Platform.OS === 'web') {
+    return Linking.createURL(AUTH_CALLBACK_PATH);
+  }
+  // For native, use app scheme to handle the reset link
+  return NATIVE_REDIRECT_URI;
+}
+
 function getProviderConfigMessage(provider: 'Google' | 'Facebook', errorMessage?: string) {
   if (provider === 'Google' && errorMessage?.includes('redirect_uri_mismatch')) {
     return (
@@ -148,10 +157,14 @@ export default function LoginScreen() {
     );
 
     return () => {
-      showSubscription.remove();
-      hideSubscription.remove();
+      try {
+        showSubscription?.remove?.();
+        hideSubscription?.remove?.();
+      } catch (e) {
+        console.warn('Failed to remove keyboard listeners:', e);
+      }
     };
-  }, []);
+  }, [keyboardHeightFactor]);
   const contentOpacity = useSharedValue(0);
   const contentTranslateY = useSharedValue(50);
   
@@ -205,18 +218,26 @@ export default function LoginScreen() {
 
 
   const completeOAuthFromBrowser = async (finalUrl: string) => {
-    const params = parseOAuthCallbackParams(finalUrl);
-    const session = await establishSessionFromOAuthParams(params);
-    if (session) {
-      const meta = extractUserMetadata(session.user.user_metadata);
-      setUser({
-        id: session.user.id,
-        email: session.user.email || undefined,
-        full_name: meta.full_name,
-        picture: meta.picture,
-      });
+    try {
+      const params = parseOAuthCallbackParams(finalUrl);
+      const session = await establishSessionFromOAuthParams(params);
+      if (session) {
+        const meta = extractUserMetadata(session.user.user_metadata);
+        setUser({
+          id: session.user.id,
+          email: session.user.email || undefined,
+          full_name: meta.full_name,
+          picture: meta.picture,
+        });
+        
+        // Wait briefly for store to update and Supabase session to persist,
+        // then let the root layout's auth logic handle navigation
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+    } catch (err) {
+      console.error('[Auth] completeOAuthFromBrowser error:', err);
+      throw err;
     }
-    router.replace('/welcome');
   };
 
   const handleGoogleLogin = async () => {
@@ -231,7 +252,9 @@ export default function LoginScreen() {
             provider: 'google',
             token: nativeRes.idToken,
           });
-          if (idTokenErr) throw idTokenErr;
+          if (idTokenErr) {
+            throw new Error(idTokenErr.message || 'Falha na autenticação Google nativa.');
+          }
 
           let sess: any = data?.session;
           if (!sess) {
@@ -248,7 +271,9 @@ export default function LoginScreen() {
               full_name: meta.full_name,
               picture: meta.picture,
             });
-            router.replace('/welcome');
+            
+            // Wait a brief moment to ensure session is persisted before navigating
+            await new Promise(resolve => setTimeout(resolve, 200));
           } else {
             throw new Error('Sessão do Google não encontrada após o login.');
           }
@@ -270,8 +295,12 @@ export default function LoginScreen() {
           skipBrowserRedirect: true,
         },
       });
-      if (oauthErr) throw oauthErr;
-      if (!data?.url) throw new Error('OAuth_URL_MISSING');
+      if (oauthErr) {
+        throw new Error(oauthErr.message || 'Falha ao iniciar login Google.');
+      }
+      if (!data?.url) {
+        throw new Error('Falha ao obter URL de autenticação Google.');
+      }
 
       const res = await openTrackedAuthSession(data.url, redirectTo);
       if (res.type !== 'success' || !('url' in res) || !res.url) {
@@ -306,8 +335,12 @@ export default function LoginScreen() {
           skipBrowserRedirect: true,
         },
       });
-      if (oauthErr) throw oauthErr;
-      if (!data?.url) throw new Error('OAuth_URL_MISSING');
+      if (oauthErr) {
+        throw new Error(oauthErr.message || 'Falha ao iniciar login Facebook.');
+      }
+      if (!data?.url) {
+        throw new Error('Falha ao obter URL de autenticação Facebook.');
+      }
 
       const res = await openTrackedAuthSession(data.url, redirectTo);
       if (res.type !== 'success' || !('url' in res) || !res.url) {
@@ -344,11 +377,13 @@ export default function LoginScreen() {
     setError(null);
     try {
       if (mode === 'forgot') {
-        const redirectTo = getOAuthRedirectUri();
+        const redirectTo = getPasswordResetRedirectUri();
         const { error: resetErr } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
           redirectTo,
         });
-        if (resetErr) throw resetErr;
+        if (resetErr) {
+          throw new Error(resetErr.message || 'Erro ao enviar e-mail de recuperação. Verifique se o e-mail está correto.');
+        }
 
         if (Platform.OS === 'web') {
           alert('Enviamos as instruções para recuperação de senha para o e-mail informado.');
@@ -370,10 +405,12 @@ export default function LoginScreen() {
             },
           },
         });
-        if (signUpErr) throw signUpErr;
+        if (signUpErr) {
+          throw new Error(signUpErr.message || 'Falha ao criar conta. Tente novamente.');
+        }
 
         const sess = data.session;
-        if (sess) {
+        if (sess && sess.user) {
           const meta = extractUserMetadata(sess.user.user_metadata);
           setUser({
             id: sess.user.id,
@@ -381,43 +418,80 @@ export default function LoginScreen() {
             full_name: meta.full_name,
             picture: meta.picture,
           });
-          router.replace('/welcome');
+          
+          // Wait briefly for store to update and Supabase session to persist,
+          // then let the root layout's auth logic handle navigation
+          await new Promise(resolve => setTimeout(resolve, 200));
           return;
         }
 
-        if (Platform.OS === 'web') {
-          alert('Sua conta foi criada com sucesso! Faça login para acessar o aplicativo.');
-          changeMode('signin');
+        // Session may be null if email confirmation is required
+        const emailUser = data.user;
+        const needsConfirmation = !sess && emailUser?.identities?.length === 0;
+        
+        if (needsConfirmation || (!sess && !emailUser?.email_confirmed_at)) {
+          if (Platform.OS === 'web') {
+            alert(`Conta criada com sucesso! Enviamos um e-mail de confirmação para ${cleanEmail}. Verifique sua caixa de entrada e spam para ativar sua conta.`);
+            changeMode('signin');
+          } else {
+            Alert.alert(
+              'Confirme seu e-mail 📧',
+              `Conta criada com sucesso! Enviamos um e-mail de confirmação para ${cleanEmail}.\n\nAcesse sua caixa de entrada (e verifique o spam) e clique no link de verificação para ativar sua conta. Depois, faça o login normalmente.`,
+              [{ text: 'OK, entendi', onPress: () => changeMode('signin') }]
+            );
+          }
         } else {
-          Alert.alert(
-            'Conta criada',
-            'Sua conta foi criada com sucesso! Faça login para acessar o aplicativo.',
-            [{ text: 'OK', onPress: () => changeMode('signin') }]
-          );
+          // Session exists -> user is already confirmed
+          if (Platform.OS === 'web') {
+            alert('Sua conta foi criada com sucesso! Faça login para acessar o aplicativo.');
+            changeMode('signin');
+          } else {
+            Alert.alert(
+              'Conta criada',
+              'Sua conta foi criada com sucesso! Faça login para acessar o aplicativo.',
+              [{ text: 'OK', onPress: () => changeMode('signin') }]
+            );
+          }
         }
       } else {
         const { data, error: signInErr } = await supabase.auth.signInWithPassword({
           email: cleanEmail,
           password,
         });
-        if (signInErr) throw signInErr;
+        if (signInErr) {
+          throw new Error(signInErr.message || 'E-mail ou senha incorretos.');
+        }
 
         const sess = data.session;
-        if (sess) {
-          const meta = extractUserMetadata(sess.user.user_metadata);
-          setUser({
-            id: sess.user.id,
-            email: sess.user.email || undefined,
-            full_name: meta.full_name,
-            picture: meta.picture,
-          });
-          router.replace('/welcome');
-        } else {
-          throw new Error('Sua conta precisa de confirmação de e-mail antes de acessar.');
+        if (!sess || !sess.user) {
+          if (Platform.OS === 'web') {
+            setError(`E-mail não confirmado! Verifique sua caixa de entrada (e spam) e clique no link de verificação enviado para ${cleanEmail}.`);
+          } else {
+            Alert.alert(
+              'E-mail não confirmado 📧',
+              `Você ainda não confirmou seu e-mail.\n\nVerifique sua caixa de entrada (e spam) em ${cleanEmail} e clique no link de verificação para ativar sua conta.\n\nDepois de confirmar, tente fazer login novamente.`,
+              [{ text: 'OK' }]
+            );
+          }
+          return;
         }
+        
+        const meta = extractUserMetadata(sess.user.user_metadata);
+        setUser({
+          id: sess.user.id,
+          email: sess.user.email || undefined,
+          full_name: meta.full_name,
+          picture: meta.picture,
+        });
+        
+        // Wait briefly for store to update and Supabase session to persist,
+        // then let the root layout's auth logic handle navigation
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
     } catch (e: any) {
-      setError(e?.message || 'Falha ao autenticar.');
+      const errorMsg = typeof e.message === 'string' ? e.message : 'Falha ao autenticar. Tente novamente.';
+      console.error('[Auth] handleAuth error:', errorMsg, e);
+      setError(errorMsg);
     } finally {
       setBusy(false);
     }

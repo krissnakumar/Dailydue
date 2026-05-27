@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, ActivityIndicator, Switch, TouchableOpacity, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, ActivityIndicator, TouchableOpacity, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Header, Card, Button } from '../../src/components';
 import { useFiadoStore } from '../../src/store';
@@ -20,14 +20,11 @@ export default function SubscriptionNativeScreen() {
     subscription,
     getActiveCustomersCount,
     getCurrentMonthTransactionsCount,
-    toggleSubscriptionSimulation,
   } = useFiadoStore();
 
   const customersCount = getActiveCustomersCount();
   const txCount = getCurrentMonthTransactionsCount();
   const [inAppLoading, setInAppLoading] = useState(false);
-
-  const isSimulated = subscription.is_simulated;
 
   const billing = useBilling();
 
@@ -277,30 +274,6 @@ export default function SubscriptionNativeScreen() {
           )}
         </Card>
 
-        <Text style={styles.sectionTitle}>Sandbox (debug)</Text>
-        <Card style={styles.sandboxCard}>
-          <View style={styles.sandboxRow}>
-            <Text style={styles.sandboxLabel}>Ativar simulação (sem cobrança)</Text>
-            <Switch value={isSimulated} onValueChange={(val) => toggleSubscriptionSimulation(val, 'premium_monthly')} />
-          </View>
-          {isSimulated && (
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 }}>
-              <TouchableOpacity
-                style={[styles.sandboxPlanBtn, subscription.plan_id === 'free' && styles.sandboxPlanBtnActive]}
-                onPress={() => toggleSubscriptionSimulation(true, 'free')}
-              >
-                <Text style={[styles.sandboxPlanText, subscription.plan_id === 'free' && styles.sandboxPlanTextActive]}>Grátis</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.sandboxPlanBtn, subscription.plan_id === 'premium_monthly' && styles.sandboxPlanBtnActive]}
-                onPress={() => toggleSubscriptionSimulation(true, 'premium_monthly')}
-              >
-                <Text style={[styles.sandboxPlanText, subscription.plan_id === 'premium_monthly' && styles.sandboxPlanTextActive]}>Premium</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-          <Text style={styles.sandboxHint}>Útil para testar limites de clientes e lançamentos localmente.</Text>
-        </Card>
       </ScrollView>
     </View>
   );

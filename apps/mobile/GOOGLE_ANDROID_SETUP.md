@@ -57,7 +57,15 @@ Code path: `apps/mobile/app/(tabs)/subscription.tsx` uses `react-native-iap` to 
 
 ### Note about verification
 
-The app currently unlocks Premium **locally** after a successful purchase and transaction finalization. For production-grade entitlement, you should implement **server-side verification** (Google Play Developer API) and have Supabase return the paid plan in `get_current_plan`.
+Premium entitlement should always be determined by Supabase after **server-side verification** with Google Play Developer API.
+
+Required backend env vars for verification:
+- `GOOGLE_PLAY_PACKAGE_NAME`
+- `GOOGLE_PLAY_PREMIUM_PRODUCT_ID`
+- `GOOGLE_SERVICE_ACCOUNT_JSON`
+
+Required backend env var for RTDN webhook protection:
+- `GOOGLE_RTDN_WEBHOOK_SECRET` (must match `x-rtdn-secret` header from your webhook sender)
 
 ## 3) Facebook Login (Supabase OAuth)
 

@@ -9,8 +9,15 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useResponsive } from '../../src/utils/responsive';
 import { SecurityService } from '../../src/core/security/security-service';
-import { promptLogout } from '../../src/core/auth/logout-flow';
 import Animated, { FadeInDown, FadeOutUp, Layout } from 'react-native-reanimated';
+
+const BUSINESS_TYPES = [
+  { id: 'mercado', label: 'Mercado' },
+  { id: 'padaria', label: 'Padaria' },
+  { id: 'bar', label: 'Bar/Restaurante' },
+  { id: 'petshop', label: 'Petshop' },
+  { id: 'outro', label: 'Outro' },
+];
 
 export default function ConfiguracoesScreen() {
   const router = useRouter();
@@ -40,6 +47,17 @@ export default function ConfiguracoesScreen() {
   const [bizName, setBizName] = useState(businessConfig.businessName);
   const [pix, setPix] = useState(businessConfig.pixKey);
   const [phone, setPhone] = useState(businessConfig.phone);
+  const [businessType, setBusinessType] = useState(businessConfig.businessType || 'mercado');
+  const [overdueDays, setOverdueDays] = useState(Number(businessConfig.overdueDays || 15));
+  const initialMethods = businessConfig.acceptedPaymentMethods || ['cash', 'pix', 'card'];
+  const [methodCash, setMethodCash] = useState(initialMethods.includes('cash'));
+  const [methodPix, setMethodPix] = useState(initialMethods.includes('pix'));
+  const [methodCard, setMethodCard] = useState(initialMethods.includes('card'));
+  const [whatsappTemplate, setWhatsappTemplate] = useState(
+    businessConfig.whatsappTemplate ||
+      'Olá {cliente}, passando para lembrar da sua conta em aberto no valor de {valor}. Você pode pagar via PIX ou presencialmente. Obrigado!'
+  );
+  const [showOnboardingDetails, setShowOnboardingDetails] = useState(false);
   
   const [userName, setUserName] = useState(user?.full_name || '');
   const [userPic, setUserPic] = useState(user?.picture || user?.avatar_url || '');
@@ -51,6 +69,11 @@ export default function ConfiguracoesScreen() {
 
   const handleSaveConfig = async () => {
     try {
+      const acceptedMethods: string[] = [];
+      if (methodCash) acceptedMethods.push('cash');
+      if (methodPix) acceptedMethods.push('pix');
+      if (methodCard) acceptedMethods.push('card');
+
       let nextPicture = userPic;
       let avatarStoragePath: string | null | undefined = undefined;
       let avatarMimeType: string | null | undefined = undefined;
@@ -86,6 +109,10 @@ export default function ConfiguracoesScreen() {
         businessName: bizName.trim(),
         pixKey: pix.trim(),
         phone: phone.trim(),
+        businessType,
+        overdueDays: Math.max(1, overdueDays),
+        acceptedPaymentMethods: acceptedMethods,
+        whatsappTemplate: whatsappTemplate.trim(),
       });
 
       setUserPic(nextPicture);
@@ -116,10 +143,6 @@ export default function ConfiguracoesScreen() {
     } catch (error) {
       console.warn('ImagePicker Error', error);
     }
-  };
-
-  const handleLogout = () => {
-    promptLogout(router);
   };
 
   const handleGoToLogin = () => {
@@ -323,7 +346,7 @@ export default function ConfiguracoesScreen() {
             variant="ghost"
             leftIcon={<Ionicons name="options-outline" size={16} color={theme.colors.primary} style={{ marginRight: 6 }} />}
             onPress={() => router.push('/subscription')}
-            style={{ marginTop: 12 }}
+            style={{ marginTop: 4 }}
           />
         </Card>
         </Animated.View>
@@ -404,6 +427,90 @@ export default function ConfiguracoesScreen() {
               value={phone}
               onChangeText={setPhone}
             />
+          </View>
+
+          <View style={styles.compactOnboardingBox}>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={styles.compactHeader}
+              onPress={() => setShowOnboardingDetails((prev) => !prev)}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.compactOnboardingTitle}>Detalhes do Onboarding</Text>
+              </View>
+              <Ionicons
+                name={showOnboardingDetails ? 'chevron-up' : 'chevron-down'}
+                size={18}
+                color={theme.colors.textMuted}
+              />
+            </TouchableOpacity>
+
+            {showOnboardingDetails ? (
+              <View style={styles.compactBody}>
+                <View style={[styles.formGroup, styles.compactGroup]}>
+                  <Text style={styles.label}>Tipo de Negócio</Text>
+                  <View style={styles.typePillsWrap}>
+                    {BUSINESS_TYPES.map((item) => (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={[styles.typePill, businessType === item.id && styles.typePillActive]}
+                        onPress={() => setBusinessType(item.id)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[styles.typePillText, businessType === item.id && styles.typePillTextActive]}>
+                          {item.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                <View style={[styles.formGroup, styles.compactGroup]}>
+                  <Text style={styles.label}>Prazo de Vencimento (dias)</Text>
+                  <View style={styles.compactCounter}>
+                    <TouchableOpacity
+                      style={styles.counterBtn}
+                      onPress={() => setOverdueDays(Math.max(1, overdueDays - 1))}
+                    >
+                      <Ionicons name="remove" size={16} color={theme.colors.textMain} />
+                    </TouchableOpacity>
+                    <Text style={styles.counterValue}>{overdueDays}</Text>
+                    <TouchableOpacity style={styles.counterBtn} onPress={() => setOverdueDays(overdueDays + 1)}>
+                      <Ionicons name="add" size={16} color={theme.colors.textMain} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <View style={[styles.formGroup, styles.compactGroup]}>
+                  <Text style={styles.label}>Métodos de Pagamento</Text>
+                  <View style={styles.methodsGrid}>
+                    <View style={styles.methodRowCompact}>
+                      <Text style={styles.methodLabel}>Dinheiro</Text>
+                      <Switch value={methodCash} onValueChange={setMethodCash} trackColor={{ true: theme.colors.primary }} />
+                    </View>
+                    <View style={styles.methodRowCompact}>
+                      <Text style={styles.methodLabel}>PIX</Text>
+                      <Switch value={methodPix} onValueChange={setMethodPix} trackColor={{ true: theme.colors.primary }} />
+                    </View>
+                    <View style={styles.methodRowCompact}>
+                      <Text style={styles.methodLabel}>Cartão</Text>
+                      <Switch value={methodCard} onValueChange={setMethodCard} trackColor={{ true: theme.colors.primary }} />
+                    </View>
+                  </View>
+                </View>
+
+                <View style={[styles.formGroup, { marginBottom: 0 }]}>
+                  <Text style={styles.label}>Template de Cobrança</Text>
+                  <TextInput
+                    style={[styles.input, styles.templateInput]}
+                    multiline
+                    numberOfLines={3}
+                    value={whatsappTemplate}
+                    onChangeText={setWhatsappTemplate}
+                  />
+                </View>
+              </View>
+            ) : null}
           </View>
 
           <Button
@@ -560,23 +667,6 @@ export default function ConfiguracoesScreen() {
         </Card>
         </Animated.View>
 
-        {user ? (
-          <Animated.View
-            entering={FadeInDown.duration(220).delay(200)}
-            layout={Layout.springify().damping(18).stiffness(180)}
-          >
-            <Text style={styles.sectionTitle}>Conta</Text>
-            <Card style={styles.infoCard}>
-              <Button
-                title="Sair da Conta"
-                variant="ghost"
-                leftIcon={<Ionicons name="log-out-outline" size={18} color={theme.colors.danger} style={{ marginRight: 6 }} />}
-                onPress={handleLogout}
-                style={{ borderColor: theme.colors.danger }}
-              />
-            </Card>
-          </Animated.View>
-        ) : null}
       </ScrollView>
 
 
@@ -707,7 +797,7 @@ const styles = StyleSheet.create({
     color: '#a16207',
   },
   limitRow: {
-    marginBottom: 8,
+    marginBottom: 4,
   },
   limitHeader: {
     flexDirection: 'row',
@@ -808,6 +898,105 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#e53e3e',
+  },
+  compactOnboardingBox: {
+    marginTop: 8,
+    marginBottom: 8,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: '#f8fafc',
+  },
+  compactHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  compactOnboardingTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: theme.colors.textMain,
+  },
+  compactBody: {
+    marginTop: 10,
+  },
+  compactGroup: {
+    marginBottom: 8,
+  },
+  typePillsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  typePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: '#ffffff',
+  },
+  typePillActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  typePillText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: theme.colors.textMain,
+  },
+  typePillTextActive: {
+    color: '#ffffff',
+  },
+  compactCounter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 999,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  counterBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  counterValue: {
+    minWidth: 28,
+    textAlign: 'center',
+    fontSize: 13,
+    fontWeight: '700',
+    color: theme.colors.textMain,
+  },
+  methodsGrid: {
+    gap: 2,
+  },
+  methodRowCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 34,
+  },
+  methodRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  methodLabel: {
+    fontSize: 13,
+    color: theme.colors.textMain,
+  },
+  templateInput: {
+    minHeight: 72,
+    textAlignVertical: 'top',
+    paddingTop: 8,
   },
   retryErrorsBtn: {
     marginTop: 12,

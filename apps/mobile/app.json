@@ -13,11 +13,15 @@
       "backgroundColor": "#000000"
     },
     "updates": {
-      "fallbackToCacheTimeout": 0,
+      "fallbackToCacheTimeout": 30000,
       "checkAutomatically": "ON_ERROR_RECOVERY"
     },
     "assetBundlePatterns": [
-      "**/*"
+      "assets/icon.png",
+      "assets/splash.png",
+      "assets/adaptive-icon.png",
+      "assets/favicon.png",
+      "assets/brand/"
     ],
     "ios": {
       "supportsTablet": true,

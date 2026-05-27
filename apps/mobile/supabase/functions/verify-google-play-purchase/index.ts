@@ -108,6 +108,17 @@ serve(async (req) => {
     if (productId !== GOOGLE_PLAY_PREMIUM_PRODUCT_ID) return jsonResponse({ error: 'INVALID_PRODUCT_ID' }, { status: 400 });
     if (!purchaseToken) return jsonResponse({ error: 'PURCHASE_TOKEN_REQUIRED' }, { status: 400 });
 
+    // Prevent replay/linking of the same purchase token to multiple accounts.
+    const { data: tokenOwner } = await supabase
+      .from('user_subscriptions')
+      .select('user_id')
+      .eq('provider', 'google_play')
+      .eq('provider_purchase_token', String(purchaseToken))
+      .maybeSingle();
+    if (tokenOwner?.user_id && tokenOwner.user_id !== user.id) {
+      return jsonResponse({ error: 'PURCHASE_TOKEN_ALREADY_LINKED' }, { status: 409 });
+    }
+
     const serviceAccount = JSON.parse(GOOGLE_SERVICE_ACCOUNT_JSON);
     const accessToken = await getGoogleAccessToken(serviceAccount);
 

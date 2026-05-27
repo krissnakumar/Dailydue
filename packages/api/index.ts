@@ -54,15 +54,45 @@ const supabaseAnonKey =
 
 export const supabaseEnvOk = Boolean(supabaseUrl && supabaseAnonKey && !supabaseUrl.includes('localhost'));
 
+// Secure storage for Supabase auth tokens — uses Keychain (iOS) / Keystore (Android)
+// via expo-secure-store instead of unencrypted AsyncStorage.
 let supabaseAuthStorage: any = undefined;
 try {
-  // React Native doesn't have localStorage; use AsyncStorage when available.
-  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-  (typeof navigator !== 'undefined' && (navigator as any)?.product === 'ReactNative') &&
+  const isReactNative =
+    typeof navigator !== 'undefined' && (navigator as any)?.product === 'ReactNative';
+
+  if (isReactNative) {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    (supabaseAuthStorage = require('@react-native-async-storage/async-storage')?.default);
+    const SecureStore = require('expo-secure-store');
+
+    supabaseAuthStorage = {
+      getItem: async (key: string) => {
+        try {
+          return await SecureStore.getItemAsync(key);
+        } catch {
+          return null;
+        }
+      },
+      setItem: async (key: string, value: string) => {
+        try {
+          await SecureStore.setItemAsync(key, value, {
+            keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+          });
+        } catch {
+          // Silently fail — auth flow will still work, session just won't persist across restarts
+        }
+      },
+      removeItem: async (key: string) => {
+        try {
+          await SecureStore.deleteItemAsync(key);
+        } catch {
+          // ignore
+        }
+      },
+    };
+  }
 } catch {
-  // ignore
+  // expo-secure-store unavailable (web or test environment)
 }
 
 export interface SupabaseUserMetadata {

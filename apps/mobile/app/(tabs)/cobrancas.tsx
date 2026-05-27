@@ -290,7 +290,11 @@ export default function CobrancasScreen() {
 
         {devedores.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="sparkles-outline" size={40} color="#10b981" style={{ marginBottom: 10 }} />
+            <View style={styles.emptyIconWrap}>
+              <View style={styles.emptyIconDotTop} />
+              <View style={styles.emptyIconDotRight} />
+              <Ionicons name="checkmark" size={18} color="#0f766e" />
+            </View>
             <Text style={styles.emptyText}>Tudo em ordem por aqui!</Text>
           </View>
         ) : (
@@ -695,7 +699,37 @@ const styles = StyleSheet.create({
   },
   emptyState: {
     alignItems: 'center',
-    paddingVertical: 40,
+    paddingVertical: 34,
+  },
+  emptyIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1.5,
+    borderColor: '#99f6e4',
+    backgroundColor: '#f0fdfa',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+    position: 'relative',
+  },
+  emptyIconDotTop: {
+    position: 'absolute',
+    top: -3,
+    left: 17,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#2dd4bf',
+  },
+  emptyIconDotRight: {
+    position: 'absolute',
+    right: -3,
+    top: 17,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#5eead4',
   },
   emptyText: {
     color: theme.colors.textMuted,

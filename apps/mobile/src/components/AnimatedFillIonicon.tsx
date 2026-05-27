@@ -23,39 +23,52 @@ export function AnimatedFillIonicon({
   color,
   fillColor,
   style,
-  durationMs = 420,
+  durationMs = 200,
 }: AnimatedFillIoniconProps) {
   const progress = useRef(new Animated.Value(focused ? 1 : 0)).current;
 
   useEffect(() => {
+    progress.stopAnimation();
     Animated.timing(progress, {
       toValue: focused ? 1 : 0,
       duration: durationMs,
-      easing: focused ? Easing.out(Easing.cubic) : Easing.in(Easing.cubic),
-      useNativeDriver: true, // translateY
+      easing: focused ? Easing.out(Easing.quad) : Easing.inOut(Easing.quad),
+      useNativeDriver: true,
     }).start();
   }, [durationMs, focused, progress]);
 
   useEffect(() => {
-    // Click-driven "liquid fill" even when the tab isn't selected yet.
+    progress.stopAnimation();
     if (focused) {
-      Animated.sequence([
-        Animated.timing(progress, { toValue: 0.88, duration: 160, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        Animated.timing(progress, { toValue: 1, duration: 260, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-      ]).start();
+      Animated.spring(progress, {
+        toValue: 1,
+        mass: 0.7,
+        damping: 15,
+        stiffness: 220,
+        useNativeDriver: true,
+      }).start();
       return;
     }
 
-    Animated.sequence([
-      Animated.timing(progress, { toValue: 1, duration: 650, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-      Animated.timing(progress, { toValue: 0, duration: 450, easing: Easing.in(Easing.quad), useNativeDriver: true }),
-    ]).start();
+    Animated.timing(progress, {
+      toValue: 0,
+      duration: 150,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start();
   }, [focused, pressCount, progress]);
 
   const fillTranslateY = useMemo(() => {
     return progress.interpolate({
       inputRange: [0, 1],
-      outputRange: [size, 0],
+      outputRange: [size * 0.65, 0],
+    });
+  }, [progress, size]);
+
+  const fillOpacity = useMemo(() => {
+    return progress.interpolate({
+      inputRange: [0, 0.12, 1],
+      outputRange: [0, 0.35, 1],
     });
   }, [progress, size]);
 
@@ -75,7 +88,7 @@ export function AnimatedFillIonicon({
           justifyContent: 'center',
         }}
       >
-        <Animated.View style={{ transform: [{ translateY: fillTranslateY }] }}>
+        <Animated.View style={{ transform: [{ translateY: fillTranslateY }], opacity: fillOpacity }}>
           <Ionicons name={filledName} size={size} color={fillColor ?? color} />
         </Animated.View>
       </View>

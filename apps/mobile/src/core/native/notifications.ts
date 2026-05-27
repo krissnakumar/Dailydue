@@ -10,9 +10,14 @@ try {
 
 export const nativeNotifications = {
   isAvailable: () => !!NotificationsModule,
-  scheduleNotification: async (title: string, body: string, triggerSeconds: number = 1) => {
+  scheduleNotification: async (
+    title: string,
+    body: string,
+    triggerSeconds: number = 1,
+    data?: Record<string, any>
+  ) => {
     if (!NotificationsModule) {
-      console.log('[Native Notifications Mock] Notification Scheduled:', { title, body });
+      console.log('[Native Notifications Mock] Notification Scheduled:', { title, body, data });
       return null;
     }
     try {
@@ -21,6 +26,7 @@ export const nativeNotifications = {
           title,
           body,
           sound: true,
+          data: data || {},
         },
         trigger: {
           seconds: triggerSeconds,
@@ -40,6 +46,16 @@ export const nativeNotifications = {
       console.warn('[Native Notifications] requestPermissions failed:', err);
       return { status: 'denied' };
     }
-  }
+  },
+  cancelScheduledByTag: async (tag: string) => {
+    if (!NotificationsModule) return;
+    try {
+      const items = await NotificationsModule.getAllScheduledNotificationsAsync();
+      const targets = (items || []).filter((item: any) => item?.content?.data?.tag === tag);
+      await Promise.all(targets.map((item: any) => NotificationsModule.cancelScheduledNotificationAsync(item.identifier)));
+    } catch (err) {
+      console.warn('[Native Notifications] cancelScheduledByTag failed:', err);
+    }
+  },
 };
 export default nativeNotifications;

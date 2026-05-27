@@ -253,6 +253,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
     elevation: 4,
     shadowColor: theme.colors.accent,
     shadowOffset: { width: 0, height: 4 },

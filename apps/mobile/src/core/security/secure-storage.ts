@@ -2,67 +2,49 @@ let SecureStore: any = null;
 try {
   SecureStore = require('expo-secure-store');
 } catch {
-  // Graceful fallback for mock storage in sandbox
+  // Graceful fallback for mock storage in sandbox — NEVER stores to AsyncStorage
 }
 
 const simulatedSecureVault: Record<string, string> = {};
-
-function warnInsecureFallback(action: string, error: unknown) {
-  console.warn(`[SecureStorageService] Secure storage unavailable during ${action}.`, error);
-  if (!__DEV__) {
-    console.error('[SecureStorageService] Refusing insecure fallback outside development.');
-  }
-}
 
 export const SecureStorageService = {
   async setSecureItem(key: string, value: string): Promise<void> {
     try {
       if (!SecureStore || !SecureStore.setItemAsync) {
-        if (__DEV__) {
-          simulatedSecureVault[key] = value;
-          return;
-        }
-        throw new Error('SecureStore unavailable');
+        console.warn('[SecureStorageService] SecureStore unavailable. Sensitive data will NOT be persisted across app restarts.');
+        return;
       }
       await SecureStore.setItemAsync(key, value, {
         keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
       });
     } catch (error) {
-      warnInsecureFallback('setSecureItem', error);
-      if (__DEV__) {
-        simulatedSecureVault[key] = value;
-      } else {
-        throw error;
-      }
+      console.warn('[SecureStorageService] Failed to set secure item:', error);
+      // Intentionally NOT falling back to AsyncStorage — even in dev.
+      // Secure data must never be stored in plaintext.
+      throw error;
     }
   },
 
   async getSecureItem(key: string): Promise<string | null> {
     try {
       if (!SecureStore || !SecureStore.getItemAsync) {
-        return __DEV__ ? simulatedSecureVault[key] || null : null;
+        return null;
       }
       return await SecureStore.getItemAsync(key);
     } catch (error) {
-      warnInsecureFallback('getSecureItem', error);
-      return __DEV__ ? simulatedSecureVault[key] || null : null;
+      console.warn('[SecureStorageService] Failed to get secure item:', error);
+      return null;
     }
   },
 
   async deleteSecureItem(key: string): Promise<void> {
     try {
       if (!SecureStore || !SecureStore.deleteItemAsync) {
-        if (__DEV__) {
-          delete simulatedSecureVault[key];
-        }
         return;
       }
       await SecureStore.deleteItemAsync(key);
     } catch (error) {
-      warnInsecureFallback('deleteSecureItem', error);
-      if (__DEV__) {
-        delete simulatedSecureVault[key];
-      }
+      console.warn('[SecureStorageService] Failed to delete secure item:', error);
     }
   },
 

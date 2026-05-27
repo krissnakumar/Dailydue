@@ -219,6 +219,7 @@ export default function RootLayout() {
       .then(({ data }) => {
         if (!active) return;
         const sess = data.session;
+        if (__DEV__) console.log('[Layout] Auth session check:', { hasSession: !!sess, userId: sess?.user?.id });
         if (!sess) {
           const currentUser = useFiadoStore.getState().user;
           if (!currentUser) {
@@ -246,7 +247,10 @@ export default function RootLayout() {
         }
       })
       .finally(() => {
-        if (active) setAuthChecked(true);
+        if (active) {
+          if (__DEV__) console.log('[Layout] Setting authChecked = true');
+          setAuthChecked(true);
+        }
       });
 
     const { data: sub } = supabase.auth.onAuthStateChange((evt, sess) => {
@@ -276,10 +280,12 @@ export default function RootLayout() {
   }, [completeAuthFromUrl]);
 
   useEffect(() => {
-    // Failsafe background sync: if the device goes back online while the app stays open,
-    // periodically attempt to flush the offline queue automatically.
+    // Failsafe background sync: only attempt if there are pending items.
     const interval = setInterval(() => {
-      attemptBackgroundSync();
+      const queue = useFiadoStore.getState().syncQueue;
+      if (queue.length > 0) {
+        attemptBackgroundSync();
+      }
     }, 30_000);
     return () => clearInterval(interval);
   }, [attemptBackgroundSync]);
@@ -308,25 +314,46 @@ export default function RootLayout() {
   useEffect(() => {
     // Wait until both the navigator state is ready AND the layout is mounted
     if (!mounted.current || !navigationState?.key) return;
-    if (!authChecked) return;
+    if (!authChecked) {
+      if (__DEV__) console.log('[Layout] Routing: authChecked = false, skipping routing');
+      return;
+    }
 
     const inAuthGroup = segments[0] === '(auth)';
     const inOnboardingGroup = segments[0] === '(onboarding)';
     const isCallbackRoute = segments[0] === 'auth' && segments[1] === 'callback';
     const isWelcomeRoute = segments[0] === 'welcome';
 
+    if (__DEV__) console.log('[Layout] Routing check:', {
+      user: !!user,
+      userId: user?.id,
+      hasBootstrappedProfile,
+      inAuthGroup,
+      inOnboardingGroup,
+      isCallbackRoute,
+      isWelcomeRoute,
+      segments,
+    });
+
     const timeoutId = setTimeout(() => {
       if (pendingAuthNavigation && user) {
+        if (__DEV__) console.log('[Layout] Routing to welcome (pendingAuthNavigation)');
         setPendingAuthNavigation(false);
         router.replace('/welcome');
       } else if (!user && !inAuthGroup && !isCallbackRoute && !isWelcomeRoute) {
+        if (__DEV__) console.log('[Layout] Routing to login (no user)');
         router.replace('/(auth)/login');
       } else if (user && inAuthGroup) {
+        if (__DEV__) console.log('[Layout] Routing to welcome (user + inAuthGroup)');
         router.replace('/welcome');
       } else if (user && user.id !== 'usr_offline' && !hasBootstrappedProfile && !inOnboardingGroup && !isWelcomeRoute) {
+        if (__DEV__) console.log('[Layout] Routing to onboarding');
         router.replace('/(onboarding)');
       } else if (user && (user.id === 'usr_offline' || hasBootstrappedProfile) && inOnboardingGroup) {
+        if (__DEV__) console.log('[Layout] Routing to home');
         router.replace('/(tabs)/home');
+      } else {
+        if (__DEV__) console.log('[Layout] No routing needed');
       }
     }, 0);
 

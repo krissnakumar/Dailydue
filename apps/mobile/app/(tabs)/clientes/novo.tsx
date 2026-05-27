@@ -256,19 +256,6 @@ export default function NovoClientePage() {
   };
 
   const pickCustomerPhoto = async () => {
-    if (!subscription.is_premium) {
-      Alert.alert(
-        'Recurso Premium 🔒',
-        'Fotos reais no perfil do cliente estão disponíveis apenas no plano Premium.',
-        [
-          { text: 'Depois', style: 'cancel' },
-          { text: 'Ver Planos', onPress: () => router.push('/subscription') },
-        ],
-        { cancelable: true }
-      );
-      return;
-    }
-
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
@@ -398,27 +385,43 @@ export default function NovoClientePage() {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
         >
-          <View style={styles.photoRow}>
-            <View style={[styles.photoPreview, { backgroundColor: colors.mutedSurface, borderColor: colors.border }]}>
-              {newPicture ? (
-                <Image source={{ uri: newPicture }} style={styles.photoPreviewImg} />
-              ) : (
-                <Ionicons name="camera-outline" size={24} color={theme.colors.textMuted} />
-              )}
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.formLabel, { color: colors.text }]}>Foto do Cliente</Text>
-              <View style={styles.photoActions}>
-                <TouchableOpacity style={[styles.photoBtn, { backgroundColor: colors.mutedSurface, borderColor: colors.border }]} onPress={pickCustomerPhoto} activeOpacity={0.8}>
-                  <Text style={[styles.photoBtnText, { color: colors.text }]}>{newPicture ? 'Trocar' : 'Escolher'}</Text>
-                </TouchableOpacity>
+          <View style={[styles.photoCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={styles.photoRow}>
+              <View style={[styles.photoPreview, { backgroundColor: colors.mutedSurface, borderColor: colors.border }]}>
                 {newPicture ? (
-                  <TouchableOpacity style={[styles.photoBtn, styles.photoBtnDanger]} onPress={() => setNewPicture('')} activeOpacity={0.8}>
-                    <Text style={[styles.photoBtnText, styles.photoBtnTextDanger]}>Remover</Text>
-                  </TouchableOpacity>
-                ) : null}
+                  <Image source={{ uri: newPicture }} style={styles.photoPreviewImg} />
+                ) : (
+                  <Ionicons name="camera-outline" size={26} color={theme.colors.textMuted} />
+                )}
+                <View style={styles.photoBadge}>
+                  <Ionicons name={newPicture ? 'checkmark' : 'add'} size={11} color="#ffffff" />
+                </View>
               </View>
-              <Text style={styles.helperText}>A foto será enviada quando houver internet.</Text>
+
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.formLabel, { color: colors.text }]}>Foto do Cliente</Text>
+                <View style={styles.photoActions}>
+                  <TouchableOpacity
+                    style={[styles.photoBtn, styles.photoBtnPrimary]}
+                    onPress={pickCustomerPhoto}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="images-outline" size={14} color="#ffffff" style={{ marginRight: 6 }} />
+                    <Text style={[styles.photoBtnText, styles.photoBtnTextPrimary]}>
+                      {newPicture ? 'Trocar' : 'Escolher'}
+                    </Text>
+                  </TouchableOpacity>
+                  {newPicture ? (
+                    <TouchableOpacity style={[styles.photoBtn, styles.photoBtnDanger]} onPress={() => setNewPicture('')} activeOpacity={0.8}>
+                      <Ionicons name="trash-outline" size={14} color={theme.colors.dangerText} style={{ marginRight: 6 }} />
+                      <Text style={[styles.photoBtnText, styles.photoBtnTextDanger]}>Remover</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+                <Text style={styles.helperText}>
+                  {newPicture ? 'Foto selecionada. Será enviada quando houver internet.' : 'Adicione uma foto para reconhecer o cliente mais rápido.'}
+                </Text>
+              </View>
             </View>
           </View>
 
@@ -591,15 +594,20 @@ const styles = StyleSheet.create({
   },
   photoRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexWrap: 'nowrap',
     alignItems: 'center',
     gap: 12,
+  },
+  photoCard: {
+    padding: 12,
+    borderWidth: 1,
+    borderRadius: theme.borderRadius.md,
     marginBottom: 16,
   },
   photoPreview: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: theme.colors.inputBg,
     alignItems: 'center',
     justifyContent: 'center',
@@ -611,6 +619,19 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  photoBadge: {
+    position: 'absolute',
+    right: 2,
+    bottom: 2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: theme.colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#ffffff',
+  },
   photoActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -619,13 +640,19 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   photoBtn: {
-    paddingHorizontal: 12,
-    minHeight: 44,
+    paddingHorizontal: 10,
+    minHeight: 38,
     backgroundColor: theme.colors.inputBg,
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: theme.borderRadius.sm,
     justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  photoBtnPrimary: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primaryDark,
   },
   photoBtnDanger: {
     borderColor: '#fca5a5',
@@ -635,6 +662,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: theme.colors.textMain,
+  },
+  photoBtnTextPrimary: {
+    color: '#ffffff',
   },
   photoBtnTextDanger: {
     color: theme.colors.dangerText,

@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   supabase,
   bootstrapOwnerProfile,
@@ -10,6 +9,7 @@ import { isTempCustomerId, isTransientNetworkError, localId } from '../utils';
 import { PendingQueueItem, CustomerClient, HistoryItem } from '../../types';
 import { LocalDatabase } from '../database/LocalDatabase';
 import { syncLocalDatabaseCustomers, syncLocalDatabaseQueue } from '../database/sync-local-db';
+import { EncryptedStorage } from '../security/encrypted-storage';
 
 const SYNC_RETRY_BASE_MS = 15_000;
 const SYNC_RETRY_MAX_MS = 5 * 60_000;
@@ -22,7 +22,7 @@ function scheduleSyncRetry(reason: string, retryFn: () => void) {
   } catch {}
 
   const delay = Math.min(syncRetryDelayMs, SYNC_RETRY_MAX_MS);
-  console.log(`[Sync] Agendando retentativa em ${Math.round(delay / 1000)}s. reason=${reason}`);
+  if (__DEV__) console.log(`[Sync] Agendando retentativa em ${Math.round(delay / 1000)}s. reason=${reason}`);
   syncRetryTimer = setTimeout(() => {
     try {
       retryFn();
@@ -111,7 +111,7 @@ export async function backupOfflineUserData(getState: () => any) {
         savedAt: new Date().toISOString(),
       };
       const storageKey = `fiado_offline_data_${userId}`;
-      await AsyncStorage.setItem(storageKey, JSON.stringify(dataToSave));
+      await EncryptedStorage.setItem(storageKey, JSON.stringify(dataToSave));
       console.log(`[Backup] Dados locais do usuário ${userId} salvos em backup offline.`);
     }
   } catch (err) {
@@ -125,7 +125,7 @@ export async function restoreOfflineUserData(getState: () => any, set: (fn: any)
   if (!activeUserId || activeUserId === 'usr_offline') return;
   try {
     const storageKey = `fiado_offline_data_${activeUserId}`;
-    const raw = await AsyncStorage.getItem(storageKey);
+    const raw = await EncryptedStorage.getItem(storageKey);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed) {
@@ -169,7 +169,7 @@ export async function restoreOfflineUserData(getState: () => any, set: (fn: any)
         void syncLocalDatabaseCustomers(mergedCustomers);
         void syncLocalDatabaseQueue(mergedQueue);
 
-        await AsyncStorage.removeItem(storageKey);
+        await EncryptedStorage.removeItem(storageKey);
         console.log(`[Restore] Dados restaurados com sucesso. Fila de sync: ${mergedQueue.length} itens.`);
         
         if (mergedQueue.length > 0) {

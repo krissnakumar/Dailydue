@@ -4,6 +4,7 @@ import { getServiceClient } from '../_shared/supabase.ts';
 
 const GOOGLE_PLAY_PACKAGE_NAME = Deno.env.get('GOOGLE_PLAY_PACKAGE_NAME') || '';
 const GOOGLE_SERVICE_ACCOUNT_JSON = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_JSON') || '';
+const GOOGLE_RTDN_WEBHOOK_SECRET = Deno.env.get('GOOGLE_RTDN_WEBHOOK_SECRET') || '';
 
 // This webhook expects a Pub/Sub push JSON body; verification of source should be added in production
 
@@ -82,8 +83,13 @@ serve(async (req) => {
   if (req.method !== 'POST') return jsonResponse({ error: 'METHOD_NOT_ALLOWED' }, { status: 405 });
 
   try {
-    if (!GOOGLE_PLAY_PACKAGE_NAME || !GOOGLE_SERVICE_ACCOUNT_JSON) {
+    if (!GOOGLE_PLAY_PACKAGE_NAME || !GOOGLE_SERVICE_ACCOUNT_JSON || !GOOGLE_RTDN_WEBHOOK_SECRET) {
       return jsonResponse({ error: 'MISSING_GOOGLE_ENV' }, { status: 500 });
+    }
+
+    const authHeader = req.headers.get('x-rtdn-secret') || '';
+    if (authHeader !== GOOGLE_RTDN_WEBHOOK_SECRET) {
+      return jsonResponse({ error: 'UNAUTHORIZED' }, { status: 401 });
     }
 
     const supabase = getServiceClient();

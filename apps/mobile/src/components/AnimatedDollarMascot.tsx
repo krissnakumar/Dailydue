@@ -3,18 +3,12 @@ import { View, Text, StyleSheet, Animated, Platform, Easing } from 'react-native
 import { theme } from '../theme';
 
 export function AnimatedDollarMascot({ size = 48, triggerCount = 0 }: { size?: number; triggerCount?: number }) {
-  // Body squash & stretch / bounce animations
+  // Body jump + squash/stretch animations
   const bounceAnim = useRef(new Animated.Value(0)).current;
   const scaleXAnim = useRef(new Animated.Value(1)).current;
   const scaleYAnim = useRef(new Animated.Value(1)).current;
-
-  // Arm folding animation (0: idle, 1: fully folded in the center)
-  const foldAnim = useRef(new Animated.Value(0)).current;
-
-  // Sparkle effects (fades, scales, and floats upward)
-  const sparkleAnim = useRef(new Animated.Value(0)).current;
-  const sparkleTranslateY = useRef(new Animated.Value(0)).current;
-  const sparkleScale = useRef(new Animated.Value(0.5)).current;
+  const sitAnim = useRef(new Animated.Value(0)).current;
+  const hammockAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (triggerCount === 0) {
@@ -22,10 +16,8 @@ export function AnimatedDollarMascot({ size = 48, triggerCount = 0 }: { size?: n
       bounceAnim.setValue(0);
       scaleXAnim.setValue(1);
       scaleYAnim.setValue(1);
-      foldAnim.setValue(0);
-      sparkleAnim.setValue(0);
-      sparkleTranslateY.setValue(0);
-      sparkleScale.setValue(0.5);
+      sitAnim.setValue(0);
+      hammockAnim.setValue(0);
       return;
     }
 
@@ -33,210 +25,99 @@ export function AnimatedDollarMascot({ size = 48, triggerCount = 0 }: { size?: n
     bounceAnim.setValue(0);
     scaleXAnim.setValue(1);
     scaleYAnim.setValue(1);
-    foldAnim.setValue(0);
-    sparkleAnim.setValue(0);
-    sparkleTranslateY.setValue(0);
-    sparkleScale.setValue(0.5);
+    sitAnim.setValue(0);
+    hammockAnim.setValue(0);
 
-    // Dynamic, physical liquid animation sequence using springs
-    
-    // 1. Squash Down (Anticipation / fluid compression of a heavy droplet)
-    const fluidSquash = Animated.parallel([
-      Animated.timing(bounceAnim, { toValue: 4, duration: 110, useNativeDriver: true, easing: Easing.bezier(0.25, 1, 0.5, 1) }),
-      Animated.timing(scaleXAnim, { toValue: 1.28, duration: 110, useNativeDriver: true, easing: Easing.bezier(0.25, 1, 0.5, 1) }),
-      Animated.timing(scaleYAnim, { toValue: 0.72, duration: 110, useNativeDriver: true, easing: Easing.bezier(0.25, 1, 0.5, 1) }),
+    // 1) Squash before jump
+    const preJump = Animated.parallel([
+      Animated.timing(bounceAnim, { toValue: 5, duration: 90, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
+      Animated.timing(scaleXAnim, { toValue: 1.2, duration: 90, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
+      Animated.timing(scaleYAnim, { toValue: 0.8, duration: 90, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
     ]);
 
-    // 2. Liquid Snap & Fold (Release / smooth viscous flow)
-    const liquidSnap = Animated.parallel([
-      // Spring for body translation (springy, low friction, heavy mass)
-      Animated.spring(bounceAnim, {
+    // 2) Jump up
+    const jumpUp = Animated.parallel([
+      Animated.timing(bounceAnim, {
+        toValue: -18,
+        duration: 180,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.cubic),
+      }),
+      Animated.timing(scaleXAnim, { toValue: 0.9, duration: 150, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
+      Animated.timing(scaleYAnim, { toValue: 1.12, duration: 150, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
+    ]);
+
+    // 3) Sit on hammock briefly
+    const sitOnHammock = Animated.parallel([
+      Animated.timing(hammockAnim, { toValue: 1, duration: 110, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
+      Animated.timing(sitAnim, { toValue: 1, duration: 110, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
+      Animated.timing(bounceAnim, { toValue: -12, duration: 110, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
+      Animated.timing(scaleXAnim, { toValue: 1.08, duration: 110, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
+      Animated.timing(scaleYAnim, { toValue: 0.9, duration: 110, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
+    ]);
+
+    const hammockPause = Animated.delay(320);
+
+    // 4) Drop from hammock + rebound
+    const leaveHammock = Animated.parallel([
+      Animated.timing(hammockAnim, { toValue: 0, duration: 120, useNativeDriver: true, easing: Easing.in(Easing.quad) }),
+      Animated.timing(sitAnim, { toValue: 0, duration: 120, useNativeDriver: true, easing: Easing.in(Easing.quad) }),
+    ]);
+
+    const land = Animated.parallel([
+      Animated.timing(bounceAnim, {
         toValue: 0,
-        stiffness: 90,
-        damping: 10,
-        mass: 1.4,
+        duration: 170,
         useNativeDriver: true,
+        easing: Easing.in(Easing.cubic),
       }),
-      // Springs for scale to produce an organic jelly-like wobble/jiggle
-      Animated.spring(scaleXAnim, {
-        toValue: 1,
-        stiffness: 70,
-        damping: 7,
-        mass: 1.2,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scaleYAnim, {
-        toValue: 1,
-        stiffness: 70,
-        damping: 7,
-        mass: 1.2,
-        useNativeDriver: true,
-      }),
-      // Smooth, highly viscous spring for arms folding
-      Animated.spring(foldAnim, {
-        toValue: 1,
-        stiffness: 85,
-        damping: 9,
-        mass: 1.1,
-        useNativeDriver: true,
-      }),
+      Animated.timing(scaleXAnim, { toValue: 1.16, duration: 110, useNativeDriver: true, easing: Easing.in(Easing.quad) }),
+      Animated.timing(scaleYAnim, { toValue: 0.85, duration: 110, useNativeDriver: true, easing: Easing.in(Easing.quad) }),
     ]);
 
-    // 3. Sparkle Bubble Release (Floats up with organic fluid wave)
-    const sparkleRelease = Animated.sequence([
-      Animated.delay(80),
-      Animated.parallel([
-        Animated.timing(sparkleAnim, { toValue: 1, duration: 220, useNativeDriver: true }),
-        Animated.timing(sparkleTranslateY, { toValue: -18, duration: 450, useNativeDriver: true, easing: Easing.bezier(0.25, 1, 0.5, 1) }),
-        Animated.spring(sparkleScale, {
-          toValue: 1.35,
-          stiffness: 100,
-          damping: 8,
-          useNativeDriver: true,
-        }),
-      ]),
+    const rebound = Animated.parallel([
+      Animated.timing(bounceAnim, { toValue: -5, duration: 85, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
+      Animated.timing(scaleXAnim, { toValue: 0.96, duration: 85, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
+      Animated.timing(scaleYAnim, { toValue: 1.05, duration: 85, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
     ]);
 
-    // 4. Return to Idle (Viscous release, dissolving back to rest)
-    const viscousReturn = Animated.parallel([
-      Animated.spring(foldAnim, {
-        toValue: 0,
-        stiffness: 45,
-        damping: 14,
-        mass: 1.3,
-        useNativeDriver: true,
-      }),
-      Animated.timing(sparkleAnim, { toValue: 0, duration: 250, useNativeDriver: true }),
-      Animated.timing(sparkleTranslateY, { toValue: 0, duration: 250, useNativeDriver: true, easing: Easing.in(Easing.ease) }),
-      Animated.timing(sparkleScale, { toValue: 0.5, duration: 250, useNativeDriver: true }),
+    const settle = Animated.parallel([
+      Animated.timing(bounceAnim, { toValue: 0, duration: 90, useNativeDriver: true, easing: Easing.inOut(Easing.quad) }),
+      Animated.timing(scaleXAnim, { toValue: 1, duration: 90, useNativeDriver: true, easing: Easing.inOut(Easing.quad) }),
+      Animated.timing(scaleYAnim, { toValue: 1, duration: 90, useNativeDriver: true, easing: Easing.inOut(Easing.quad) }),
     ]);
 
     // Run the full beautiful liquid lifecycle
     Animated.sequence([
-      fluidSquash,
-      liquidSnap,
-      sparkleRelease,
-      Animated.delay(1200), // Hold in full liquid admiration
-      viscousReturn,
+      preJump,
+      jumpUp,
+      sitOnHammock,
+      hammockPause,
+      leaveHammock,
+      land,
+      rebound,
+      settle,
     ]).start();
 
-  }, [triggerCount, bounceAnim, scaleXAnim, scaleYAnim, foldAnim, sparkleAnim, sparkleTranslateY, sparkleScale]);
+  }, [triggerCount, bounceAnim, scaleXAnim, scaleYAnim, sitAnim, hammockAnim]);
 
-  // Arm translation and rotation interpolations (perfected for smooth meeting curves)
-  // Left arm: swings clockwise inwards, translates right and up
-  const leftArmRotate = foldAnim.interpolate({
+  const hammockOpacity = hammockAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ['-12deg', '125deg'],
+    outputRange: [0, 0.95],
   });
-  const leftArmTranslateX = foldAnim.interpolate({
+  const bodyRotate = sitAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, 7.5],
-  });
-  const leftArmTranslateY = foldAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -6.5],
-  });
-
-  // Right arm: swings counter-clockwise inwards, translates left and up
-  const rightArmRotate = foldAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['12deg', '-125deg'],
-  });
-  const rightArmTranslateX = foldAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -7.5],
-  });
-  const rightArmTranslateY = foldAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -6.5],
-  });
-
-  // Wiggle / horizontal sine wave interpolation for the rising sparkle
-  // As the sparkle floats up (translateY: 0 to -18), it sways beautifully side-to-side
-  const sparkleTranslateX = sparkleTranslateY.interpolate({
-    inputRange: [-18, -13.5, -9, -4.5, 0],
-    outputRange: [0, -2.5, 2.5, -1.5, 0],
+    outputRange: ['0deg', '-14deg'],
   });
 
   return (
     <View style={[styles.container, { width: size, height: size }]}>
-      {/* Rising Sparkle of Trust/Gratitude with liquid floating wiggle */}
-      <Animated.View style={[
-        styles.sparkleContainer,
-        {
-          opacity: sparkleAnim,
-          transform: [
-            { translateY: sparkleTranslateY },
-            { translateX: sparkleTranslateX },
-            { scale: sparkleScale },
-          ],
-        },
-      ]}>
-        <Text style={styles.sparkleText}>✨</Text>
-      </Animated.View>
-
-      {/* Left Arm */}
-      <Animated.View style={[
-        styles.arm, 
-        styles.leftArm, 
-        { 
-          transform: [
-            { translateX: leftArmTranslateX },
-            { translateY: leftArmTranslateY },
-            { rotate: leftArmRotate },
-          ],
-        },
-      ]}>
-        <View style={[styles.hand, { left: -1.5 }]} />
-      </Animated.View>
-
-      {/* Right Arm */}
-      <Animated.View style={[
-        styles.arm, 
-        styles.rightArm, 
-        { 
-          transform: [
-            { translateX: rightArmTranslateX },
-            { translateY: rightArmTranslateY },
-            { rotate: rightArmRotate },
-          ],
-        },
-      ]}>
-        <View style={[styles.hand, { right: -1.5 }]} />
-      </Animated.View>
-
-      {/* Left Leg */}
-      <Animated.View style={[
-        styles.leg, 
-        styles.leftLeg, 
-        { 
-          transform: [
-            { translateY: bounceAnim.interpolate({
-                inputRange: [-8, 0, 4],
-                outputRange: [2, 0, -1],
-              }) 
-            },
-          ],
-        },
-      ]}>
-        <View style={styles.foot} />
-      </Animated.View>
-
-      {/* Right Leg */}
-      <Animated.View style={[
-        styles.leg, 
-        styles.rightLeg, 
-        { 
-          transform: [
-            { translateY: bounceAnim.interpolate({
-                inputRange: [-8, 0, 4],
-                outputRange: [2, 0, -1],
-              }) 
-            },
-          ],
-        },
-      ]}>
-        <View style={styles.foot} />
+      <Animated.View style={[styles.hammockWrap, { opacity: hammockOpacity }]}>
+        <View style={styles.hammockPoleLeft} />
+        <View style={styles.hammockPoleRight} />
+        <View style={styles.hammockRopeLeft} />
+        <View style={styles.hammockRopeRight} />
+        <View style={styles.hammockBed} />
       </Animated.View>
 
       {/* Mascot Center Dollar Symbol Body with dynamic liquid squash-and-stretch */}
@@ -247,6 +128,7 @@ export function AnimatedDollarMascot({ size = 48, triggerCount = 0 }: { size?: n
             { translateY: bounceAnim },
             { scaleX: scaleXAnim },
             { scaleY: scaleYAnim },
+            { rotate: bodyRotate },
           ],
         },
       ]}>
@@ -261,20 +143,65 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
+    overflow: 'hidden',
   },
-  sparkleContainer: {
+  hammockWrap: {
     position: 'absolute',
-    top: 5,
-    zIndex: 10,
+    top: 2,
+    width: 34,
+    height: 20,
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  sparkleText: {
-    fontSize: 14,
-    color: '#fbbf24', // Golden sparkle
-    textShadowColor: 'rgba(251, 191, 36, 0.4)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+  hammockPoleLeft: {
+    position: 'absolute',
+    left: 0,
+    top: 2,
+    width: 2,
+    height: 10,
+    borderRadius: 2,
+    backgroundColor: '#475569',
+  },
+  hammockPoleRight: {
+    position: 'absolute',
+    right: 0,
+    top: 2,
+    width: 2,
+    height: 10,
+    borderRadius: 2,
+    backgroundColor: '#475569',
+  },
+  hammockRopeLeft: {
+    position: 'absolute',
+    left: 4,
+    top: 4,
+    width: 1.6,
+    height: 9,
+    borderRadius: 2,
+    backgroundColor: '#64748b',
+    transform: [{ rotate: '-28deg' }],
+  },
+  hammockRopeRight: {
+    position: 'absolute',
+    right: 4,
+    top: 4,
+    width: 1.6,
+    height: 9,
+    borderRadius: 2,
+    backgroundColor: '#64748b',
+    transform: [{ rotate: '28deg' }],
+  },
+  hammockBed: {
+    position: 'absolute',
+    bottom: 0,
+    width: 28,
+    height: 8,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    borderWidth: 1.2,
+    borderColor: '#0f766e',
+    backgroundColor: '#34d399',
   },
   body: {
     width: 32,
@@ -288,55 +215,6 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#10b981', // Emerald green
     fontFamily: Platform.OS === 'ios' ? 'System' : 'normal',
-    marginTop: -8,
-  },
-  arm: {
-    position: 'absolute',
-    width: 12,
-    height: 3,
-    backgroundColor: '#ffedd5', // peach cartoon skin
-    borderRadius: 1.5,
-    top: 21,
-    borderWidth: 0.8,
-    borderColor: '#475569',
-  },
-  leftArm: {
-    left: 3.5,
-  },
-  rightArm: {
-    right: 3.5,
-  },
-  hand: {
-    width: 4.5,
-    height: 4.5,
-    borderRadius: 2.25,
-    backgroundColor: '#ffffff', // white gloves
-    position: 'absolute',
-    top: -1.5,
-    borderWidth: 0.6,
-    borderColor: '#475569',
-  },
-  leg: {
-    position: 'absolute',
-    width: 3.5,
-    height: 9,
-    backgroundColor: '#334155',
-    borderRadius: 1.5,
-    bottom: 4,
-  },
-  leftLeg: {
-    left: 15,
-  },
-  rightLeg: {
-    right: 15,
-  },
-  foot: {
-    width: 6,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: '#fbbf24',
-    position: 'absolute',
-    bottom: 0,
-    left: -1,
+    marginTop: 1,
   },
 });

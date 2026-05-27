@@ -1,5 +1,5 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CustomerClient, HistoryItem, PendingQueueItem } from '../../types';
+import { EncryptedStorage } from '../security/encrypted-storage';
 
 export interface PendingOperation extends PendingQueueItem {
   retries: number;
@@ -27,7 +27,7 @@ export class LocalDatabase {
   
   public async getCustomers(): Promise<CustomerClient[]> {
     try {
-      const data = await AsyncStorage.getItem(CUSTOMERS_TABLE_KEY);
+      const data = await EncryptedStorage.getItem(CUSTOMERS_TABLE_KEY);
       return data ? JSON.parse(data) : [];
     } catch (e) {
       console.error('[LocalDB] Erro ao buscar clientes:', e);
@@ -37,7 +37,7 @@ export class LocalDatabase {
 
   public async saveCustomers(customers: CustomerClient[]): Promise<void> {
     try {
-      await AsyncStorage.setItem(CUSTOMERS_TABLE_KEY, JSON.stringify(customers));
+      await EncryptedStorage.setItem(CUSTOMERS_TABLE_KEY, JSON.stringify(customers));
     } catch (e) {
       console.error('[LocalDB] Erro ao salvar clientes:', e);
     }
@@ -147,7 +147,7 @@ export class LocalDatabase {
 
   public async getPendingOperations(): Promise<PendingOperation[]> {
     try {
-      const data = await AsyncStorage.getItem(PENDING_OPERATIONS_KEY);
+      const data = await EncryptedStorage.getItem(PENDING_OPERATIONS_KEY);
       return data ? JSON.parse(data) : [];
     } catch (e) {
       console.error('[LocalDB] Erro ao buscar fila de operações:', e);
@@ -157,7 +157,7 @@ export class LocalDatabase {
 
   public async savePendingOperations(ops: PendingOperation[]): Promise<void> {
     try {
-      await AsyncStorage.setItem(PENDING_OPERATIONS_KEY, JSON.stringify(ops));
+      await EncryptedStorage.setItem(PENDING_OPERATIONS_KEY, JSON.stringify(ops));
     } catch (e) {
       console.error('[LocalDB] Erro ao salvar fila de operações:', e);
     }
@@ -196,7 +196,7 @@ export class LocalDatabase {
   }
 
   public async clearPendingOperations(): Promise<void> {
-    await AsyncStorage.removeItem(PENDING_OPERATIONS_KEY);
+    await EncryptedStorage.removeItem(PENDING_OPERATIONS_KEY);
   }
 
   // --- Reconciliation & Conflict Resolution ---

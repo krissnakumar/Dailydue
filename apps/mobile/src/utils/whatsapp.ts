@@ -7,8 +7,26 @@ export function normalizeBrazilWhatsapp(raw?: string | null) {
 
   if (!phone) return null;
 
+  // Convert international prefix 00xx... to xx...
+  if (phone.startsWith("00")) {
+    phone = phone.slice(2);
+  }
+
+  // Remove local trunk zero when present (e.g., 0DDDN...)
+  if (phone.startsWith("0")) {
+    phone = phone.slice(1);
+  }
+
   if (!phone.startsWith("55")) {
     phone = `55${phone}`;
+  }
+
+  // Keep only plausible BR WhatsApp sizes:
+  // 55 + DDD + 8/9 digits => 12 or 13 total digits
+  if (phone.length < 12) return null;
+  if (phone.length > 13) {
+    // If extra digits slipped in, keep the rightmost 13 (usually includes DDI+DDD+number)
+    phone = phone.slice(-13);
   }
 
   return phone;

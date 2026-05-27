@@ -1,11 +1,22 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { AdaptiveCard, AdaptiveContainer, AdaptiveGrid, Header, Card } from '../../src/components';
 import { useFiadoStore } from '../../src/store';
 import { formatCurrency } from '../../src/utils';
 import { theme } from '../../src/theme';
 import { Ionicons } from '@expo/vector-icons';
+
+const isEmoji = (str?: string) => {
+  if (!str) return false;
+  const s = String(str).trim();
+  try {
+    const emojiRegex = new RegExp('^(\\p{Emoji_Presentation}|\\p{Emoji}\\uFE0F)+$', 'u');
+    return emojiRegex.test(s);
+  } catch {
+    return s.length <= 4 && !s.includes('/') && !s.startsWith('data:');
+  }
+};
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -31,6 +42,7 @@ export default function HomeScreen() {
     type: string;
     customerName: string;
     customerId: string;
+    customerPicture?: string;
     created_by?: string;
   }> = [];
 
@@ -50,6 +62,7 @@ export default function HomeScreen() {
         ...h,
         customerName: c.full_name,
         customerId: c.id,
+        customerPicture: c.picture,
       });
 
       if (h.type === 'payment') {
@@ -225,9 +238,19 @@ export default function HomeScreen() {
                   }}
                 >
                   <View style={styles.searchResultLeft}>
-                    <Text style={styles.avatarMini}>
-                      {cust.full_name.charAt(0).toUpperCase()}
-                    </Text>
+                    <View style={styles.avatarMiniWrap}>
+                      {cust.picture ? (
+                        isEmoji(cust.picture) ? (
+                          <Text style={styles.avatarMiniEmoji}>{cust.picture}</Text>
+                        ) : (
+                          <Image source={{ uri: cust.picture }} style={styles.avatarMiniImage} />
+                        )
+                      ) : (
+                        <Text style={styles.avatarMini}>
+                          {cust.full_name.charAt(0).toUpperCase()}
+                        </Text>
+                      )}
+                    </View>
                     <View>
                       <Text style={styles.searchResultName}>{cust.full_name}</Text>
                       {cust.phone ? <Text style={styles.searchResultPhone}>{cust.phone}</Text> : null}
@@ -275,7 +298,15 @@ export default function HomeScreen() {
                   >
                     <View style={styles.feedLeft}>
                       <View style={[styles.feedIconBadge, { backgroundColor: iconBg }]}>
-                        <Ionicons name={iconName as any} size={14} color={iconColor} />
+                        {tx.customerPicture ? (
+                          isEmoji(tx.customerPicture) ? (
+                            <Text style={styles.feedAvatarEmoji}>{tx.customerPicture}</Text>
+                          ) : (
+                            <Image source={{ uri: tx.customerPicture }} style={styles.feedAvatarImage} />
+                          )
+                        ) : (
+                          <Ionicons name={iconName as any} size={14} color={iconColor} />
+                        )}
                       </View>
                       <View style={styles.feedTextCol}>
                         <Text style={styles.feedCustName} numberOfLines={1}>
@@ -466,7 +497,23 @@ const styles = StyleSheet.create({
     lineHeight: 28,
     fontSize: 12,
     fontWeight: 'bold',
+  },
+  avatarMiniWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     marginRight: 8,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.primaryLight,
+  },
+  avatarMiniImage: {
+    width: '100%',
+    height: '100%',
+  },
+  avatarMiniEmoji: {
+    fontSize: 15,
   },
   searchResultName: {
     fontSize: 13,
@@ -536,6 +583,14 @@ const styles = StyleSheet.create({
   },
   feedTextCol: {
     flex: 1,
+  },
+  feedAvatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 14,
+  },
+  feedAvatarEmoji: {
+    fontSize: 14,
   },
   feedCustName: {
     fontSize: 14,
