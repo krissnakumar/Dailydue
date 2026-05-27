@@ -18,7 +18,7 @@ export function AnimatedDollarMascot({ size = 48, triggerCount = 0 }: { size?: n
 
   useEffect(() => {
     if (triggerCount === 0) {
-      // Idle pose: make sure all values are perfectly reset to default idle states
+      // Perfect reset to idle pose
       bounceAnim.setValue(0);
       scaleXAnim.setValue(1);
       scaleYAnim.setValue(1);
@@ -29,7 +29,7 @@ export function AnimatedDollarMascot({ size = 48, triggerCount = 0 }: { size?: n
       return;
     }
 
-    // Clean resets before starting a new sequence
+    // Reset animations cleanly before starting the liquid sequence
     bounceAnim.setValue(0);
     scaleXAnim.setValue(1);
     scaleYAnim.setValue(1);
@@ -38,58 +38,91 @@ export function AnimatedDollarMascot({ size = 48, triggerCount = 0 }: { size?: n
     sparkleTranslateY.setValue(0);
     sparkleScale.setValue(0.5);
 
-    // Disney-like Squash and Stretch character animation sequence
+    // Dynamic, physical liquid animation sequence using springs
     
-    // 1. Squash Down (Anticipation / prep for the fold)
-    const squashDown = Animated.parallel([
-      Animated.timing(bounceAnim, { toValue: 3, duration: 100, useNativeDriver: true, easing: Easing.ease }),
-      Animated.timing(scaleXAnim, { toValue: 1.18, duration: 100, useNativeDriver: true, easing: Easing.ease }),
-      Animated.timing(scaleYAnim, { toValue: 0.82, duration: 100, useNativeDriver: true, easing: Easing.ease }),
+    // 1. Squash Down (Anticipation / fluid compression of a heavy droplet)
+    const fluidSquash = Animated.parallel([
+      Animated.timing(bounceAnim, { toValue: 4, duration: 110, useNativeDriver: true, easing: Easing.bezier(0.25, 1, 0.5, 1) }),
+      Animated.timing(scaleXAnim, { toValue: 1.28, duration: 110, useNativeDriver: true, easing: Easing.bezier(0.25, 1, 0.5, 1) }),
+      Animated.timing(scaleYAnim, { toValue: 0.72, duration: 110, useNativeDriver: true, easing: Easing.bezier(0.25, 1, 0.5, 1) }),
     ]);
 
-    // 2. Jump Up & Fold Hands (Action / high energy peak)
-    const jumpAndFold = Animated.parallel([
-      Animated.timing(bounceAnim, { toValue: -7, duration: 200, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
-      Animated.timing(scaleXAnim, { toValue: 0.88, duration: 200, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
-      Animated.timing(scaleYAnim, { toValue: 1.15, duration: 200, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
-      Animated.timing(foldAnim, { toValue: 1, duration: 260, useNativeDriver: true, easing: Easing.out(Easing.back(1.4)) }),
+    // 2. Liquid Snap & Fold (Release / smooth viscous flow)
+    const liquidSnap = Animated.parallel([
+      // Spring for body translation (springy, low friction, heavy mass)
+      Animated.spring(bounceAnim, {
+        toValue: 0,
+        stiffness: 90,
+        damping: 10,
+        mass: 1.4,
+        useNativeDriver: true,
+      }),
+      // Springs for scale to produce an organic jelly-like wobble/jiggle
+      Animated.spring(scaleXAnim, {
+        toValue: 1,
+        stiffness: 70,
+        damping: 7,
+        mass: 1.2,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleYAnim, {
+        toValue: 1,
+        stiffness: 70,
+        damping: 7,
+        mass: 1.2,
+        useNativeDriver: true,
+      }),
+      // Smooth, highly viscous spring for arms folding
+      Animated.spring(foldAnim, {
+        toValue: 1,
+        stiffness: 85,
+        damping: 9,
+        mass: 1.1,
+        useNativeDriver: true,
+      }),
     ]);
 
-    // 3. Settle Land & Release Sparkle (Glow of gratitude / hold pose)
-    const landAndSparkle = Animated.parallel([
-      Animated.timing(bounceAnim, { toValue: 0, duration: 140, useNativeDriver: true, easing: Easing.bounce }),
-      Animated.timing(scaleXAnim, { toValue: 1, duration: 140, useNativeDriver: true, easing: Easing.bounce }),
-      Animated.timing(scaleYAnim, { toValue: 1, duration: 140, useNativeDriver: true, easing: Easing.bounce }),
-      Animated.sequence([
-        Animated.delay(60),
-        Animated.parallel([
-          Animated.timing(sparkleAnim, { toValue: 1, duration: 180, useNativeDriver: true }),
-          Animated.timing(sparkleTranslateY, { toValue: -15, duration: 380, useNativeDriver: true, easing: Easing.out(Easing.ease) }),
-          Animated.timing(sparkleScale, { toValue: 1.25, duration: 250, useNativeDriver: true, easing: Easing.out(Easing.back(1.5)) }),
-        ]),
+    // 3. Sparkle Bubble Release (Floats up with organic fluid wave)
+    const sparkleRelease = Animated.sequence([
+      Animated.delay(80),
+      Animated.parallel([
+        Animated.timing(sparkleAnim, { toValue: 1, duration: 220, useNativeDriver: true }),
+        Animated.timing(sparkleTranslateY, { toValue: -18, duration: 450, useNativeDriver: true, easing: Easing.bezier(0.25, 1, 0.5, 1) }),
+        Animated.spring(sparkleScale, {
+          toValue: 1.35,
+          stiffness: 100,
+          damping: 8,
+          useNativeDriver: true,
+        }),
       ]),
     ]);
 
-    // 4. Return to Idle (Relax arms back to side)
-    const returnToIdle = Animated.parallel([
-      Animated.timing(foldAnim, { toValue: 0, duration: 320, useNativeDriver: true, easing: Easing.out(Easing.ease) }),
-      Animated.timing(sparkleAnim, { toValue: 0, duration: 180, useNativeDriver: true }),
-      Animated.timing(sparkleTranslateY, { toValue: 0, duration: 200, useNativeDriver: true }),
-      Animated.timing(sparkleScale, { toValue: 0.5, duration: 200, useNativeDriver: true }),
+    // 4. Return to Idle (Viscous release, dissolving back to rest)
+    const viscousReturn = Animated.parallel([
+      Animated.spring(foldAnim, {
+        toValue: 0,
+        stiffness: 45,
+        damping: 14,
+        mass: 1.3,
+        useNativeDriver: true,
+      }),
+      Animated.timing(sparkleAnim, { toValue: 0, duration: 250, useNativeDriver: true }),
+      Animated.timing(sparkleTranslateY, { toValue: 0, duration: 250, useNativeDriver: true, easing: Easing.in(Easing.ease) }),
+      Animated.timing(sparkleScale, { toValue: 0.5, duration: 250, useNativeDriver: true }),
     ]);
 
-    // Execute full dynamic cartoon sequence
+    // Run the full beautiful liquid lifecycle
     Animated.sequence([
-      squashDown,
-      jumpAndFold,
-      landAndSparkle,
-      Animated.delay(1100), // Hold the respectful folded hands of gratitude
-      returnToIdle,
+      fluidSquash,
+      liquidSnap,
+      sparkleRelease,
+      Animated.delay(1200), // Hold in full liquid admiration
+      viscousReturn,
     ]).start();
 
   }, [triggerCount, bounceAnim, scaleXAnim, scaleYAnim, foldAnim, sparkleAnim, sparkleTranslateY, sparkleScale]);
 
-  // Arm translation and rotation interpolations
+  // Arm translation and rotation interpolations (perfected for smooth meeting curves)
   // Left arm: swings clockwise inwards, translates right and up
   const leftArmRotate = foldAnim.interpolate({
     inputRange: [0, 1],
@@ -118,15 +151,23 @@ export function AnimatedDollarMascot({ size = 48, triggerCount = 0 }: { size?: n
     outputRange: [0, -6.5],
   });
 
+  // Wiggle / horizontal sine wave interpolation for the rising sparkle
+  // As the sparkle floats up (translateY: 0 to -18), it sways beautifully side-to-side
+  const sparkleTranslateX = sparkleTranslateY.interpolate({
+    inputRange: [-18, -13.5, -9, -4.5, 0],
+    outputRange: [0, -2.5, 2.5, -1.5, 0],
+  });
+
   return (
     <View style={[styles.container, { width: size, height: size }]}>
-      {/* Rising Sparkle of Trust/Gratitude */}
+      {/* Rising Sparkle of Trust/Gratitude with liquid floating wiggle */}
       <Animated.View style={[
         styles.sparkleContainer,
         {
           opacity: sparkleAnim,
           transform: [
             { translateY: sparkleTranslateY },
+            { translateX: sparkleTranslateX },
             { scale: sparkleScale },
           ],
         },
@@ -171,8 +212,8 @@ export function AnimatedDollarMascot({ size = 48, triggerCount = 0 }: { size?: n
         { 
           transform: [
             { translateY: bounceAnim.interpolate({
-                inputRange: [-7, 0, 3],
-                outputRange: [2.5, 0, -1],
+                inputRange: [-8, 0, 4],
+                outputRange: [2, 0, -1],
               }) 
             },
           ],
@@ -188,8 +229,8 @@ export function AnimatedDollarMascot({ size = 48, triggerCount = 0 }: { size?: n
         { 
           transform: [
             { translateY: bounceAnim.interpolate({
-                inputRange: [-7, 0, 3],
-                outputRange: [2.5, 0, -1],
+                inputRange: [-8, 0, 4],
+                outputRange: [2, 0, -1],
               }) 
             },
           ],
@@ -198,7 +239,7 @@ export function AnimatedDollarMascot({ size = 48, triggerCount = 0 }: { size?: n
         <View style={styles.foot} />
       </Animated.View>
 
-      {/* Mascot Center Dollar Symbol Body */}
+      {/* Mascot Center Dollar Symbol Body with dynamic liquid squash-and-stretch */}
       <Animated.View style={[
         styles.body, 
         { 
@@ -253,7 +294,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 12,
     height: 3,
-    backgroundColor: '#ffedd5', // cartoon skin peach
+    backgroundColor: '#ffedd5', // peach cartoon skin
     borderRadius: 1.5,
     top: 21,
     borderWidth: 0.8,
@@ -269,7 +310,7 @@ const styles = StyleSheet.create({
     width: 4.5,
     height: 4.5,
     borderRadius: 2.25,
-    backgroundColor: '#ffffff', // white glove hands
+    backgroundColor: '#ffffff', // white gloves
     position: 'absolute',
     top: -1.5,
     borderWidth: 0.6,
