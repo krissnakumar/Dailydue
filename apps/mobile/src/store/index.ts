@@ -901,7 +901,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
       },
 
       restoreOfflineUserData: async (userId: string) => {
-        return restoreOfflineUserData(get, set);
+        return restoreOfflineUserData(get, set, userId);
       },
 
       retryFailedSyncItems: async () => {

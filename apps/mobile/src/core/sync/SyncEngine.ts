@@ -119,17 +119,17 @@ export async function backupOfflineUserData(getState: () => any) {
   }
 }
 
-export async function restoreOfflineUserData(getState: () => any, set: (fn: any) => void) {
+export async function restoreOfflineUserData(getState: () => any, set: (fn: any) => void, userId?: string) {
   const state = getState();
-  const userId = state.user?.id;
-  if (!userId || userId === 'usr_offline') return;
+  const activeUserId = userId || state.user?.id;
+  if (!activeUserId || activeUserId === 'usr_offline') return;
   try {
-    const storageKey = `fiado_offline_data_${userId}`;
+    const storageKey = `fiado_offline_data_${activeUserId}`;
     const raw = await AsyncStorage.getItem(storageKey);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed) {
-        console.log(`[Restore] Restaurando dados offline para o usuário ${userId}...`);
+        console.log(`[Restore] Restaurando dados offline para o usuário ${activeUserId}...`);
         
         const currentStore = getState();
         
