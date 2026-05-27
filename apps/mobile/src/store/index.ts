@@ -182,6 +182,17 @@ export const useFiadoStore = create<FiadoMobileState>()(
         set({ user });
         if (user) {
           get().fetchSubscription();
+          // Clear hardcoded demo values on login to prevent leakage
+          const current = get().businessConfig;
+          if (current.businessName === 'Meu Mercadinho' && current.pixKey === 'mercadinho@bairro.com.br') {
+            set({
+              businessConfig: {
+                businessName: '',
+                pixKey: '',
+                phone: '',
+              }
+            });
+          }
         } else {
           set({
             subscription: {
@@ -195,6 +206,12 @@ export const useFiadoStore = create<FiadoMobileState>()(
               current_period_end: null,
               is_simulated: false,
               source: 'cloud',
+            },
+            // Reset to default demo values on logout
+            businessConfig: {
+              businessName: 'Meu Mercadinho',
+              pixKey: 'mercadinho@bairro.com.br',
+              phone: '11999999999',
             }
           });
         }
@@ -927,6 +944,27 @@ export const useFiadoStore = create<FiadoMobileState>()(
 
       loadSupabaseData: async () => {
         try {
+          // Fetch and update business config from Supabase to prevent demo leak
+          try {
+            const { data: bizData, error: bizErr } = await supabase
+              .from('businesses')
+              .select('*')
+              .single();
+            
+            if (!bizErr && bizData) {
+              set({
+                businessConfig: {
+                  businessName: bizData.business_name || '',
+                  pixKey: bizData.pix_key || '',
+                  phone: bizData.phone || '',
+                },
+                currentBusinessId: bizData.id || null,
+              });
+            }
+          } catch (bizFetchError) {
+            console.warn('[loadSupabaseData] Failed to fetch business config:', bizFetchError);
+          }
+
           const serverCustomers = await getCustomersWithTransactions();
           const localCustomers = get().customers;
 
