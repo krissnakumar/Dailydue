@@ -42,9 +42,10 @@ export const CustomerRow: React.FC<CustomerRowProps> = ({
     q => String(q.payload?.customer_id || q.payload?.customerId || q.payload?.client_id || q.payload?.clientId || q.payload?.id || '') === customer.id
   );
 
-  // Verifica atraso crítico (> 15 dias)
+  // Verifica atraso crítico (> overdueDays)
+  const overdueDays = businessConfig.overdueDays || 15;
   const isAtrasado = customer.history.some(
-    (h: HistoryItem) => h.type === 'debt' && (Date.now() - new Date(h.created_at).getTime()) / 86400000 > 15
+    (h: HistoryItem) => h.type === 'debt' && (Date.now() - new Date(h.created_at).getTime()) / 86400000 > overdueDays
   );
 
   const lastItem = customer.history.length > 0 ? customer.history[0].description : 'Sem lançamentos';

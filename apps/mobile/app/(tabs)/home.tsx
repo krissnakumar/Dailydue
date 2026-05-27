@@ -9,7 +9,8 @@ import { Ionicons } from '@expo/vector-icons';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { customers } = useFiadoStore();
+  const { customers, businessConfig } = useFiadoStore();
+  const overdueDays = businessConfig.overdueDays || 15;
   const [searchQuery, setSearchQuery] = React.useState('');
 
   // Calcula Métricas de Resumo
@@ -39,7 +40,7 @@ export default function HomeScreen() {
       clientesDevendo += 1;
 
       const temAtraso = c.history.some(
-        (h) => h.type === 'debt' && (Date.now() - new Date(h.created_at).getTime()) / 86400000 > 15
+        (h) => h.type === 'debt' && (Date.now() - new Date(h.created_at).getTime()) / 86400000 > overdueDays
       );
       if (temAtraso) clientesAtrasados += 1;
     }
@@ -127,7 +128,7 @@ export default function HomeScreen() {
     <View style={styles.rightPanelContent}>
       <Text style={styles.panelTitle}>Resumo da praça</Text>
       <Text style={styles.panelValue}>{clientesAtrasados}</Text>
-      <Text style={styles.panelMuted}>clientes com cobrança acima de 15 dias</Text>
+      <Text style={styles.panelMuted}>clientes com cobrança acima de {overdueDays} dias</Text>
     </View>
   );
 

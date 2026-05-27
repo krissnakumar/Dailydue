@@ -38,6 +38,7 @@ export default function RootLayout() {
     loadSupabaseData,
     isSystemLockEnabled,
     setLastActiveTimestamp,
+    hasBootstrappedProfile,
   } = useFiadoStore();
   const segments = useSegments();
   const router = useRouter();
@@ -310,6 +311,7 @@ export default function RootLayout() {
     if (!authChecked) return;
 
     const inAuthGroup = segments[0] === '(auth)';
+    const inOnboardingGroup = segments[0] === '(onboarding)';
     const isCallbackRoute = segments[0] === 'auth' && segments[1] === 'callback';
     const isWelcomeRoute = segments[0] === 'welcome';
 
@@ -321,11 +323,15 @@ export default function RootLayout() {
         router.replace('/(auth)/login');
       } else if (user && inAuthGroup) {
         router.replace('/welcome');
+      } else if (user && user.id !== 'usr_offline' && !hasBootstrappedProfile && !inOnboardingGroup && !isWelcomeRoute) {
+        router.replace('/(onboarding)');
+      } else if (user && (user.id === 'usr_offline' || hasBootstrappedProfile) && inOnboardingGroup) {
+        router.replace('/(tabs)/home');
       }
     }, 0);
 
     return () => clearTimeout(timeoutId);
-  }, [user, segments, navigationState?.key, authChecked, pendingAuthNavigation]);
+  }, [user, segments, navigationState?.key, authChecked, pendingAuthNavigation, hasBootstrappedProfile]);
 
   return (
     <ErrorBoundary>
@@ -337,6 +343,7 @@ export default function RootLayout() {
               <Stack initialRouteName="index" screenOptions={{ headerShown: false }}>
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                 <Stack.Screen name="(auth)" options={{ headerShown: false, presentation: 'modal' }} />
+                <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
               </Stack>
               {isSystemLockEnabled && !isUnlocked ? (
                 <AppLockOverlay

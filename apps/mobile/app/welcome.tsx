@@ -46,7 +46,12 @@ export default function WelcomeScreen() {
       checkScale.value = withTiming(0.92, { duration: EXIT_MS, easing: Easing.inOut(Easing.quad) });
     }, HOLD_MS);
     const routeTimer = setTimeout(() => {
-      router.replace('/(tabs)/home');
+      const state = useFiadoStore.getState();
+      if (state.user && state.user.id !== 'usr_offline' && !state.hasBootstrappedProfile) {
+        router.replace('/(onboarding)');
+      } else {
+        router.replace('/(tabs)/home');
+      }
     }, HOLD_MS + EXIT_MS);
 
     return () => {

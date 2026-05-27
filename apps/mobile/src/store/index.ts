@@ -57,6 +57,10 @@ export interface FiadoMobileState {
     businessName: string;
     pixKey: string;
     phone: string;
+    overdueDays?: number;
+    acceptedPaymentMethods?: string[];
+    whatsappTemplate?: string;
+    businessType?: string;
   };
   setUser: (user: FiadoMobileState['user']) => void;
   setAuthChecked: (checked: boolean) => void;
@@ -172,6 +176,10 @@ export const useFiadoStore = create<FiadoMobileState>()(
         businessName: 'Meu Mercadinho',
         pixKey: 'mercadinho@bairro.com.br',
         phone: '11999999999',
+        overdueDays: 15,
+        acceptedPaymentMethods: ['cash', 'pix', 'card'],
+        whatsappTemplate: 'Olá {cliente}, passando para lembrar da sua conta em aberto no valor de {valor}. Você pode pagar via PIX ou presencialmente. Obrigado!',
+        businessType: 'mercado',
       },
       isSystemLockEnabled: false,
       isBiometricsEnabled: false,
@@ -190,6 +198,10 @@ export const useFiadoStore = create<FiadoMobileState>()(
                 businessName: '',
                 pixKey: '',
                 phone: '',
+                overdueDays: 15,
+                acceptedPaymentMethods: ['cash', 'pix', 'card'],
+                whatsappTemplate: 'Olá {cliente}, passando para lembrar da sua conta em aberto no valor de {valor}. Você pode pagar via PIX ou presencialmente. Obrigado!',
+                businessType: '',
               }
             });
           }
@@ -212,6 +224,10 @@ export const useFiadoStore = create<FiadoMobileState>()(
               businessName: 'Meu Mercadinho',
               pixKey: 'mercadinho@bairro.com.br',
               phone: '11999999999',
+              overdueDays: 15,
+              acceptedPaymentMethods: ['cash', 'pix', 'card'],
+              whatsappTemplate: 'Olá {cliente}, passando para lembrar da sua conta em aberto no valor de {valor}. Você pode pagar via PIX ou presencialmente. Obrigado!',
+              businessType: 'mercado',
             }
           });
         }

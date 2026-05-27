@@ -304,8 +304,9 @@ export function CustomerDetailContent({
   };
 
   const isZero = customer ? customer.total_debt === 0 : true;
+  const overdueDays = businessConfig.overdueDays || 15;
   const isAtrasado = customer ? customer.history.some(
-    (h) => h.type === 'debt' && (Date.now() - new Date(h.created_at).getTime()) / 86400000 > 15
+    (h) => h.type === 'debt' && (Date.now() - new Date(h.created_at).getTime()) / 86400000 > overdueDays
   ) : false;
   const canEditProfilePicture = subscription.is_premium;
 
