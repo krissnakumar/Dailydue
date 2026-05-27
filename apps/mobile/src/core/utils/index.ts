@@ -70,10 +70,20 @@ export function isTransientNetworkError(err: any): boolean {
   return false;
 }
 
+import i18n from '../i18n';
+
+const LOCALE_MAP: Record<string, { locale: string; currency: string }> = {
+  en: { locale: 'en-US', currency: 'USD' },
+  hi: { locale: 'hi-IN', currency: 'INR' },
+  ta: { locale: 'ta-IN', currency: 'INR' },
+};
+
 export function formatCurrency(amount: number): string {
-  return Number(amount || 0).toLocaleString('pt-BR', {
+  const lang = i18n.language || 'en';
+  const config = LOCALE_MAP[lang] || { locale: 'en-IN', currency: 'INR' };
+  return Number(amount || 0).toLocaleString(config.locale, {
     style: 'currency',
-    currency: 'BRL',
+    currency: config.currency,
   });
 }
 

@@ -116,6 +116,10 @@ export interface DailyDueMobileState {
   setAuthChecked: (checked: boolean) => void;
   updateBusinessConfig: (config: Partial<DailyDueMobileState['businessConfig']>) => void;
 
+  // Theme / Appearance
+  colorScheme: 'system' | 'light' | 'dark';
+  setColorScheme: (scheme: 'system' | 'light' | 'dark') => void;
+
   // App Lock State
   isSystemLockEnabled: boolean;
   setIsSystemLockEnabled: (enabled: boolean) => void;
@@ -130,7 +134,7 @@ export interface DailyDueMobileState {
   subscription: UserSubscriptionState;
   fetchSubscription: () => Promise<void>;
   toggleSubscriptionSimulation: (enabled: boolean, planId?: 'free' | 'premium_monthly') => void;
-  simulateSubscriptionUpgrade: (method: 'pix' | 'card') => void;
+  simulateSubscriptionUpgrade: (method: 'upi' | 'card') => void;
   simulateSubscriptionDowngrade: () => void;
   setPlayPremiumActive: (active: boolean) => void;
   getActiveCustomersCount: () => number;
@@ -162,9 +166,10 @@ export interface DailyDueMobileState {
     phone?: string,
     cep?: string,
     address?: string,
-    documentType?: 'cpf' | 'cnpj',
+    documentType?: 'aadhaar' | 'pan',
     documentValue?: string,
-    picture?: string
+    picture?: string,
+    notes?: string
   ) => CustomerClient;
   editCustomer: (
     id: string,
@@ -172,9 +177,10 @@ export interface DailyDueMobileState {
     phone: string,
     cep?: string,
     address?: string,
-    documentType?: 'cpf' | 'cnpj',
+    documentType?: 'aadhaar' | 'pan',
     documentValue?: string,
-    picture?: string
+    picture?: string,
+    notes?: string
   ) => void;
   deleteCustomer: (id: string) => void;
   addDebt: (customerId: string, amount: number, description?: string) => void;
@@ -217,20 +223,23 @@ function mimeFromUri(uri?: string) {
   return 'image/jpeg';
 }
 
-export const useDailyDueStore = create<FiadoMobileState>()(
+export const useDailyDueStore = create<DailyDueMobileState>()(
   persist(
     (set, get) => ({
       user: null,
       authChecked: false,
       businessConfig: {
-        businessName: 'Meu Mercadinho',
-        pixKey: 'mercadinho@bairro.com.br',
-        phone: '11999999999',
+        businessName: 'My Store',
+        pixKey: 'shop@upi',
+        phone: '919999999999',
         overdueDays: 15,
-        acceptedPaymentMethods: ['cash', 'pix', 'card'],
-        whatsappTemplate: 'Olá {cliente}, passando para lembrar da sua conta em aberto no valor de {valor}. Você pode pagar via PIX ou presencialmente. Obrigado!',
-        businessType: 'mercado',
+        acceptedPaymentMethods: ['cash', 'upi', 'card'],
+        whatsappTemplate: 'Hello {client}, just reminding you about your open balance of {value}. You can pay via UPI or in person. Thanks!',
+        businessType: 'other',
       },
+      colorScheme: 'system',
+      setColorScheme: (scheme) => set({ colorScheme: scheme }),
+
       isSystemLockEnabled: false,
       isBiometricsEnabled: false,
       autoLockTimeout: 0,
@@ -242,15 +251,15 @@ export const useDailyDueStore = create<FiadoMobileState>()(
           get().fetchSubscription();
           // Clear hardcoded demo values on login to prevent leakage
           const current = get().businessConfig;
-          if (current.businessName === 'Meu Mercadinho' && current.pixKey === 'mercadinho@bairro.com.br') {
+          if (current.businessName === 'My Store' && current.pixKey === 'shop@upi') {
             set({
               businessConfig: {
                 businessName: '',
                 pixKey: '',
                 phone: '',
                 overdueDays: 15,
-                acceptedPaymentMethods: ['cash', 'pix', 'card'],
-                whatsappTemplate: 'Olá {cliente}, passando para lembrar da sua conta em aberto no valor de {valor}. Você pode pagar via PIX ou presencialmente. Obrigado!',
+                acceptedPaymentMethods: ['cash', 'upi', 'card'],
+                whatsappTemplate: 'Hello {client}, just reminding you about your open balance of {value}. You can pay via UPI or in person. Thanks!',
                 businessType: '',
               }
             });
@@ -273,12 +282,12 @@ export const useDailyDueStore = create<FiadoMobileState>()(
             // Reset to default demo values on logout
             businessConfig: {
               businessName: 'Meu Mercadinho',
-              pixKey: 'mercadinho@bairro.com.br',
+              pixKey: 'shop@upi',
               phone: '11999999999',
               overdueDays: 15,
-              acceptedPaymentMethods: ['cash', 'pix', 'card'],
-              whatsappTemplate: 'Olá {cliente}, passando para lembrar da sua conta em aberto no valor de {valor}. Você pode pagar via PIX ou presencialmente. Obrigado!',
-              businessType: 'mercado',
+              acceptedPaymentMethods: ['cash', 'upi', 'card'],
+              whatsappTemplate: 'Hello {client}, just reminding you about your open balance of {value}. You can pay via UPI or in person. Thanks!',
+              businessType: 'other',
             }
           });
           void syncSubscriptionRenewalReminders(nextSubscription);
@@ -344,7 +353,7 @@ export const useDailyDueStore = create<FiadoMobileState>()(
             subscription: {
               plan_id: planId,
               plan_name: isPremium ? 'Premium Mensal' : 'Free',
-              price_brl: isPremium ? 11.99 : 0,
+              price_brl: isPremium ? 124 : 0,
               max_customers: isPremium ? null : 2,
               max_transactions_per_month: isPremium ? null : 30,
               is_premium: isPremium,
@@ -389,7 +398,7 @@ export const useDailyDueStore = create<FiadoMobileState>()(
           subscription: {
             plan_id: 'premium_monthly',
             plan_name: 'Premium Mensal',
-            price_brl: 11.99,
+            price_brl: 124,
             max_customers: null,
             max_transactions_per_month: null,
             is_premium: true,
@@ -427,7 +436,7 @@ export const useDailyDueStore = create<FiadoMobileState>()(
             ...state.subscription,
             plan_id: active ? 'premium_monthly' : 'free',
             plan_name: active ? 'Premium Mensal' : 'Free',
-            price_brl: active ? 11.99 : 0,
+            price_brl: active ? 124 : 0,
             max_customers: active ? null : 2,
             max_transactions_per_month: active ? null : 30,
             is_premium: active,
@@ -528,7 +537,7 @@ export const useDailyDueStore = create<FiadoMobileState>()(
         }
       },
 
-      addCustomer: (name, phone = '', cep = '', address = '', documentType, documentValue = '', picture = '') => {
+      addCustomer: (name, phone = '', cep = '', address = '', documentType, documentValue = '', picture = '', notes = '') => {
         const sub = get().subscription;
         if (sub.max_customers !== null) {
           const activeCount = get().getActiveCustomersCount();
@@ -549,12 +558,16 @@ export const useDailyDueStore = create<FiadoMobileState>()(
           created_at: new Date().toISOString(),
           history: [],
           cep,
+          postalCode: cep,
           address,
           documentType,
+          idType: documentType,
           documentValue,
+          idValue: documentValue,
           picture,
           picture_storage_path: null,
           picture_mime_type: null,
+          notes,
         };
 
         set((state) => ({
@@ -579,18 +592,22 @@ export const useDailyDueStore = create<FiadoMobileState>()(
             name: newCust.full_name,
             phone: newCust.phone,
             cep: newCust.cep,
+            postal_code: newCust.postalCode || newCust.cep,
             address: newCust.address,
             documentType: newCust.documentType,
+            id_type: newCust.idType || newCust.documentType,
             documentValue: newCust.documentValue,
+            id_value: newCust.idValue || newCust.documentValue,
             picture: newCust.picture,
             picture_local_uri: picture,
             picture_mime_type: mimeFromUri(picture),
+            notes: newCust.notes,
           });
         }
         return newCust;
       },
 
-      editCustomer: (id, name, phone, cep, address, documentType, documentValue, picture) => {
+      editCustomer: (id, name, phone, cep, address, documentType, documentValue, picture, notes) => {
         set((state) => {
           const updated = state.customers.map((c) => {
             if (c.id === id) {
@@ -618,10 +635,14 @@ export const useDailyDueStore = create<FiadoMobileState>()(
                 phone: cleanPhone,
                 whatsapp: cleanPhone,
                 cep: cep !== undefined ? cep : c.cep,
+                postalCode: cep !== undefined ? cep : c.postalCode,
                 address: address !== undefined ? address : c.address,
                 documentType: documentType !== undefined ? documentType : c.documentType,
+                idType: documentType !== undefined ? documentType : c.idType,
                 documentValue: documentValue !== undefined ? documentValue : c.documentValue,
+                idValue: documentValue !== undefined ? documentValue : c.idValue,
                 picture: picture !== undefined ? picture : c.picture,
+                notes: notes !== undefined ? notes : c.notes,
                 history: prunedHistory,
               };
               void LocalDatabase.getInstance().updateCustomer(id, updatedCust);
@@ -641,10 +662,14 @@ export const useDailyDueStore = create<FiadoMobileState>()(
             name: cust.full_name,
             phone: cust.phone,
             cep: cust.cep,
+            postal_code: cust.postalCode || cust.cep,
             address: cust.address,
             documentType: cust.documentType,
+            id_type: cust.idType || cust.documentType,
             documentValue: cust.documentValue,
+            id_value: cust.idValue || cust.documentValue,
             picture: cust.picture,
+            notes: cust.notes,
             ...(isLikelyLocalImageUri(cust.picture) ? { picture_local_uri: cust.picture, picture_mime_type: mimeFromUri(cust.picture) } : {}),
             ...(cust.picture === '' || (cust.picture && isEmoji(cust.picture)) ? { clear_photo: true } : {}),
           });
@@ -1056,11 +1081,11 @@ export const useDailyDueStore = create<FiadoMobileState>()(
               set({
                 businessConfig: {
                   businessName: bizData.business_name || '',
-                  pixKey: bizData.pix_key || '',
+                  pixKey: bizData.upi_id || bizData.pix_key || '',
                   phone: bizData.phone || '',
                   overdueDays: get().businessConfig.overdueDays || 15,
-                  acceptedPaymentMethods: get().businessConfig.acceptedPaymentMethods || ['cash', 'pix', 'card'],
-                  whatsappTemplate: get().businessConfig.whatsappTemplate || 'Olá {cliente}, passando para lembrar da sua conta em aberto no valor de {valor}. Você pode pagar via PIX ou presencialmente. Obrigado!',
+                  acceptedPaymentMethods: get().businessConfig.acceptedPaymentMethods || ['cash', 'upi', 'card'],
+                  whatsappTemplate: get().businessConfig.whatsappTemplate || 'Hello {client}, just reminding you about your open balance of {value}. You can pay via UPI or in person. Thanks!',
                   businessType: get().businessConfig.businessType || '',
                 },
                 currentBusinessId: bizData.id || null,
@@ -1071,7 +1096,27 @@ export const useDailyDueStore = create<FiadoMobileState>()(
             console.warn('[loadSupabaseData] Failed to fetch business config:', bizFetchError);
           }
 
-          const serverCustomers = await getCustomersWithTransactions();
+          let serverCustomers: any[] | null = null;
+          try {
+            serverCustomers = await getCustomersWithTransactions();
+          } catch (customersFetchError: any) {
+            const code = String(customersFetchError?.code || '');
+            const message = String(customersFetchError?.message || '');
+            const missingCustomersTable =
+              code === 'PGRST205' && message.includes("public.customers");
+
+            if (!missingCustomersTable) {
+              throw customersFetchError;
+            }
+
+            // Keep app usable when backend migrations are not applied yet.
+            // We silently fall back to local data and pending queue.
+            const localCustomers = get().customers;
+            const tempCustomers = localCustomers.filter((c) => isTempCustomerId(c.id));
+            set({ customers: tempCustomers });
+            void syncLocalDatabaseCustomers(tempCustomers);
+            return;
+          }
           const localCustomers = get().customers;
 
           if (!serverCustomers || serverCustomers.length === 0) {
@@ -1125,17 +1170,19 @@ export const useDailyDueStore = create<FiadoMobileState>()(
             });
             total_debt_calc = Number(Math.max(0, total_debt_calc).toFixed(2));
             
-            const parsedCep = (sc as any).cep || (sc.address && sc.address.includes(' • CEP: ') ? sc.address.split(' • CEP: ')[1] : '') || '';
-            const parsedAddress = (sc as any).address && !(sc as any).address.includes(' • CEP: ') ? (sc as any).address : (sc.address ? sc.address.split(' • CEP: ')[0] : '') || '';
+            const parsedCep = ((sc as any).postal_code || (sc as any).cep || '');
+            const parsedAddress = (sc as any).address || '';
 
-            let parsedDocType: 'cpf' | 'cnpj' | undefined = (sc as any).document_type || undefined;
-            let parsedDocValue = (sc as any).document_value || '';
-            if (!parsedDocType && !parsedDocValue && sc.notes && sc.notes.startsWith('Documento (')) {
-              const match = sc.notes.match(/^Documento \((CPF|CNPJ)\):\s*(.+)$/i);
-              if (match) {
-                parsedDocType = match[1].toLowerCase() as 'cpf' | 'cnpj';
-                parsedDocValue = match[2];
-              }
+            let parsedDocTypeRaw = String((sc as any).id_type || (sc as any).document_type || '').toLowerCase();
+            let parsedDocType: 'aadhaar' | 'pan' | undefined =
+              parsedDocTypeRaw === 'aadhaar' || parsedDocTypeRaw === 'pan'
+                ? (parsedDocTypeRaw as 'aadhaar' | 'pan')
+                : undefined;
+            let parsedDocValue = ((sc as any).id_value || (sc as any).document_value || '');
+            if (parsedDocTypeRaw === 'cpf') parsedDocType = 'aadhaar';
+            if (parsedDocTypeRaw === 'cnpj') parsedDocType = 'pan';
+            if (!parsedDocType && parsedDocValue) {
+              parsedDocType = parsedDocValue.replace(/\D/g, '').length > 12 ? 'aadhaar' : 'pan';
             }
 
             mappedCustomers.push({
@@ -1149,9 +1196,12 @@ export const useDailyDueStore = create<FiadoMobileState>()(
                created_at: sc.created_at,
                history: combinedHistory,
                cep: parsedCep || undefined,
+               postalCode: parsedCep || undefined,
                address: parsedAddress || undefined,
                documentType: parsedDocType,
+               idType: parsedDocType,
                documentValue: parsedDocValue || undefined,
+               idValue: parsedDocValue || undefined,
                picture: undefined,
                picture_storage_path: sc.picture_storage_path || null,
                picture_mime_type: sc.picture_mime_type || null,

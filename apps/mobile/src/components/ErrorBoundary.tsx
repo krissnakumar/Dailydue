@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { theme } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { errorHandler } from '../core/errors/error-handler';
+import i18n from '../core/i18n';
 
 interface Props {
   children?: ReactNode;
@@ -39,18 +40,18 @@ export class ErrorBoundary extends Component<Props, State> {
             <View style={styles.iconBg}>
               <Ionicons name="alert-circle-outline" size={48} color={theme.colors.danger} />
             </View>
-            <Text style={styles.title}>Eita! Algo deu errado</Text>
+            <Text style={styles.title}>{i18n.t('errorBoundary.title')}</Text>
             <Text style={styles.message}>
-              O aplicativo encontrou um erro inesperado. Mas não se preocupe, nosso time de engenharia já foi notificado.
+              {i18n.t('errorBoundary.message')}
             </Text>
             {__DEV__ && this.state.error && (
               <View style={styles.debugCard}>
-                <Text style={styles.debugTitle}>Erro técnico (Debug):</Text>
+                <Text style={styles.debugTitle}>{i18n.t('errorBoundary.debugTitle')}</Text>
                 <Text style={styles.debugText}>{this.state.error.toString()}</Text>
               </View>
             )}
             <TouchableOpacity style={styles.button} onPress={this.handleReset}>
-              <Text style={styles.buttonText}>Tentar Novamente</Text>
+              <Text style={styles.buttonText}>{i18n.t('errorBoundary.retry')}</Text>
             </TouchableOpacity>
           </View>
         </View>

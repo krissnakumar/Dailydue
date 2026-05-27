@@ -2,6 +2,7 @@ import { Alert, Platform } from 'react-native';
 import { Router } from 'expo-router';
 import { supabase } from '@dailydue/api';
 import { useDailyDueStore } from '../../store';
+import i18n from '../i18n';
 
 async function executeLogout(router: Router) {
   const { user, backupOfflineUserData, setUser, resetDemoData } = useDailyDueStore.getState();
@@ -13,7 +14,7 @@ async function executeLogout(router: Router) {
     await new Promise((resolve) => setTimeout(resolve, 500));
     await supabase.auth.signOut();
   } catch (error) {
-    console.warn('[Logout] Erro ao desconectar', error);
+    console.warn('[Logout]', i18n.t('logout.error'), error);
   } finally {
     setUser(null);
     resetDemoData();
@@ -25,7 +26,7 @@ async function performSyncAndLogout(router: Router) {
   try {
     await useDailyDueStore.getState().flushSyncQueue();
   } catch (err) {
-    console.warn('[Logout] Falha na sincronização final:', err);
+    console.warn('[Logout]', i18n.t('logout.syncFailure'), err);
   }
 
   const remainingCount = useDailyDueStore.getState().syncQueue.length;
@@ -33,25 +34,25 @@ async function performSyncAndLogout(router: Router) {
     if (Platform.OS === 'web') {
       if (
         window.confirm(
-          `Atenção: Você ainda possui ${remainingCount} alterações pendentes de sincronização (talvez esteja offline). Se você sair agora, essas alterações serão perdidas. Deseja sair mesmo assim?`
+          i18n.t('logout.pendingChangesWeb', { count: remainingCount })
         )
       ) {
         await executeLogout(router);
       }
     } else {
       Alert.alert(
-        'Dados não salvos!',
-        `Você ainda possui ${remainingCount} alterações pendentes que não foram salvas na nuvem. Se sair agora, elas serão perdidas.\n\nDeseja sair mesmo assim?`,
+        i18n.t('logout.unsavedDataTitle'),
+        i18n.t('logout.unsavedDataDesc', { count: remainingCount }),
         [
-          { text: 'Cancelar', style: 'cancel' },
+          { text: i18n.t('logout.cancel'), style: 'cancel' },
           {
-            text: 'Tentar Sincronizar Novamente',
+            text: i18n.t('logout.trySyncAgain'),
             onPress: () => {
               void performSyncAndLogout(router);
             },
           },
           {
-            text: 'Sair e Perder Dados',
+            text: i18n.t('logout.loseDataAndExit'),
             style: 'destructive',
             onPress: () => {
               void executeLogout(router);
@@ -74,7 +75,7 @@ export function promptLogout(router: Router) {
     if (Platform.OS === 'web') {
       if (
         window.confirm(
-          `Você possui ${pendingCount} alterações pendentes de sincronização. Deseja tentar salvá-las antes de sair?`
+          i18n.t('logout.pendingChangesWebConfirm', { count: pendingCount })
         )
       ) {
         void performSyncAndLogout(router);
@@ -83,23 +84,23 @@ export function promptLogout(router: Router) {
       }
     } else {
       Alert.alert(
-        'Sincronizar antes de sair?',
-        `Você possui ${pendingCount} alterações locais que ainda não foram salvas na nuvem. Deseja sincronizá-las antes de sair?`,
+        i18n.t('logout.syncBeforeExitTitle'),
+        i18n.t('logout.syncBeforeExitDesc', { count: pendingCount }),
         [
           {
-            text: 'Sincronizar e Sair',
+            text: i18n.t('logout.syncAndExit'),
             onPress: () => {
               void performSyncAndLogout(router);
             },
           },
           {
-            text: 'Sair Sem Salvar',
+            text: i18n.t('logout.exitWithoutSaving'),
             style: 'destructive',
             onPress: () => {
               void executeLogout(router);
             },
           },
-          { text: 'Cancelar', style: 'cancel' },
+          { text: i18n.t('logout.cancel'), style: 'cancel' },
         ]
       );
     }

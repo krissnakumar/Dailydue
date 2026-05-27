@@ -28,6 +28,8 @@ import { theme } from '../../src/theme';
 import { Button } from '../../src/components';
 import { supabase, extractUserMetadata } from '@dailydue/api';
 import { getGoogleIdTokenViaNative, isGoogleNativeEnabled } from '../../src/core/auth/googleNative';
+import { useTranslation } from 'react-i18next';
+import i18n from '../../src/core/i18n';
 import {
   establishSessionFromOAuthParams,
   parseOAuthCallbackParams,
@@ -50,13 +52,12 @@ function replaceLocalhostForPhysicalDevice(uri: string): string {
     return uri.replace('localhost', devServerIp);
   }
 
+  const devMsg = i18n.t('login.localhostDevWarning');
   console.warn(
     '[Auth] Expo Go generated a localhost redirect URI. ' +
       'Set EXPO_PUBLIC_DEV_SERVER_IP to your computer LAN IP, or use a dev build.'
   );
-  throw new Error(
-    'Expo Go está gerando localhost no login. Reinicie o Expo com EXPO_PUBLIC_DEV_SERVER_IP=<seu-ip-lan> npm run dev'
-  );
+  throw new Error(devMsg);
 }
 
 function getOAuthRedirectUri(): string {
@@ -82,13 +83,14 @@ function getPasswordResetRedirectUri(): string {
 
 function getProviderConfigMessage(provider: 'Google' | 'Facebook', errorMessage?: string) {
   if (provider === 'Google' && errorMessage?.includes('redirect_uri_mismatch')) {
+    const supabaseAuthCallback = `${(process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://<your-project-ref>.supabase.co').replace(/\/$/, '')}/auth/v1/callback`;
     return (
-      'Google recusou o login por redirect_uri_mismatch. No Google Cloud Console, adicione este URI autorizado ao OAuth Web Client usado no Supabase: ' +
-      'https://pxnzgrguddabxxmvgbik.supabase.co/auth/v1/callback'
+      i18n.t('login.redirectUriMismatchHelp') +
+      supabaseAuthCallback
     );
   }
 
-  return errorMessage || `Falha no login ${provider}.`;
+  return errorMessage || (provider === 'Google' ? i18n.t('login.googleLoginError') : i18n.t('login.facebookLoginError'));
 }
 
 async function openTrackedAuthSession(url: string, redirectTo: string) {
@@ -113,6 +115,7 @@ async function startWebOAuth(provider: 'google' | 'facebook', redirectTo: string
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { setUser } = useDailyDueStore();
   const [showContent, setShowContent] = useState(false);
   const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
@@ -253,7 +256,7 @@ export default function LoginScreen() {
             token: nativeRes.idToken,
           });
           if (idTokenErr) {
-            throw new Error(idTokenErr.message || 'Falha na autenticação Google nativa.');
+            throw new Error(idTokenErr.message || t('login.googleNativeAuthError'));
           }
 
           let sess: any = data?.session;
@@ -275,7 +278,7 @@ export default function LoginScreen() {
             // Wait a brief moment to ensure session is persisted before navigating
             await new Promise(resolve => setTimeout(resolve, 200));
           } else {
-            throw new Error('Sessão do Google não encontrada após o login.');
+            throw new Error(t('login.googleSessionNotFound'));
           }
           return;
         }
@@ -296,10 +299,10 @@ export default function LoginScreen() {
         },
       });
       if (oauthErr) {
-        throw new Error(oauthErr.message || 'Falha ao iniciar login Google.');
+        throw new Error(oauthErr.message || t('login.googleOAuthStartError'));
       }
       if (!data?.url) {
-        throw new Error('Falha ao obter URL de autenticação Google.');
+        throw new Error(t('login.googleUrlError'));
       }
 
       const res = await openTrackedAuthSession(data.url, redirectTo);
@@ -336,10 +339,10 @@ export default function LoginScreen() {
         },
       });
       if (oauthErr) {
-        throw new Error(oauthErr.message || 'Falha ao iniciar login Facebook.');
+        throw new Error(oauthErr.message || t('login.facebookOAuthStartError'));
       }
       if (!data?.url) {
-        throw new Error('Falha ao obter URL de autenticação Facebook.');
+        throw new Error(t('login.facebookUrlError'));
       }
 
       const res = await openTrackedAuthSession(data.url, redirectTo);
@@ -349,7 +352,7 @@ export default function LoginScreen() {
 
       await completeOAuthFromBrowser(res.url);
     } catch (e: any) {
-      setError(e?.message || 'Falha no login Facebook.');
+      setError(e?.message || t('login.facebookLoginError'));
     } finally {
       setBusy(false);
     }
@@ -358,18 +361,18 @@ export default function LoginScreen() {
   const handleAuth = async () => {
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail) {
-      setError('Informe o e-mail.');
+      setError(t('login.enterEmail'));
       return;
     }
     if (mode === 'signup') {
       const cleanName = fullName.trim();
       if (!cleanName) {
-        setError('Informe seu nome completo.');
+        setError(t('login.enterFullName'));
         return;
       }
     }
     if (mode !== 'forgot' && !password) {
-      setError('Informe a senha.');
+      setError(t('login.enterPassword'));
       return;
     }
 
@@ -382,17 +385,17 @@ export default function LoginScreen() {
           redirectTo,
         });
         if (resetErr) {
-          throw new Error(resetErr.message || 'Erro ao enviar e-mail de recuperação. Verifique se o e-mail está correto.');
+          throw new Error(resetErr.message || t('login.recoveryEmailError'));
         }
 
         if (Platform.OS === 'web') {
-          alert('Enviamos as instruções para recuperação de senha para o e-mail informado.');
+          alert(t('login.recoveryEmailSentDesc'));
           changeMode('signin');
         } else {
           Alert.alert(
-            'E-mail enviado',
-            'Enviamos as instruções para recuperação de senha para o e-mail informado.',
-            [{ text: 'OK', onPress: () => changeMode('signin') }]
+            t('login.recoveryEmailSent'),
+            t('login.recoveryEmailSentDesc'),
+            [{ text: t('login.ok'), onPress: () => changeMode('signin') }]
           );
         }
       } else if (mode === 'signup') {
@@ -406,7 +409,7 @@ export default function LoginScreen() {
           },
         });
         if (signUpErr) {
-          throw new Error(signUpErr.message || 'Falha ao criar conta. Tente novamente.');
+          throw new Error(signUpErr.message || t('login.accountCreationError'));
         }
 
         const sess = data.session;
@@ -431,25 +434,25 @@ export default function LoginScreen() {
         
         if (needsConfirmation || (!sess && !emailUser?.email_confirmed_at)) {
           if (Platform.OS === 'web') {
-            alert(`Conta criada com sucesso! Enviamos um e-mail de confirmação para ${cleanEmail}. Verifique sua caixa de entrada e spam para ativar sua conta.`);
+            alert(t('login.signUpSuccessDesc', { email: cleanEmail }));
             changeMode('signin');
           } else {
             Alert.alert(
-              'Confirme seu e-mail 📧',
-              `Conta criada com sucesso! Enviamos um e-mail de confirmação para ${cleanEmail}.\n\nAcesse sua caixa de entrada (e verifique o spam) e clique no link de verificação para ativar sua conta. Depois, faça o login normalmente.`,
-              [{ text: 'OK, entendi', onPress: () => changeMode('signin') }]
+              t('login.confirmEmailTitle'),
+              t('login.confirmEmailDesc', { email: cleanEmail }),
+              [{ text: t('login.okGotIt'), onPress: () => changeMode('signin') }]
             );
           }
         } else {
           // Session exists -> user is already confirmed
           if (Platform.OS === 'web') {
-            alert('Sua conta foi criada com sucesso! Faça login para acessar o aplicativo.');
+            alert(t('login.accountCreatedSuccessDesc'));
             changeMode('signin');
           } else {
             Alert.alert(
-              'Conta criada',
-              'Sua conta foi criada com sucesso! Faça login para acessar o aplicativo.',
-              [{ text: 'OK', onPress: () => changeMode('signin') }]
+              t('login.accountCreatedTitle'),
+              t('login.accountCreatedSuccessDesc'),
+              [{ text: t('login.ok'), onPress: () => changeMode('signin') }]
             );
           }
         }
@@ -459,18 +462,18 @@ export default function LoginScreen() {
           password,
         });
         if (signInErr) {
-          throw new Error(signInErr.message || 'E-mail ou senha incorretos.');
+          throw new Error(signInErr.message || t('login.signInError'));
         }
 
         const sess = data.session;
         if (!sess || !sess.user) {
           if (Platform.OS === 'web') {
-            setError(`E-mail não confirmado! Verifique sua caixa de entrada (e spam) e clique no link de verificação enviado para ${cleanEmail}.`);
+            setError(t('login.emailNotConfirmedFull', { email: cleanEmail }));
           } else {
             Alert.alert(
-              'E-mail não confirmado 📧',
-              `Você ainda não confirmou seu e-mail.\n\nVerifique sua caixa de entrada (e spam) em ${cleanEmail} e clique no link de verificação para ativar sua conta.\n\nDepois de confirmar, tente fazer login novamente.`,
-              [{ text: 'OK' }]
+              t('login.emailNotConfirmedTitle'),
+              t('login.emailNotConfirmedDesc', { email: cleanEmail }),
+              [{ text: t('login.ok') }]
             );
           }
           return;
@@ -489,7 +492,7 @@ export default function LoginScreen() {
         await new Promise(resolve => setTimeout(resolve, 200));
       }
     } catch (e: any) {
-      const errorMsg = typeof e.message === 'string' ? e.message : 'Falha ao autenticar. Tente novamente.';
+      const errorMsg = typeof e.message === 'string' ? e.message : t('login.authError');
       console.error('[Auth] handleAuth error:', errorMsg, e);
       setError(errorMsg);
     } finally {
@@ -523,7 +526,7 @@ export default function LoginScreen() {
                 ]}
               />
             </TouchableOpacity>
-            <Text style={styles.logoText}>Fiado</Text>
+            <Text style={styles.logoText}>{t('app.name')}</Text>
           </Animated.View>
 
           {showContent && (
@@ -531,17 +534,17 @@ export default function LoginScreen() {
               <View style={styles.onboardingBox}>
                 <Text style={styles.welcomeText}>
                   {mode === 'forgot'
-                    ? 'Recuperar acesso'
+                    ? t('login.recoverAccess')
                     : mode === 'signup'
-                    ? 'Comece agora!'
-                    : 'Que bom ver você!'}
+                    ? t('login.startNow')
+                    : t('login.goodToSeeYou')}
                 </Text>
                 <Text style={styles.description}>
                   {mode === 'forgot'
-                    ? 'Esqueceu sua senha? Não se preocupe! Insira seu e-mail cadastrado e enviaremos um link de redefinição.'
+                    ? t('login.forgotPasswordDesc')
                     : mode === 'signup'
-                    ? 'Crie sua conta grátis em menos de 1 minuto.'
-                    : 'Acesse suas vendas e controle seus fiados com segurança.'}
+                    ? t('login.signUpDesc')
+                    : t('login.signInDesc')}
                 </Text>
               </View>
 
@@ -554,12 +557,12 @@ export default function LoginScreen() {
               <View style={styles.form}>
                 {mode === 'signup' && (
                   <View style={styles.inputWrap}>
-                    <Text style={styles.inputLabel}>Nome completo</Text>
+                    <Text style={styles.inputLabel}>{t('login.nameLabel')}</Text>
                     <TextInput
                       value={fullName}
                       onChangeText={setFullName}
                       autoCapitalize="words"
-                      placeholder="Seu nome completo"
+                      placeholder={t('login.namePlaceholder')}
                       placeholderTextColor="#94a3b8"
                       style={[styles.input, fullNameFocused && styles.inputFocused]}
                       onFocus={() => setFullNameFocused(true)}
@@ -569,13 +572,13 @@ export default function LoginScreen() {
                 )}
 
                 <View style={styles.inputWrap}>
-                  <Text style={styles.inputLabel}>E-mail de acesso</Text>
+                  <Text style={styles.inputLabel}>{t('login.emailLabel')}</Text>
                   <TextInput
                     value={email}
                     onChangeText={setEmail}
                     autoCapitalize="none"
                     keyboardType="email-address"
-                    placeholder="exemplo@loja.com"
+                    placeholder={t('login.emailPlaceholder')}
                     placeholderTextColor="#94a3b8"
                     style={[styles.input, emailFocused && styles.inputFocused]}
                     onFocus={() => setEmailFocused(true)}
@@ -585,10 +588,10 @@ export default function LoginScreen() {
                 {mode !== 'forgot' && (
                   <View style={styles.inputWrap}>
                     <View style={styles.passwordHeader}>
-                      <Text style={styles.inputLabel}>Senha de acesso</Text>
+                      <Text style={styles.inputLabel}>{t('login.passwordLabel')}</Text>
                       {mode === 'signin' && (
                         <TouchableOpacity onPress={() => changeMode('forgot')} activeOpacity={0.7}>
-                          <Text style={styles.forgotText}>Esqueceu?</Text>
+                          <Text style={styles.forgotText}>{t('login.forgotLink')}</Text>
                         </TouchableOpacity>
                       )}
                     </View>
@@ -596,7 +599,7 @@ export default function LoginScreen() {
                       value={password}
                       onChangeText={setPassword}
                       secureTextEntry
-                      placeholder="••••••••"
+                      placeholder={t('login.passwordPlaceholder')}
                       placeholderTextColor="#94a3b8"
                       style={[styles.input, passwordFocused && styles.inputFocused]}
                       onFocus={() => setPasswordFocused(true)}
@@ -608,7 +611,7 @@ export default function LoginScreen() {
 
               <View style={styles.actions}>
                 <Button
-                  title={busy ? 'Aguarde…' : mode === 'forgot' ? 'Enviar link de recuperação' : mode === 'signup' ? 'Criar minha conta grátis' : 'Entrar na loja'}
+                  title={busy ? t('login.wait') : mode === 'forgot' ? t('login.sendRecoveryLink') : mode === 'signup' ? t('login.createFreeAccount') : t('login.signInToStore')}
                   variant="primary"
                   onPress={handleAuth}
                   disabled={busy}
@@ -618,7 +621,7 @@ export default function LoginScreen() {
                   <>
                     <View style={styles.dividerRow}>
                       <View style={styles.dividerLine} />
-                      <Text style={styles.dividerText}>ou entrar com</Text>
+                      <Text style={styles.dividerText}>{t('login.orContinueWith')}</Text>
                       <View style={styles.dividerLine} />
                     </View>
 
@@ -652,10 +655,10 @@ export default function LoginScreen() {
                 >
                   <Text style={styles.switchModeText}>
                     {mode === 'forgot'
-                      ? 'Voltar'
+                      ? t('common.back')
                       : mode === 'signin'
-                      ? 'Criar conta'
-                      : 'Entrar'}
+                      ? t('login.signUp')
+                      : t('login.signIn')}
                   </Text>
                 </TouchableOpacity>
               </View>

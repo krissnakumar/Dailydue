@@ -188,7 +188,7 @@ export async function attemptBackgroundSync(getState: () => any, set: (fn: any) 
 
   set({ isSyncing: true });
 
-  let sessionData = null;
+  let sessionData: Awaited<ReturnType<typeof supabase.auth.getSession>>['data'] | null = null;
   try {
     const { data } = await supabase.auth.getSession();
     sessionData = data;
@@ -207,11 +207,11 @@ export async function attemptBackgroundSync(getState: () => any, set: (fn: any) 
     return;
   }
 
-  let bizId = null;
+  let bizId: string | null = null;
   try {
     const { data, error } = await supabase.rpc('get_current_business_id');
     if (error) throw error;
-    bizId = data;
+    bizId = data ? String(data) : null;
     if (bizId) set({ currentBusinessId: String(bizId) });
   } catch (e: any) {
     const msg = e?.message || String(e || '');
@@ -221,7 +221,7 @@ export async function attemptBackgroundSync(getState: () => any, set: (fn: any) 
         const { data: refreshData, error: refreshErr } = await supabase.auth.refreshSession();
         if (!refreshErr && refreshData?.session) {
           const { data: retryData } = await supabase.rpc('get_current_business_id');
-          bizId = retryData;
+          bizId = retryData ? String(retryData) : null;
           if (bizId) set({ currentBusinessId: String(bizId) });
         }
       } catch (err: any) {
@@ -236,7 +236,7 @@ export async function attemptBackgroundSync(getState: () => any, set: (fn: any) 
     console.log('[Sync] business_id ausente no servidor. Tentando inicializar perfil/loja...');
     try {
       const phone = (businessConfig.phone || (user as any)?.phone || '').replace(/\D/g, '');
-      let newBizId = null;
+      let newBizId: string | null = null;
       try {
         newBizId = await bootstrapOwnerProfile({
           business_name: businessConfig.businessName || 'Meu Estabelecimento',
@@ -248,11 +248,11 @@ export async function attemptBackgroundSync(getState: () => any, set: (fn: any) 
         if (msg.includes('JWT') || msg.includes('authenticated') || msg.includes('auth')) {
           const { data: refreshData, error: refreshErr } = await supabase.auth.refreshSession();
           if (!refreshErr && refreshData?.session) {
-            newBizId = await bootstrapOwnerProfile({
+            newBizId = String(await bootstrapOwnerProfile({
               business_name: businessConfig.businessName || 'Meu Estabelecimento',
               owner_name: user?.full_name || user?.email?.split('@')[0] || 'Dono',
               phone: phone || undefined,
-            });
+            }));
           } else {
             throw err;
           }
@@ -397,6 +397,7 @@ export async function attemptBackgroundSync(getState: () => any, set: (fn: any) 
                   cep: item.payload.cep,
                   document_type: item.payload.documentType,
                   document_value: item.payload.documentValue,
+                  notes: item.payload.notes,
                 });
                 set((state: any) => ({
                   customers: state.customers.map((c: any) =>
@@ -446,6 +447,7 @@ export async function attemptBackgroundSync(getState: () => any, set: (fn: any) 
                   cep: item.payload.cep,
                   document_type: item.payload.documentType,
                   document_value: item.payload.documentValue,
+                  notes: item.payload.notes,
                 });
 
                 if (picture_storage_path) {
@@ -490,8 +492,8 @@ export async function attemptBackgroundSync(getState: () => any, set: (fn: any) 
             } else {
               const amount = Number(item.payload.amount || 0);
               const description = String(item.payload.description || '');
-              let txError = null;
-              let createdTx = null;
+              let txError: any = null;
+              let createdTx: any = null;
 
               const { data, error } = await supabase.rpc('create_customer_transaction_secure', {
                 p_customer_id: resolvedCustomerId,

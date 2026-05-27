@@ -33,7 +33,7 @@ serve(async (req) => {
       auto_recurring: {
         frequency: 1,
         frequency_type: 'months',
-        transaction_amount: 11.99,
+        transaction_amount: 124,
         currency_id: 'BRL',
       },
       payer_email: payerEmail,

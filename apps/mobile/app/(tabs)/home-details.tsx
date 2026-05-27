@@ -1,11 +1,13 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TouchableOpacity } from 'react-native';
+
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Header, Card } from '../../src/components';
 import { useDailyDueStore } from '../../src/store';
 import { formatCurrency } from '../../src/utils';
-import { theme } from '../../src/theme';
+import { useTheme } from '../../src/theme';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 
 type Kind = 'todayCollections' | 'balanceFiado' | 'pendingClients' | 'totalClients';
 
@@ -15,10 +17,34 @@ function normalizeKind(input: unknown): Kind {
   return 'pendingClients';
 }
 
+const createStyles = (theme: ReturnType<typeof useTheme>['theme']) => StyleSheet.create({
+  wrapper: { flex: 1, backgroundColor: theme.colors.background },
+  scrollContent: { padding: 16, paddingBottom: 40 },
+  card: { padding: 8, paddingHorizontal: 12 },
+  empty: { textAlign: 'center', color: theme.colors.textMuted, paddingVertical: 18, fontSize: 13, fontWeight: '600' },
+  row: {
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.inputBg,
+  },
+  rowLast: { borderBottomWidth: 0 },
+  rowPressed: { opacity: 0.96, transform: [{ scale: 0.995 }] },
+  rowLeft: { flex: 1, marginRight: 10 },
+  rowTitle: { fontSize: 14, fontWeight: '800', color: theme.colors.textMain },
+  rowSub: { fontSize: 12, color: theme.colors.textMuted, marginTop: 2 },
+  rowRight: { fontSize: 14, fontWeight: '900', fontFamily: 'Outfit' },
+});
+
 export default function HomeDetailsScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const params = useLocalSearchParams();
   const kind = normalizeKind(params.kind);
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { customers } = useDailyDueStore();
 
   const startOfToday = useMemo(() => {
@@ -61,12 +87,12 @@ export default function HomeDetailsScreen() {
 
   const title =
     kind === 'todayCollections'
-      ? 'Recebido Hoje'
+      ? t('home.received')
       : kind === 'balanceFiado'
-        ? 'Saldo a Receber'
+        ? t('home.toReceive')
         : kind === 'pendingClients'
-          ? 'Clientes Devendo'
-          : 'Total de Clientes';
+          ? t('home.debtors')
+          : t('home.customers');
 
   return (
     <View style={styles.wrapper}>
@@ -87,10 +113,10 @@ export default function HomeDetailsScreen() {
         <Card style={styles.card}>
           {kind === 'todayCollections' ? (
             todayPayments.length === 0 ? (
-              <Text style={styles.empty}>Sem pagamentos hoje.</Text>
+              <Text style={styles.empty}>{t('homeDetails.noPaymentsToday')}</Text>
             ) : (
               todayPayments.map((tx, idx) => {
-                const timeStr = new Date(tx.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                const timeStr = new Date(tx.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
                 return (
                   <Pressable
                     key={`${tx.id}-${idx}`}
@@ -117,7 +143,7 @@ export default function HomeDetailsScreen() {
 
           {kind === 'balanceFiado' || kind === 'pendingClients' ? (
             pendingCustomers.length === 0 ? (
-              <Text style={styles.empty}>Ninguém devendo no momento.</Text>
+              <Text style={styles.empty}>{t('homeDetails.noDebtors')}</Text>
             ) : (
               pendingCustomers.map((c, idx) => (
                 <Pressable
@@ -131,7 +157,7 @@ export default function HomeDetailsScreen() {
                       {c.full_name}
                     </Text>
                     <Text style={styles.rowSub} numberOfLines={1}>
-                      {c.phone || 'Sem celular'}
+                      {c.phone || t('homeDetails.noPhone')}
                     </Text>
                   </View>
                   <Text style={[styles.rowRight, { color: theme.colors.accent }]}>{formatCurrency(c.total_debt)}</Text>
@@ -142,7 +168,7 @@ export default function HomeDetailsScreen() {
 
           {kind === 'totalClients' ? (
             allCustomersSorted.length === 0 ? (
-              <Text style={styles.empty}>Nenhum cliente cadastrado.</Text>
+              <Text style={styles.empty}>{t('homeDetails.noClients')}</Text>
             ) : (
               allCustomersSorted.map((c, idx) => (
                 <Pressable
@@ -156,10 +182,10 @@ export default function HomeDetailsScreen() {
                       {c.full_name}
                     </Text>
                     <Text style={styles.rowSub} numberOfLines={1}>
-                      {c.phone || 'Sem celular'}
+                      {c.phone || t('homeDetails.noPhone')}
                     </Text>
                   </View>
-                  <Text style={[styles.rowRight, { color: theme.colors.textMuted, fontFamily: undefined }]}>Ver</Text>
+                  <Text style={[styles.rowRight, { color: theme.colors.textMuted, fontFamily: undefined }]}>{t('homeDetails.view')}</Text>
                 </Pressable>
               ))
             )
@@ -170,23 +196,4 @@ export default function HomeDetailsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  wrapper: { flex: 1, backgroundColor: theme.colors.background },
-  scrollContent: { padding: 16, paddingBottom: 40 },
-  card: { padding: 8, paddingHorizontal: 12 },
-  empty: { textAlign: 'center', color: theme.colors.textMuted, paddingVertical: 18, fontSize: 13, fontWeight: '600' },
-  row: {
-    paddingVertical: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.inputBg,
-  },
-  rowLast: { borderBottomWidth: 0 },
-  rowPressed: { opacity: 0.96, transform: [{ scale: 0.995 }] },
-  rowLeft: { flex: 1, marginRight: 10 },
-  rowTitle: { fontSize: 14, fontWeight: '800', color: theme.colors.textMain },
-  rowSub: { fontSize: 12, color: theme.colors.textMuted, marginTop: 2 },
-  rowRight: { fontSize: 14, fontWeight: '900', fontFamily: 'Outfit' },
-});
+

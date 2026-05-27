@@ -23,17 +23,19 @@ import { useDailyDueStore } from '../../src/store';
 import { theme } from '../../src/theme';
 import { supabase, bootstrapOwnerProfile } from '@dailydue/api';
 import * as Haptics from 'expo-haptics';
+import { useTranslation } from 'react-i18next';
 
 const BUSINESS_TYPES = [
-  { id: 'mercado', label: 'Mercado / Mercearia', icon: 'cart-outline' },
-  { id: 'padaria', label: 'Padaria / Confeitaria', icon: 'cafe-outline' },
-  { id: 'bar', label: 'Bar / Restaurante', icon: 'beer-outline' },
-  { id: 'petshop', label: 'Petshop', icon: 'paw-outline' },
-  { id: 'outro', label: 'Outro', icon: 'grid-outline' },
+  { id: 'mercado', labelKey: 'onboarding.businessMarket', icon: 'cart-outline' },
+  { id: 'padaria', labelKey: 'onboarding.businessBakery', icon: 'cafe-outline' },
+  { id: 'bar', labelKey: 'onboarding.businessBar', icon: 'beer-outline' },
+  { id: 'petshop', labelKey: 'onboarding.businessPetshop', icon: 'paw-outline' },
+  { id: 'outro', labelKey: 'onboarding.businessOther', icon: 'grid-outline' },
 ];
 
 export default function OnboardingScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { user, updateBusinessConfig, addCustomer } = useDailyDueStore();
 
   const [step, setStep] = useState(1);
@@ -55,7 +57,7 @@ export default function OnboardingScreen() {
   const [methodPix, setMethodPix] = useState(true);
   const [methodCard, setMethodCard] = useState(true);
   const [whatsappTemplate, setWhatsappTemplate] = useState(
-    'Olá {cliente}, passando para lembrar do seu fiado de {valor} que está pendente no {empresa}. Chave PIX: {pix}. Obrigado!'
+    t('onboarding.whatsappDefaultTemplate')
   );
 
   // Step 4: First Customer
@@ -66,7 +68,7 @@ export default function OnboardingScreen() {
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert('Acesso Negado', 'Precisamos de permissão para escolher a foto. 🖼️');
+        Alert.alert(t('onboarding.accessDenied'), t('onboarding.accessDeniedPhoto'));
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -89,17 +91,17 @@ export default function OnboardingScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (step === 1) {
       if (!fullName.trim()) {
-        Alert.alert('Ops!', 'Por favor, digite seu nome.');
+        Alert.alert(t('onboarding.ops'), t('onboarding.enterName'));
         return;
       }
       setStep(2);
     } else if (step === 2) {
       if (!businessName.trim()) {
-        Alert.alert('Ops!', 'Por favor, digite o nome do seu negócio.');
+        Alert.alert(t('onboarding.ops'), t('onboarding.enterBusinessName'));
         return;
       }
       if (!businessPhone.trim() || businessPhone.replace(/\D/g, '').length < 10) {
-        Alert.alert('Ops!', 'Por favor, digite um WhatsApp válido.');
+        Alert.alert(t('onboarding.ops'), t('onboarding.enterValidWhatsApp'));
         return;
       }
       setStep(3);
@@ -142,7 +144,7 @@ export default function OnboardingScreen() {
       // 3. Update Zustand businessConfig inside store
       const acceptedMethods: string[] = [];
       if (methodCash) acceptedMethods.push('cash');
-      if (methodPix) acceptedMethods.push('pix');
+      if (methodPix) acceptedMethods.push('upi');
       if (methodCard) acceptedMethods.push('card');
 
       updateBusinessConfig({
@@ -167,7 +169,7 @@ export default function OnboardingScreen() {
       router.replace('/(tabs)/home');
     } catch (err: any) {
       console.error('[Onboarding] Error during completion:', err);
-      Alert.alert('Erro ao Salvar', err?.message || 'Ocorreu um erro ao salvar o perfil.');
+      Alert.alert(t('onboarding.errorSaving'), err?.message || t('onboarding.errorSavingDesc'));
     } finally {
       setLoading(false);
     }
@@ -178,15 +180,15 @@ export default function OnboardingScreen() {
       {/* Header Branded progress */}
       <View style={styles.header}>
         <View style={styles.logoRow}>
-          <Text style={styles.logoText}>Fiado</Text>
+          <Text style={styles.logoText}>{t('app.name')}</Text>
           <View style={styles.badge}>
-            <Text style={styles.badgeText}>BEM-VINDO</Text>
+            <Text style={styles.badgeText}>{t('onboarding.welcome').toUpperCase()}</Text>
           </View>
         </View>
         <View style={styles.progressBar}>
           <View style={[styles.progressFill, { width: `${(step / 4) * 100}%` }]} />
         </View>
-        <Text style={styles.stepIndicator}>Etapa {step} de 4</Text>
+        <Text style={styles.stepIndicator}>{t('onboarding.step')} {step} {t('onboarding.of')} 4</Text>
       </View>
 
       <ScrollView
@@ -202,10 +204,8 @@ export default function OnboardingScreen() {
             style={styles.card}
           >
             <Ionicons name="person-circle-outline" size={48} color={theme.colors.primary} style={styles.stepIcon} />
-            <Text style={styles.title}>Confirmar Perfil</Text>
-            <Text style={styles.subtitle}>
-              Como gostaria de ser chamado na caderneta e recibos? Preencha seu nome e confirme seus dados.
-            </Text>
+            <Text style={styles.title}>{t('onboarding.confirmProfile')}</Text>
+            <Text style={styles.subtitle}>{t('onboarding.profileDesc')}</Text>
 
             {/* Avatar Selector */}
             <TouchableOpacity style={styles.avatarContainer} onPress={pickPhoto} activeOpacity={0.8}>
@@ -222,10 +222,10 @@ export default function OnboardingScreen() {
             </TouchableOpacity>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Seu Nome Completo *</Text>
+              <Text style={styles.label}>{t('onboarding.yourFullName')} *</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Seu Nome"
+                placeholder={t('onboarding.yourName')}
                 placeholderTextColor={theme.colors.textMuted}
                 value={fullName}
                 onChangeText={setFullName}
@@ -242,16 +242,14 @@ export default function OnboardingScreen() {
             style={styles.card}
           >
             <Ionicons name="storefront-outline" size={48} color={theme.colors.primary} style={styles.stepIcon} />
-            <Text style={styles.title}>Configurar seu Negócio</Text>
-            <Text style={styles.subtitle}>
-              Estes dados serão utilizados para gerar chaves PIX e enviar mensagens aos clientes.
-            </Text>
+            <Text style={styles.title}>{t('onboarding.setupBusiness')}</Text>
+            <Text style={styles.subtitle}>{t('onboarding.businessDesc')}</Text>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Nome do Estabelecimento *</Text>
+              <Text style={styles.label}>{t('onboarding.businessName')} *</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Ex: Mercadinho da Vila, Padaria Central..."
+                placeholder={t('onboarding.businessNamePlaceholder')}
                 placeholderTextColor={theme.colors.textMuted}
                 value={businessName}
                 onChangeText={setBusinessName}
@@ -259,10 +257,10 @@ export default function OnboardingScreen() {
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>WhatsApp do Negócio *</Text>
+              <Text style={styles.label}>{t('onboarding.whatsappPlaceholder')} *</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Ex: 11999999999"
+                placeholder={t('onboarding.whatsappPlaceholder')}
                 placeholderTextColor={theme.colors.textMuted}
                 keyboardType="phone-pad"
                 value={businessPhone}
@@ -271,17 +269,17 @@ export default function OnboardingScreen() {
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Chave PIX (Para receber pagamentos)</Text>
+              <Text style={styles.label}>{t('onboarding.pixKey')}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Ex: E-mail, Celular ou CNPJ..."
+                placeholder={t('onboarding.pixKeyPlaceholder')}
                 placeholderTextColor={theme.colors.textMuted}
                 value={pixKey}
                 onChangeText={setPixKey}
               />
             </View>
 
-            <Text style={[styles.label, { marginBottom: 8 }]}>Tipo de Negócio</Text>
+            <Text style={[styles.label, { marginBottom: 8 }]}>{t('onboarding.businessType')}</Text>
             <View style={styles.businessTypeGrid}>
               {BUSINESS_TYPES.map((item) => (
                 <TouchableOpacity
@@ -305,7 +303,7 @@ export default function OnboardingScreen() {
                       businessType === item.id && styles.businessTypeLabelActive,
                     ]}
                   >
-                    {item.label}
+                    {t(item.labelKey)}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -321,16 +319,14 @@ export default function OnboardingScreen() {
             style={styles.card}
           >
             <Ionicons name="options-outline" size={48} color={theme.colors.primary} style={styles.stepIcon} />
-            <Text style={styles.title}>Preferências de Cobrança</Text>
-            <Text style={styles.subtitle}>
-              Estipule prazos de vencimento dos fiados e customize seu modelo de cobrança.
-            </Text>
+            <Text style={styles.title}>{t('onboarding.billingPreferences')}</Text>
+            <Text style={styles.subtitle}>{t('onboarding.billingDesc')}</Text>
 
             {/* Counter overdue days */}
             <View style={styles.preferenceRow}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.prefTitle}>Prazo de Vencimento</Text>
-                <Text style={styles.prefDesc}>Quantos dias para o fiado constar como atrasado.</Text>
+                <Text style={styles.prefTitle}>{t('onboarding.dueDays')}</Text>
+                <Text style={styles.prefDesc}>{t('onboarding.dueDaysDesc')}</Text>
               </View>
               <View style={styles.counterContainer}>
                 <TouchableOpacity
@@ -352,9 +348,9 @@ export default function OnboardingScreen() {
             </View>
 
             {/* Checkboxes for payment methods */}
-            <Text style={styles.label}>Métodos de Pagamento Aceitos</Text>
+            <Text style={styles.label}>{t('onboarding.paymentMethods')}</Text>
             <View style={styles.switchRow}>
-              <Text style={styles.switchLabel}>Dinheiro</Text>
+              <Text style={styles.switchLabel}>{t('onboarding.cash')}</Text>
               <Switch
                 value={methodCash}
                 onValueChange={setMethodCash}
@@ -362,7 +358,7 @@ export default function OnboardingScreen() {
               />
             </View>
             <View style={styles.switchRow}>
-              <Text style={styles.switchLabel}>PIX</Text>
+              <Text style={styles.switchLabel}>{t('onboarding.pix')}</Text>
               <Switch
                 value={methodPix}
                 onValueChange={setMethodPix}
@@ -370,7 +366,7 @@ export default function OnboardingScreen() {
               />
             </View>
             <View style={styles.switchRow}>
-              <Text style={styles.switchLabel}>Cartão</Text>
+              <Text style={styles.switchLabel}>{t('onboarding.card')}</Text>
               <Switch
                 value={methodCard}
                 onValueChange={setMethodCard}
@@ -379,22 +375,17 @@ export default function OnboardingScreen() {
             </View>
 
             <View style={[styles.inputContainer, { marginTop: 12 }]}>
-              <Text style={styles.label}>Template da Mensagem de Cobrança</Text>
+              <Text style={styles.label}>{t('onboarding.messageTemplate')}</Text>
               <TextInput
                 style={[styles.input, styles.multilineInput]}
                 multiline
                 numberOfLines={3}
-                placeholder="Insira a mensagem do WhatsApp..."
+                placeholder={t('onboarding.messageTemplatePlaceholder')}
                 placeholderTextColor={theme.colors.textMuted}
                 value={whatsappTemplate}
                 onChangeText={setWhatsappTemplate}
               />
-              <Text style={styles.helpText}>
-                Use tags <Text style={{ fontWeight: 'bold' }}>{'{cliente}'}</Text>,{' '}
-                <Text style={{ fontWeight: 'bold' }}>{'{valor}'}</Text>,{' '}
-                <Text style={{ fontWeight: 'bold' }}>{'{empresa}'}</Text> e{' '}
-                <Text style={{ fontWeight: 'bold' }}>{'{pix}'}</Text> que serão substituídas automaticamente.
-              </Text>
+              <Text style={styles.helpText}>{t('onboarding.messageHelpText')}</Text>
             </View>
           </Animated.View>
         )}
@@ -406,11 +397,9 @@ export default function OnboardingScreen() {
             layout={Layout.springify()}
             style={styles.card}
           >
-            <Ionicons name="sparkles-outline" size={48} color={theme.colors.primary} style={styles.stepIcon} />
-            <Text style={styles.title}>Quase lá!</Text>
-            <Text style={styles.subtitle}>
-              Confira como funciona o app e cadastre seu primeiro cliente para começar!
-            </Text>
+            <Ionicons name="diamond-outline" size={48} color={theme.colors.primary} style={styles.stepIcon} />
+            <Text style={styles.title}>{t('onboarding.almostThere')}</Text>
+            <Text style={styles.subtitle}>{t('onboarding.lastStepDesc')}</Text>
 
             {/* Quick Tour Panel */}
             <View style={styles.tourWrapper}>
@@ -419,8 +408,8 @@ export default function OnboardingScreen() {
                   <Ionicons name="person-add" size={16} color={theme.colors.primary} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.tourItemTitle}>1. Adicione Clientes</Text>
-                  <Text style={styles.tourItemDesc}>Cadastre quem compra fiado no seu negócio.</Text>
+                  <Text style={styles.tourItemTitle}>{t('onboarding.tourAddCustomers')}</Text>
+                  <Text style={styles.tourItemDesc}>{t('onboarding.tourAddCustomersDesc')}</Text>
                 </View>
               </View>
               <View style={styles.tourItem}>
@@ -428,8 +417,8 @@ export default function OnboardingScreen() {
                   <Ionicons name="cash" size={16} color={theme.colors.accent} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.tourItemTitle}>2. Lance Fiados</Text>
-                  <Text style={styles.tourItemDesc}>Anote cada compra na caderneta em 2 cliques.</Text>
+                  <Text style={styles.tourItemTitle}>{t('onboarding.tourRegisterFiados')}</Text>
+                  <Text style={styles.tourItemDesc}>{t('onboarding.tourRegisterFiadosDesc')}</Text>
                 </View>
               </View>
               <View style={styles.tourItem}>
@@ -437,30 +426,30 @@ export default function OnboardingScreen() {
                   <Ionicons name="logo-whatsapp" size={16} color={theme.colors.whatsapp} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.tourItemTitle}>3. Avise por WhatsApp</Text>
-                  <Text style={styles.tourItemDesc}>Envie lembretes amigáveis com chave PIX.</Text>
+                  <Text style={styles.tourItemTitle}>{t('onboarding.tourWhatsapp')}</Text>
+                  <Text style={styles.tourItemDesc}>{t('onboarding.tourWhatsappDesc')}</Text>
                 </View>
               </View>
             </View>
 
             {/* Add First Customer Form */}
             <View style={styles.firstCustomerWrap}>
-              <Text style={styles.firstCustHeader}>Cadastrar Primeiro Cliente (Opcional)</Text>
+              <Text style={styles.firstCustHeader}>{t('onboarding.firstCustomerHeader')}</Text>
               <View style={styles.inputContainer}>
-                <Text style={styles.label}>Nome do Cliente</Text>
+                <Text style={styles.label}>{t('onboarding.customerNameLabel')}</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="Ex: Maria Souza"
+                  placeholder={t('onboarding.businessNamePlaceholder')}
                   placeholderTextColor={theme.colors.textMuted}
                   value={firstCustName}
                   onChangeText={setFirstCustName}
                 />
               </View>
               <View style={styles.inputContainer}>
-                <Text style={styles.label}>WhatsApp do Cliente</Text>
+                <Text style={styles.label}>{t('onboarding.customerWhatsAppLabel')}</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="Ex: 11999999999"
+                  placeholder={t('onboarding.whatsappPlaceholder')}
                   placeholderTextColor={theme.colors.textMuted}
                   keyboardType="phone-pad"
                   value={firstCustPhone}
@@ -476,7 +465,7 @@ export default function OnboardingScreen() {
       <View style={styles.footer}>
         {step > 1 ? (
           <TouchableOpacity style={styles.backButton} onPress={handleBack} activeOpacity={0.7} disabled={loading}>
-            <Text style={styles.backButtonText}>Voltar</Text>
+            <Text style={styles.backButtonText}>{t('onboarding.back')}</Text>
           </TouchableOpacity>
         ) : (
           <View style={{ flex: 1 }} />
@@ -488,7 +477,7 @@ export default function OnboardingScreen() {
           </View>
         ) : step < 4 ? (
           <TouchableOpacity style={styles.nextButton} onPress={handleNext} activeOpacity={0.8}>
-            <Text style={styles.nextButtonText}>Avançar</Text>
+            <Text style={styles.nextButtonText}>{t('onboarding.next')}</Text>
             <Ionicons name="arrow-forward" size={16} color="#ffffff" style={{ marginLeft: 4 }} />
           </TouchableOpacity>
         ) : (
@@ -499,12 +488,12 @@ export default function OnboardingScreen() {
                 onPress={() => handleComplete(true)}
                 activeOpacity={0.7}
               >
-                <Text style={styles.skipButtonText}>Pular</Text>
+                <Text style={styles.skipButtonText}>{t('onboarding.skip')}</Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity style={styles.finishButton} onPress={() => handleComplete(false)} activeOpacity={0.8}>
-              <Text style={styles.finishButtonText}>Iniciar!</Text>
-              <Ionicons name="sparkles" size={16} color="#ffffff" style={{ marginLeft: 4 }} />
+              <Text style={styles.finishButtonText}>{t('onboarding.start')}</Text>
+              <Ionicons name="diamond" size={16} color="#ffffff" style={{ marginLeft: 4 }} />
             </TouchableOpacity>
           </View>
         )}

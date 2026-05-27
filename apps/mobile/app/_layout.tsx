@@ -18,6 +18,9 @@ import {
   isAuthCallbackUrl,
   parseOAuthCallbackParams,
 } from '../src/core/auth/oauth-callback';
+import { I18nextProvider } from 'react-i18next';
+import i18n, { initI18n } from '../src/core/i18n';
+import { ThemeProvider, useTheme } from '../src/theme';
 
 LogBox.ignoreLogs(['Invalid Refresh Token']);
 
@@ -26,6 +29,17 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 import { queryClient } from '../src/core/services/query-client';
 
 const AUTH_SESSION_ACTIVE_KEY = '__dailydueAuthSessionActive';
+
+/** StatusBar that adapts to the current theme color scheme. */
+function DynamicStatusBar() {
+  const { theme, colorScheme } = useTheme();
+  return (
+    <StatusBar
+      style={colorScheme === 'dark' ? 'light' : 'dark'}
+      backgroundColor={theme.colors.background}
+    />
+  );
+}
 
 export default function RootLayout() {
   const {
@@ -142,8 +156,8 @@ export default function RootLayout() {
     const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
     if (!supabaseUrl || !supabaseAnonKey) {
       console.error(
-        '[Startup] ERRO CRÍTICO: Variáveis de ambiente do Supabase não configuradas!\n' +
-        'Por favor, certifique-se de definir EXPO_PUBLIC_SUPABASE_URL e EXPO_PUBLIC_SUPABASE_ANON_KEY no seu arquivo .env'
+        i18n.t('startup.criticalError') + '\n' +
+        i18n.t('startup.setEnvVars')
       );
     }
 
@@ -360,18 +374,32 @@ export default function RootLayout() {
     return () => clearTimeout(timeoutId);
   }, [user, segments, navigationState?.key, authChecked, pendingAuthNavigation, hasBootstrappedProfile]);
 
+  const [i18nReady, setI18nReady] = useState(false);
+
+  useEffect(() => {
+    initI18n().then(() => setI18nReady(true));
+  }, []);
+
+  if (!i18nReady) {
+    return null;
+  }
+
   return (
     <ErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
           <QueryClientProvider client={queryClient}>
             <BillingProvider>
-              <StatusBar style="light" backgroundColor="#064e3b" />
-              <Stack initialRouteName="index" screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                <Stack.Screen name="(auth)" options={{ headerShown: false, presentation: 'modal' }} />
-                <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
-              </Stack>
+              <I18nextProvider i18n={i18n}>
+                <ThemeProvider>
+                  <DynamicStatusBar />
+                  <Stack initialRouteName="index" screenOptions={{ headerShown: false }}>
+                    <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                    <Stack.Screen name="(auth)" options={{ headerShown: false, presentation: 'modal' }} />
+                    <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
+                  </Stack>
+                </ThemeProvider>
+              </I18nextProvider>
               {isSystemLockEnabled && !isUnlocked ? (
                 <AppLockOverlay
                   onUnlock={() => setIsUnlocked(true)}

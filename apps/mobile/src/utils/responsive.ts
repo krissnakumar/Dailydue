@@ -1,6 +1,6 @@
-import { Platform, useColorScheme, useWindowDimensions } from 'react-native';
+import { Platform, useWindowDimensions } from 'react-native';
 import { useMemo } from 'react';
-import { theme } from '../theme';
+import { theme, useTheme } from '../theme';
 
 export const breakpoints = {
   xs: 0,
@@ -128,27 +128,18 @@ export const getResponsiveLayout = (width: number, height: number): ResponsiveLa
 };
 
 export const adaptiveColors = {
-  light: {
+} as const;
+
+export const useAdaptiveColors = () => {
+  const { theme } = useTheme();
+  return {
     background: theme.colors.background,
     surface: theme.colors.card,
     mutedSurface: theme.colors.inputBg,
     text: theme.colors.textMain,
     textMuted: theme.colors.textMuted,
     border: theme.colors.border,
-  },
-  dark: {
-    background: '#0b1220',
-    surface: '#111827',
-    mutedSurface: '#1f2937',
-    text: '#f8fafc',
-    textMuted: '#cbd5e1',
-    border: '#334155',
-  },
-} as const;
-
-export const useAdaptiveColors = () => {
-  const scheme = useColorScheme();
-  return scheme === 'dark' ? adaptiveColors.dark : adaptiveColors.light;
+  };
 };
 
 export const useResponsive = () => {

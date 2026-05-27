@@ -20,6 +20,7 @@ import { formatCurrency, sendWhatsappReminder, generateStatementPDF } from '../u
 import { theme } from '../theme';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 
 const isEmoji = (str?: string) => {
   if (!str) return false;
@@ -45,6 +46,7 @@ export function CustomerDetailContent({
   onBack,
   onDeleteSuccess,
 }: CustomerDetailContentProps) {
+  const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -88,9 +90,10 @@ export function CustomerDetailContent({
   const [editPhone, setEditPhone] = useState('');
   const [editCep, setEditCep] = useState('');
   const [editAddress, setEditAddress] = useState('');
-  const [editDocType, setEditDocType] = useState<'cpf' | 'cnpj'>('cpf');
+  const [editDocType, setEditDocType] = useState<'aadhaar' | 'pan'>('aadhaar');
   const [editDocValue, setEditDocValue] = useState('');
   const [editPicture, setEditPicture] = useState('');
+  const [editNotes, setEditNotes] = useState('');
 
   const [cepStatus, setCepStatus] = useState<'idle' | 'loading' | 'valid' | 'invalid'>('idle');
   const [docStatus, setDocStatus] = useState<'idle' | 'loading' | 'valid' | 'invalid'>('idle');
@@ -100,7 +103,7 @@ export function CustomerDetailContent({
   const [itemDesc, setItemDesc] = useState('');
   const [itemAmt, setItemAmt] = useState('');
 
-  // Helpers de Auto-busca de CEP e CNPJ
+  // Helpers de Auto-busca de PIN e PAN
   const handleFetchCep = async (cep: string) => {
     const cleanCep = cep.replace(/\D/g, '');
     if (cleanCep.length !== 8) {
@@ -139,7 +142,7 @@ export function CustomerDetailContent({
     try {
       const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanCnpj}`);
       if (!res.ok) {
-        if (isValidCNPJ(cleanCnpj)) {
+        if (isValidPAN(cleanCnpj)) {
           setDocStatus('valid');
         } else {
           setDocStatus('invalid');
@@ -172,7 +175,7 @@ export function CustomerDetailContent({
       }
     } catch (e) {
       console.error(e);
-      if (isValidCNPJ(cleanCnpj)) {
+      if (isValidPAN(cleanCnpj)) {
         setDocStatus('valid');
       } else {
         setDocStatus('invalid');
@@ -180,7 +183,7 @@ export function CustomerDetailContent({
     }
   };
 
-  const isValidCPF = (cpf: string) => {
+  const isValidAADHAAR = (cpf: string) => {
     cpf = cpf.replace(/[^\d]+/g, '');
     if (cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) return false;
     let soma = 0;
@@ -196,7 +199,7 @@ export function CustomerDetailContent({
     return true;
   };
 
-  const isValidCNPJ = (cnpj: string) => {
+  const isValidPAN = (cnpj: string) => {
     cnpj = cnpj.replace(/[^\d]+/g, '');
     if (cnpj.length !== 14 || /^(\d)\1+$/.test(cnpj)) return false;
     let tamanho = cnpj.length - 2;
@@ -225,7 +228,7 @@ export function CustomerDetailContent({
 
   const formatDocValue = (val: string) => {
     const clean = val.replace(/\D/g, '');
-    if (editDocType === 'cpf') {
+    if (editDocType === 'aadhaar') {
       return clean
         .replace(/^(\d{3})(\d)/, '$1.$2')
         .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
@@ -254,16 +257,16 @@ export function CustomerDetailContent({
       const data = await res.json();
       if (data && data.status === false) {
         setDocStatus('invalid');
-        Alert.alert('Ops!', 'CPF inválido de acordo com a validação da API. 📄', [{ text: 'OK' }]);
+        Alert.alert(t('customerDetail.ops'), t('customerDetail.cpfInvalidApi'), [{ text: t('common.ok') }]);
       } else {
         setDocStatus('valid');
       }
     } catch {
-      if (isValidCPF(cleanCpf)) {
+      if (isValidAADHAAR(cleanCpf)) {
         setDocStatus('valid');
       } else {
         setDocStatus('invalid');
-        Alert.alert('Ops!', 'CPF inválido. Verifique os números digitados. 📄', [{ text: 'OK' }]);
+        Alert.alert(t('customerDetail.ops'), t('customerDetail.cpfInvalid'), [{ text: t('common.ok') }]);
       }
     }
   };
@@ -272,9 +275,9 @@ export function CustomerDetailContent({
     const formatted = formatDocValue(val);
     setEditDocValue(formatted);
     const clean = formatted.replace(/\D/g, '');
-    if (editDocType === 'cnpj' && clean.length === 14) {
+    if (editDocType === 'pan' && clean.length === 14) {
       handleFetchCnpj(clean);
-    } else if (editDocType === 'cpf' && clean.length === 11) {
+    } else if (editDocType === 'aadhaar' && clean.length === 11) {
       handleFetchCpf(clean);
     } else {
       setDocStatus('idle');
@@ -282,7 +285,7 @@ export function CustomerDetailContent({
   };
 
   const handleCepChange = (val: string) => {
-    const formatted = val.replace(/\D/g, '').substring(0, 8);
+    const formatted = val.replace(/\D/g, '').substring(0, 6);
     setEditCep(formatted);
     if (formatted.length === 8) {
       handleFetchCep(formatted);
@@ -307,7 +310,7 @@ export function CustomerDetailContent({
         businessConfig.pixKey
       );
     } catch {
-      Alert.alert('Ops!', 'Não foi possível gerar a ficha de cobrança agora.');
+      Alert.alert(t('customerDetail.ops'), t('customerDetail.statementError'));
     }
   };
 
@@ -324,9 +327,10 @@ export function CustomerDetailContent({
     setEditPhone(customer.phone || '');
     setEditCep(customer.cep || '');
     setEditAddress(customer.address || '');
-    setEditDocType(customer.documentType || 'cpf');
+    setEditDocType(customer.documentType || 'aadhaar');
     setEditDocValue(customer.documentValue || '');
     setEditPicture(customer.picture || '');
+    setEditNotes(customer.notes || '');
     setIsEditProfileOpen(true);
   };
 
@@ -337,15 +341,15 @@ export function CustomerDetailContent({
     const cepDigits = (editCep || '').replace(/\D/g, '');
 
     if (!name || name.length < 2) {
-      Alert.alert('Ops!', 'Faltou o nome do cliente. 😊');
+      Alert.alert(t('customerDetail.ops'), t('customerDetail.missingName'));
       return;
     }
     if (phoneDigits && !(phoneDigits.length === 10 || phoneDigits.length === 11)) {
-      Alert.alert('Ops!', 'Confira o número do WhatsApp. 📱');
+      Alert.alert(t('customerDetail.ops'), t('customerDetail.checkPhone'));
       return;
     }
     if (cepDigits && cepDigits.length !== 8) {
-      Alert.alert('Ops!', 'Confira o número do CEP. 📍');
+      Alert.alert(t('customerDetail.ops'), t('customerDetail.checkPin'));
       return;
     }
 
@@ -357,7 +361,8 @@ export function CustomerDetailContent({
       editAddress.trim(),
       editDocType,
       editDocValue.replace(/\D/g, ''),
-      editPicture
+      editPicture,
+      editNotes.trim()
     );
     setIsEditProfileOpen(false);
   };
@@ -366,7 +371,7 @@ export function CustomerDetailContent({
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert('Acesso Negado', 'Precisamos de permissão para escolher a foto. 🖼️');
+        Alert.alert(t('customerDetail.accessDenied'), t('customerDetail.accessDeniedPhoto'));
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -380,7 +385,7 @@ export function CustomerDetailContent({
       if (!asset?.uri) return;
       setEditPicture(asset.uri);
     } catch {
-      Alert.alert('Ops!', 'Não foi possível carregar a imagem. 😅');
+      Alert.alert(t('customerDetail.ops'), t('customerDetail.loadImageError'));
     }
   };
 
@@ -390,7 +395,7 @@ export function CustomerDetailContent({
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert('Acesso Negado', 'Precisamos de permissão para escolher a foto. 🖼️');
+        Alert.alert(t('customerDetail.accessDenied'), t('customerDetail.accessDeniedPhoto'));
         return;
       }
 
@@ -410,24 +415,25 @@ export function CustomerDetailContent({
         customer.phone || '',
         customer.cep || '',
         customer.address || '',
-        customer.documentType || 'cpf',
+        customer.documentType || 'aadhaar',
         customer.documentValue || '',
-        asset.uri
+        asset.uri,
+        customer.notes || ''
       );
     } catch {
-      Alert.alert('Ops!', 'Não foi possível atualizar a foto agora. 😅');
+      Alert.alert(t('customerDetail.ops'), t('customerDetail.updatePhotoError'));
     }
   };
 
   const handleDeleteProfile = () => {
     if (!customer) return;
     Alert.alert(
-      'Atenção Crítica',
-      `Deseja realmente excluir "${customer.full_name}" permanentemente?\n\nTodo o histórico de anotações será estornado.`,
+      t('customerDetail.criticalAttention'),
+      t('customerDetail.deleteConfirmDesc', { name: customer.full_name }),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('customerDetail.cancel'), style: 'cancel' },
         {
-          text: 'Sim, Excluir',
+          text: t('customerDetail.yesDelete'),
           style: 'destructive',
           onPress: () => {
             deleteCustomer(customer.id);
@@ -452,7 +458,7 @@ export function CustomerDetailContent({
     if (!selectedItem || !customer) return;
     const amt = parseFloat(itemAmt.replace(',', '.'));
     if (isNaN(amt) || amt < 0) {
-      Alert.alert('Erro', 'Informe um valor numérico válido.');
+      Alert.alert(t('common.error'), t('customerDetail.invalidAmount'));
       return;
     }
     editHistoryItem(customer.id, selectedItem.id, itemDesc, amt);
@@ -461,10 +467,10 @@ export function CustomerDetailContent({
 
   const handleDeleteItem = (itemId: string) => {
     if (!customer) return;
-    Alert.alert('Confirmar Estorno', 'Deseja remover este lançamento e recalcular a caderneta?', [
-      { text: 'Não', style: 'cancel' },
+    Alert.alert(t('customerDetail.confirmReverse'), t('customerDetail.reverseConfirmDesc'), [
+      { text: t('customerDetail.no'), style: 'cancel' },
       {
-        text: 'Sim, Estornar',
+        text: t('customerDetail.yesReverse'),
         style: 'destructive',
         onPress: () => deleteHistoryItem(customer.id, itemId),
       },
@@ -498,9 +504,9 @@ export function CustomerDetailContent({
   if (!customer) {
     return (
       <View style={[styles.wrapper, styles.center]}>
-        <Text style={styles.errorText}>Cliente não encontrado ou excluído.</Text>
+        <Text style={styles.errorText}>{t('customerDetail.notFound')}</Text>
         {showBackButton && (
-          <Button title="Voltar" onPress={() => { if (onBack) onBack(); else router.back(); }} style={{ marginTop: 12 }} />
+          <Button title={t('customerDetail.back')} onPress={() => { if (onBack) onBack(); else router.back(); }} style={{ marginTop: 12 }} />
         )}
       </View>
     );
@@ -554,7 +560,7 @@ export function CustomerDetailContent({
               {customer.full_name}
             </Text>
             <Text style={styles.custPhone}>
-              {customer.phone ? `WhatsApp: +55 ${customer.phone}` : 'Sem celular cadastrado'}
+              {customer.phone ? t('customerDetail.whatsappLabel', { phone: customer.phone }) : t('customerDetail.noPhone')}
             </Text>
             {(() => {
               const isTemp = isTempCustomerId(customer.id);
@@ -565,12 +571,12 @@ export function CustomerDetailContent({
               return isPendingSync ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(245,158,11,0.08)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, alignSelf: 'flex-start', marginTop: 4 }}>
                   <Ionicons name="cloud-offline-outline" size={11} color="#b06000" style={{ marginRight: 4 }} />
-                  <Text style={{ fontSize: 10, color: '#b06000', fontWeight: 'bold' }}>Salvo no dispositivo (Pendente de Nuvem)</Text>
+                  <Text style={{ fontSize: 10, color: '#b06000', fontWeight: 'bold' }}>{t('customerDetail.savedDevice')}</Text>
                 </View>
               ) : (
                 <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(34,197,94,0.08)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, alignSelf: 'flex-start', marginTop: 4 }}>
                   <Ionicons name="cloud-done-outline" size={11} color="#137333" style={{ marginRight: 4 }} />
-                  <Text style={{ fontSize: 10, color: '#137333', fontWeight: 'bold' }}>Sincronizado com a Nuvem</Text>
+                  <Text style={{ fontSize: 10, color: '#137333', fontWeight: 'bold' }}>{t('customerDetail.syncedCloud')}</Text>
                 </View>
               );
             })()}
@@ -578,7 +584,7 @@ export function CustomerDetailContent({
               <View style={styles.custSubRow}>
                 <Ionicons name="card-outline" size={12} color={theme.colors.textMuted} style={{ marginRight: 4 }} />
                 <Text style={styles.custSubText}>
-                  {customer.documentType?.toUpperCase() || 'DOCUMENTO'}: {customer.documentValue}
+                  {t('customerDetail.documentLabel', { type: customer.documentType?.toUpperCase() || 'DOC', value: customer.documentValue })}
                 </Text>
               </View>
             ) : null}
@@ -605,7 +611,7 @@ export function CustomerDetailContent({
               { color: isZero ? '#065f46' : isAtrasado ? '#991b1b' : '#854d0e' },
             ]}
           >
-            {isZero ? 'Quitado' : isAtrasado ? 'Atrasado' : 'Devendo'}
+            {isZero ? t('customerDetail.paid') : isAtrasado ? t('customerDetail.overdue') : t('customerDetail.pending')}
           </Text>
         </View>
       </Animated.View>
@@ -616,7 +622,7 @@ export function CustomerDetailContent({
         style={styles.summaryBoxWrapper}
       >
         <View style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Quanto Deve Atualmente</Text>
+          <Text style={styles.summaryLabel}>{t('customerDetail.currentDebtLabel')}</Text>
           <Text style={styles.summaryAmount}>{formatCurrency(customer.total_debt)}</Text>
         </View>
       </Animated.View>
@@ -626,7 +632,7 @@ export function CustomerDetailContent({
         entering={FadeInDown.delay(0).duration(0)}
         style={styles.stickyActions}
       >
-        <Text style={styles.quickLabel}>Ações Rápidas</Text>
+        <Text style={styles.quickLabel}>{t('customerDetail.quickActions')}</Text>
         <View style={styles.gridActionsRow}>
           <TouchableOpacity
             style={[styles.btnActionFiado, styles.rowCenter]}
@@ -634,7 +640,7 @@ export function CustomerDetailContent({
             activeOpacity={0.7}
           >
             <Ionicons name="add-circle-outline" size={14} color={theme.colors.accent} style={{ marginRight: 4 }} />
-            <Text style={styles.textActionFiado}>Fiado</Text>
+            <Text style={styles.textActionFiado}>{t('customerDetail.addFiado')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -643,7 +649,7 @@ export function CustomerDetailContent({
             activeOpacity={0.7}
           >
             <Ionicons name="checkmark-circle-outline" size={14} color={theme.colors.primaryDark} style={{ marginRight: 4 }} />
-            <Text style={styles.textActionPay}>Pagamento</Text>
+            <Text style={styles.textActionPay}>{t('customerDetail.payment')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -652,7 +658,7 @@ export function CustomerDetailContent({
             activeOpacity={0.7}
           >
             <Ionicons name="chatbubble-ellipses-outline" size={14} color="#0369a1" style={{ marginRight: 4 }} />
-            <Text style={styles.textActionNotice}>Aviso</Text>
+            <Text style={styles.textActionNotice}>{t('customerDetail.notice')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -662,7 +668,7 @@ export function CustomerDetailContent({
           activeOpacity={0.7}
         >
           <Ionicons name="document-text-outline" size={15} color="#334155" style={{ marginRight: 6 }} />
-          <Text style={styles.textActionPrint}>Gerar Extrato PDF</Text>
+          <Text style={styles.textActionPrint}>{t('customerDetail.generatePDF')}</Text>
         </TouchableOpacity>
       </Animated.View>
 
@@ -670,40 +676,46 @@ export function CustomerDetailContent({
         <Card style={styles.profileDetailsCard}>
           <View style={styles.profileDetailsHeader}>
             <View>
-              <Text style={styles.profileDetailsTitle}>Perfil do Cliente</Text>
-              <Text style={styles.profileDetailsSub}>Dados salvos no cadastro</Text>
+              <Text style={styles.profileDetailsTitle}>{t('customerDetail.profile')}</Text>
+              <Text style={styles.profileDetailsSub}>{t('customerDetail.profileSub')}</Text>
             </View>
             <TouchableOpacity style={[styles.profileEditLink, styles.rowCenter]} onPress={handleOpenEditProfile} activeOpacity={0.8}>
               <Ionicons name="create-outline" size={14} color={theme.colors.primary} style={{ marginRight: 4 }} />
-              <Text style={styles.profileEditLinkText}>Editar</Text>
+              <Text style={styles.profileEditLinkText}>{t('customerDetail.edit')}</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.profileDetailsGrid}>
             <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>Nome</Text>
-              <Text style={styles.detailValue} numberOfLines={2}>{customer.full_name || 'Não informado'}</Text>
+              <Text style={styles.detailLabel}>{t('customerDetail.name')}</Text>
+              <Text style={styles.detailValue} numberOfLines={2}>{customer.full_name || t('customerDetail.notInformed')}</Text>
             </View>
             <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>WhatsApp</Text>
-              <Text style={styles.detailValue}>{customer.phone ? `+55 ${customer.phone}` : 'Não informado'}</Text>
+              <Text style={styles.detailLabel}>{t('customerDetail.phone')}</Text>
+              <Text style={styles.detailValue}>{customer.phone ? `+91 ${customer.phone}` : t('customerDetail.notInformed')}</Text>
             </View>
             <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>Documento</Text>
+              <Text style={styles.detailLabel}>{t('customerDetail.document')}</Text>
               <Text style={styles.detailValue}>
                 {customer.documentValue
                   ? `${customer.documentType?.toUpperCase() || 'DOC'} ${customer.documentValue}`
-                  : 'Não informado'}
+                  : t('customerDetail.notInformed')}
               </Text>
             </View>
             <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>CEP</Text>
-              <Text style={styles.detailValue}>{customer.cep || 'Não informado'}</Text>
+              <Text style={styles.detailLabel}>{t('clients.cep')}</Text>
+              <Text style={styles.detailValue}>{customer.cep || t('customerDetail.notInformed')}</Text>
             </View>
             <View style={[styles.detailItem, styles.detailItemFull]}>
-              <Text style={styles.detailLabel}>Endereço</Text>
-              <Text style={styles.detailValue} numberOfLines={3}>{customer.address || 'Não informado'}</Text>
+              <Text style={styles.detailLabel}>{t('customerDetail.address')}</Text>
+              <Text style={styles.detailValue} numberOfLines={3}>{customer.address || t('customerDetail.notInformed')}</Text>
             </View>
+            {customer.notes ? (
+              <View style={[styles.detailItem, styles.detailItemFull, { borderTopWidth: 1, borderTopColor: '#f1f5f9', paddingTop: 10, marginTop: 5 }]}>
+                <Text style={styles.detailLabel}>{t('clients.notes')}</Text>
+                <Text style={styles.detailValue} numberOfLines={10}>{customer.notes}</Text>
+              </View>
+            ) : null}
           </View>
         </Card>
       </Animated.View>
@@ -714,20 +726,20 @@ export function CustomerDetailContent({
           entering={FadeInDown.delay(0).duration(0)}
           style={styles.timelineHeader}
         >
-          <Text style={styles.timelineTitle}>Linha do Tempo (Histórico)</Text>
-          <Text style={styles.timelineSub}>Auditoria Completa</Text>
+          <Text style={styles.timelineTitle}>{t('customerDetail.timeline')}</Text>
+          <Text style={styles.timelineSub}>{t('customerDetail.audit')}</Text>
         </Animated.View>
 
         <View style={styles.timelineWrapper}>
           {historyWithBalances.length === 0 ? (
-            <Text style={styles.emptyTimeline}>Nenhum registro no caderno de auditoria.</Text>
+            <Text style={styles.emptyTimeline}>{t('customerDetail.noHistory')}</Text>
           ) : (
             historyWithBalances.map((item, index) => {
               const isDebt = item.type === 'debt';
               const isPay = item.type === 'payment';
               const isSys = item.type === 'system';
 
-              const dtStr = new Date(item.created_at).toLocaleString('pt-BR', {
+              const dtStr = new Date(item.created_at).toLocaleString(undefined, {
                 day: '2-digit',
                 month: '2-digit',
                 year: '2-digit',
@@ -779,7 +791,7 @@ export function CustomerDetailContent({
                             },
                           ]}
                         >
-                          {isDebt ? 'Lançamento' : isPay ? 'Pagamento' : 'Sistema'}
+                          {isDebt ? t('customerDetail.entry') : isPay ? t('customerDetail.paymentType') : t('customerDetail.system')}
                         </Text>
                       </View>
                       <Text style={styles.nodeAmount}>
@@ -791,21 +803,21 @@ export function CustomerDetailContent({
 
                     <View style={styles.nodeMetaRow}>
                       <Text style={styles.nodeMetaText}>
-                        {dtStr} • Por <Text style={{ fontWeight: 'bold' }}>{item.created_by || 'Dono'}</Text>
+                        {dtStr} • {t('customerDetail.by')} <Text style={{ fontWeight: 'bold' }}>{item.created_by || t('customerDetail.owner')}</Text>
                       </Text>
-                      <Text style={styles.nodeBalText}>Saldo: {formatCurrency(balAtThisPoint)}</Text>
+                      <Text style={styles.nodeBalText}>{t('customerDetail.balance')}: {formatCurrency(balAtThisPoint)}</Text>
                     </View>
 
                     {!isSys && (
                       <View style={styles.nodeEditRow}>
                         <TouchableOpacity onPress={() => handleOpenEditItem(item)} style={[styles.nodeBtn, styles.rowCenter]}>
                           <Ionicons name="pencil-outline" size={11} color={theme.colors.textMuted} style={{ marginRight: 3 }} />
-                          <Text style={styles.nodeBtnText}>Ajustar</Text>
+                          <Text style={styles.nodeBtnText}>{t('customerDetail.adjust')}</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity onPress={() => handleDeleteItem(item.id)} style={[styles.nodeBtn, styles.rowCenter]}>
                           <Ionicons name="trash-outline" size={11} color={theme.colors.dangerText} style={{ marginRight: 3 }} />
-                          <Text style={styles.nodeBtnTextRed}>Estornar</Text>
+                          <Text style={styles.nodeBtnTextRed}>{t('customerDetail.reverse')}</Text>
                         </TouchableOpacity>
                       </View>
                     )}
@@ -818,7 +830,7 @@ export function CustomerDetailContent({
 
         {/* Botão Inferior de Remoção Permanente */}
         <TouchableOpacity style={styles.deleteProfileWrapper} onPress={handleDeleteProfile}>
-          <Text style={styles.deleteProfileText}>Excluir Cadastro Permanentemente</Text>
+          <Text style={styles.deleteProfileText}>{t('customerDetail.deleteProfile')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -831,16 +843,16 @@ export function CustomerDetailContent({
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>Editar Perfil</Text>
+            <Text style={styles.modalTitle}>{t('customerDetail.editProfile')}</Text>
 
             <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
               <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Nome do Cliente *</Text>
+                <Text style={styles.formLabel}>{t('customerDetail.customerName')}</Text>
                 <TextInput style={styles.formInput} value={editName} onChangeText={setEditName} />
               </View>
 
               <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>WhatsApp</Text>
+                <Text style={styles.formLabel}>{t('customerDetail.phone')}</Text>
                 <TextInput
                   style={styles.formInput}
                   keyboardType="phone-pad"
@@ -850,42 +862,42 @@ export function CustomerDetailContent({
               </View>
 
               <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Tipo de Documento</Text>
+                <Text style={styles.formLabel}>{t('customerDetail.documentType')}</Text>
                 <View style={styles.radioGroup}>
                   <TouchableOpacity
-                    style={[styles.radioButton, editDocType === 'cpf' && styles.radioActive]}
+                    style={[styles.radioButton, editDocType === 'aadhaar' && styles.radioActive]}
                     onPress={() => {
-                      setEditDocType('cpf');
+                      setEditDocType('aadhaar');
                       setEditDocValue('');
                       setDocStatus('idle');
                     }}
                   >
-                    <Text style={[styles.radioText, editDocType === 'cpf' && styles.radioTextActive]}>CPF</Text>
+                    <Text style={[styles.radioText, editDocType === 'aadhaar' && styles.radioTextActive]}>AADHAAR</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.radioButton, editDocType === 'cnpj' && styles.radioActive]}
+                    style={[styles.radioButton, editDocType === 'pan' && styles.radioActive]}
                     onPress={() => {
-                      setEditDocType('cnpj');
+                      setEditDocType('pan');
                       setEditDocValue('');
                       setDocStatus('idle');
                     }}
                   >
-                    <Text style={[styles.radioText, editDocType === 'cnpj' && styles.radioTextActive]}>CNPJ</Text>
+                    <Text style={[styles.radioText, editDocType === 'pan' && styles.radioTextActive]}>PAN</Text>
                   </TouchableOpacity>
                 </View>
               </View>
 
               <View style={styles.formGroup}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Text style={styles.formLabel}>Documento ({editDocType.toUpperCase()})</Text>
-                  {docStatus === 'loading' && <Text style={{ fontSize: 11, color: '#64748b', fontWeight: '500', marginBottom: 8 }}>Validando... ⏳</Text>}
-                  {docStatus === 'valid' && <Text style={{ fontSize: 11, color: '#059669', fontWeight: '500', marginBottom: 8 }}>Válido ✓</Text>}
-                  {docStatus === 'invalid' && <Text style={{ fontSize: 11, color: '#dc2626', fontWeight: '500', marginBottom: 8 }}>Inválido ✗</Text>}
+                  <Text style={styles.formLabel}>{t('customerDetail.document')} ({editDocType.toUpperCase()})</Text>
+                  {docStatus === 'loading' && <Text style={{ fontSize: 11, color: '#64748b', fontWeight: '500', marginBottom: 8 }}>{t('clients.statusValidating')} ⏳</Text>}
+                  {docStatus === 'valid' && <Text style={{ fontSize: 11, color: '#059669', fontWeight: '500', marginBottom: 8 }}>{t('clients.statusValid')} ✓</Text>}
+                  {docStatus === 'invalid' && <Text style={{ fontSize: 11, color: '#dc2626', fontWeight: '500', marginBottom: 8 }}>{t('clients.statusInvalid')} ✗</Text>}
                 </View>
                 <TextInput
                   style={styles.formInput}
                   keyboardType="numeric"
-                  placeholder={editDocType === 'cpf' ? '000.000.000-00' : '00.000.000/0000-00'}
+                  placeholder={editDocType === 'aadhaar' ? '000.000.000-00' : '00.000.000/0000-00'}
                   value={editDocValue}
                   onChangeText={handleDocChange}
                 />
@@ -893,10 +905,10 @@ export function CustomerDetailContent({
 
               <View style={styles.formGroup}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Text style={styles.formLabel}>CEP</Text>
-                  {cepStatus === 'loading' && <Text style={{ fontSize: 11, color: '#64748b', fontWeight: '500', marginBottom: 8 }}>Buscando... ⏳</Text>}
-                  {cepStatus === 'valid' && <Text style={{ fontSize: 11, color: '#059669', fontWeight: '500', marginBottom: 8 }}>Válido ✓</Text>}
-                  {cepStatus === 'invalid' && <Text style={{ fontSize: 11, color: '#dc2626', fontWeight: '500', marginBottom: 8 }}>Inexistente ✗</Text>}
+                  <Text style={styles.formLabel}>{t('clients.cep')}</Text>
+                  {cepStatus === 'loading' && <Text style={{ fontSize: 11, color: '#64748b', fontWeight: '500', marginBottom: 8 }}>{t('clients.statusSearching')} ⏳</Text>}
+                  {cepStatus === 'valid' && <Text style={{ fontSize: 11, color: '#059669', fontWeight: '500', marginBottom: 8 }}>{t('clients.statusValid')} ✓</Text>}
+                  {cepStatus === 'invalid' && <Text style={{ fontSize: 11, color: '#dc2626', fontWeight: '500', marginBottom: 8 }}>{t('clients.statusInvalid')} ✗</Text>}
                 </View>
                 <TextInput
                   style={styles.formInput}
@@ -908,7 +920,7 @@ export function CustomerDetailContent({
               </View>
 
               <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Endereço Completo</Text>
+                <Text style={styles.formLabel}>{t('customerDetail.fullAddress')}</Text>
                 <TextInput
                   style={[styles.formInput, { height: 75, textAlignVertical: 'top' }]}
                   multiline
@@ -919,7 +931,18 @@ export function CustomerDetailContent({
               </View>
 
               <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Foto do Cliente</Text>
+                <Text style={styles.formLabel}>{t('clients.notes')}</Text>
+                <TextInput
+                  style={[styles.formInput, { height: 75, textAlignVertical: 'top' }]}
+                  multiline
+                  placeholder={t('clients.notesPlaceholder')}
+                  value={editNotes}
+                  onChangeText={setEditNotes}
+                />
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>{t('customerDetail.customerPhoto')}</Text>
                 <View style={styles.photoRow}>
                   <View style={styles.photoPreview}>
                     {editPicture && !isEmoji(editPicture) ? (
@@ -933,7 +956,7 @@ export function CustomerDetailContent({
                   <View style={{ flex: 1 }}>
                     <View style={styles.photoActions}>
                       <TouchableOpacity style={styles.photoBtn} onPress={pickEditPhoto} activeOpacity={0.8}>
-                        <Text style={styles.photoBtnText}>{editPicture && !isEmoji(editPicture) ? 'Trocar' : 'Escolher'}</Text>
+                        <Text style={styles.photoBtnText}>{editPicture && !isEmoji(editPicture) ? t('customerDetail.trocar') : t('customerDetail.escolher')}</Text>
                       </TouchableOpacity>
                       {editPicture ? (
                         <TouchableOpacity
@@ -941,17 +964,17 @@ export function CustomerDetailContent({
                           onPress={() => setEditPicture('')}
                           activeOpacity={0.8}
                         >
-                          <Text style={[styles.photoBtnText, styles.photoBtnTextDanger]}>Remover</Text>
+                          <Text style={[styles.photoBtnText, styles.photoBtnTextDanger]}>{t('customerDetail.remover')}</Text>
                         </TouchableOpacity>
                       ) : null}
                     </View>
-                    <Text style={styles.photoHint}>Se escolher foto, ela será enviada quando houver internet.</Text>
+                    <Text style={styles.photoHint}>{t('customerDetail.photoHint')}</Text>
                   </View>
                 </View>
               </View>
 
               <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Ou escolha um Avatar Emoji</Text>
+                <Text style={styles.formLabel}>{t('customerDetail.orChooseEmoji')}</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.emojiPicker}>
                   {['👤', '👨‍💼', '👩‍💼', '🧑‍🌾', '👵', '👴', '🦁', '🐱', '🐶', '🦊', '🐻', '🐼', '🐨', '🐸'].map((emoji) => (
                     <TouchableOpacity
@@ -968,13 +991,13 @@ export function CustomerDetailContent({
 
             <View style={styles.modalButtonsRow}>
               <Button
-                title="Cancelar"
+                title={t('customerDetail.cancelar')}
                 variant="secondary"
                 onPress={() => setIsEditProfileOpen(false)}
                 style={{ flex: 1, marginRight: 8 }}
               />
               <Button
-                title="Salvar"
+                title={t('customerDetail.salvar')}
                 variant="primary"
                 onPress={handleSaveProfile}
                 style={{ flex: 1 }}
@@ -993,15 +1016,15 @@ export function CustomerDetailContent({
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>Ajustar Anotação</Text>
+            <Text style={styles.modalTitle}>{t('customerDetail.editItemDesc')}</Text>
 
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Descrição</Text>
+              <Text style={styles.formLabel}>{t('customerDetail.description')}</Text>
               <TextInput style={styles.formInput} value={itemDesc} onChangeText={setItemDesc} />
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Valor Corrigido (R$)</Text>
+              <Text style={styles.formLabel}>{t('customerDetail.correctedValue')}</Text>
               <TextInput
                 style={styles.formInput}
                 keyboardType="decimal-pad"
@@ -1012,13 +1035,13 @@ export function CustomerDetailContent({
 
             <View style={styles.modalButtonsRow}>
               <Button
-                title="Cancelar"
+                title={t('customerDetail.cancelar')}
                 variant="secondary"
                 onPress={() => setSelectedItem(null)}
                 style={{ flex: 1, marginRight: 8 }}
               />
               <Button
-                title="Confirmar"
+                title={t('customerDetail.confirm')}
                 variant="accent"
                 onPress={handleSaveItemEdit}
                 style={{ flex: 1 }}

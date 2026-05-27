@@ -1,15 +1,19 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { useDailyDueStore } from '../../src/store';
-import { theme } from '../../src/theme';
+import { useTheme } from '../../src/theme';
 import { supabase, extractUserMetadata } from '@dailydue/api';
+import { useTranslation } from 'react-i18next';
 
 export default function AuthCallback() {
   const router = useRouter();
+  const { t } = useTranslation();
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { user, authChecked, setUser } = useDailyDueStore();
-  const [message, setMessage] = useState('Finalizando autenticação...');
+  const [message, setMessage] = useState(t('auth.finishingAuth'));
 
   useEffect(() => {
     let active = true;
@@ -67,11 +71,11 @@ export default function AuthCallback() {
           return;
         }
 
-        setMessage('Conferindo sessão...');
+        setMessage(t('auth.checkingSession'));
       } catch (error: any) {
         console.warn('[Auth] Callback failed:', error);
         if (active) {
-          setMessage(error?.message || 'Não foi possível finalizar o login.');
+          setMessage(error?.message || t('auth.loginFailed'));
           setTimeout(() => router.replace('/(auth)/login'), 1800);
         }
       }
@@ -115,7 +119,7 @@ export default function AuthCallback() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: ReturnType<typeof useTheme>['theme']) => StyleSheet.create({
   container: {
     flex: 1,
     alignItems: 'center',

@@ -5,10 +5,20 @@ import { Platform, Share } from 'react-native';
 
 import { openClientWhatsapp } from './whatsapp';
 
+import i18n from '../core/i18n';
+
+const LOCALE_MAP: Record<string, { locale: string; currency: string }> = {
+  en: { locale: 'en-US', currency: 'USD' },
+  hi: { locale: 'hi-IN', currency: 'INR' },
+  ta: { locale: 'ta-IN', currency: 'INR' },
+};
+
 export function formatCurrency(amount: number): string {
-  return Number(amount || 0).toLocaleString('pt-BR', {
+  const lang = i18n.language || 'en';
+  const config = LOCALE_MAP[lang] || { locale: 'en-IN', currency: 'INR' };
+  return Number(amount || 0).toLocaleString(config.locale, {
     style: 'currency',
-    currency: 'BRL',
+    currency: config.currency,
   });
 }
 
@@ -32,7 +42,7 @@ export async function sendWhatsappReminder({
   totalDebt,
   lastItems,
   phone,
-  pixKey = 'mercadinho@bairro.com.br',
+  pixKey = 'shop@upi',
   messageType = 'default',
   businessName,
   dueDate,
@@ -41,21 +51,35 @@ export async function sendWhatsappReminder({
   let msg = '';
 
   if (messageType === 'simple') {
-    msg = `Olá, ${firstName}! Tudo bem? ✅ 📖\nPassando para enviar o lembrete de pagamento do seu saldo no Caderninho.\n\n*Valor pendente:* ${formatCurrency(totalDebt)}\n\nFacilite o pagamento com a nossa chave PIX Copia e Cola: *${pixKey}*\n\nObrigado pela preferência! 🙏`;
+    msg = i18n.t('whatsapp.simpleTemplate', {
+      name: firstName,
+      value: formatCurrency(totalDebt),
+      pixKey,
+    });
   } else if (messageType === 'detailed') {
     let itemsText = '';
     lastItems.slice(0, 5).forEach((item) => {
       itemsText += `\n▫️ ${item.description} - ${formatCurrency(item.amount)}`;
     });
-    msg = `Olá, ${firstName}! Tudo bem? ✅ 📖\nPassando para enviar o resumo da sua continha no nosso Caderninho de Fiado.\n\n*Total devendo:* ${formatCurrency(totalDebt)}\n\n*Últimos itens anotados:*${itemsText}\n\nFacilite o pagamento com a nossa chave PIX Copia e Cola: *${pixKey}*\n\nObrigado pela preferência e amizade de sempre! 🙏`;
+    msg = i18n.t('whatsapp.detailedTemplate', {
+      name: firstName,
+      value: formatCurrency(totalDebt),
+      items: itemsText,
+      pixKey,
+    });
   } else {
-    // User requested template as default
-    const formattedAmount = Number(totalDebt || 0).toLocaleString('pt-BR', {
+    const formattedAmount = Number(totalDebt || 0).toLocaleString('en-US', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
-    const bName = businessName || 'nossa loja';
-    msg = `Olá ${customerName}, tudo bem?\n\nAqui é da ${bName}. Estou passando para lembrar do fiado pendente no valor de R$ ${formattedAmount}${dueDate ? `, com vencimento em ${dueDate}` : ""}.\n\nPode me dar um retorno quando possível?`;
+    const bName = businessName || 'our store';
+    const dueDateStr = dueDate ? `, due on ${dueDate}` : '';
+    msg = i18n.t('whatsapp.defaultTemplate', {
+      customerName,
+      businessName: bName,
+      amount: formattedAmount,
+      dueDate: dueDateStr,
+    });
   }
 
   await openClientWhatsapp(phone, msg);
@@ -69,7 +93,13 @@ export async function sendWhatsappReceipt(
   phone?: string
 ) {
   const firstName = customerName.split(' ')[0];
-  const msg = `🧾 *RECIBO DIGITAL - CONTROLE DE FIADO*\n\nOlá, ${firstName}!\nConfirmamos o recebimento do seu pagamento no valor de *${formatCurrency(amountPaid)}* (${method}).\n\n*Saldo anterior:* ${formatCurrency(totalDebt + amountPaid)}\n*Saldo restante atualizado:* ${formatCurrency(totalDebt)}\n\nAgradecemos muito pela pontualidade e preferência! 🙏`;
+  const msg = i18n.t('whatsapp.receiptTemplate', {
+    name: firstName,
+    amount: formatCurrency(amountPaid),
+    method,
+    previousBalance: formatCurrency(totalDebt + amountPaid),
+    remainingBalance: formatCurrency(totalDebt),
+  });
 
   await openClientWhatsapp(phone, msg);
 }
@@ -101,8 +131,8 @@ export async function generateStatementPDF(
     .map(
       (h) => `
     <tr>
-      <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 14px;">${new Date(h.created_at).toLocaleDateString('pt-BR')}</td>
-      <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 14px;"><b>${h.type === 'debt' ? '➕ Lançamento' : h.type === 'payment' ? '✔️ Pagamento' : '⚠️ Sistema'}</b><br><span style="color: #64748b; font-size: 12px;">${h.description}</span></td>
+      <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 14px;">${new Date(h.created_at).toLocaleDateString('en-US')}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 14px;"><b>${h.type === 'debt' ? '➕ Entry' : h.type === 'payment' ? '✔️ Payment' : '⚠️ System'}</b><br><span style="color: #64748b; font-size: 12px;">${h.description}</span></td>
       <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right; color: ${h.type === 'debt' ? '#ea580c' : '#059669'}; font-weight: bold; font-size: 14px;">${formatCurrency(h.amount)}</td>
     </tr>
   `
@@ -125,39 +155,39 @@ export async function generateStatementPDF(
       </head>
       <body>
         <div class="header">
-          <h1 class="title">${businessName || 'Extrato Oficial de Fiado'}</h1>
-          <div class="subtitle">Caderninho de Controle Digital - Fiado</div>
+          <h1 class="title">${businessName || 'Credit Ledger Statement'}</h1>
+          <div class="subtitle">Digital Ledger Control</div>
           <div style="font-size: 12px; color: #64748b; margin-top: 8px;">
-            Gerado em ${new Date().toLocaleString('pt-BR')}
+            Generated on ${new Date().toLocaleString('en-US')}
           </div>
         </div>
         <div class="summary">
-          <div style="margin-bottom: 8px;">Cliente: <b style="font-size: 20px;">${customerName}</b></div>
+          <div style="margin-bottom: 8px;">Client: <b style="font-size: 20px;">${customerName}</b></div>
           ${cleanPhone ? `<div style="font-size: 14px; color: #475569; margin-bottom: 4px;">📞 WhatsApp: <b>(${cleanPhone.substring(0, 2)}) ${cleanPhone.substring(2)}</b></div>` : ''}
           ${formattedDoc ? `<div style="font-size: 14px; color: #475569; margin-bottom: 4px;">🪪 ${docLabel}: <b>${formattedDoc}</b></div>` : ''}
-          ${cleanAddress ? `<div style="font-size: 14px; color: #475569; margin-bottom: 4px;">📍 Endereço: <b>${cleanAddress}${cleanCep ? ` - CEP: ${cleanCep.replace(/(\d{5})(\d{3})/, '$1-$2')}` : ''}</b></div>` : ''}
+          ${cleanAddress ? `<div style="font-size: 14px; color: #475569; margin-bottom: 4px;">📍 Address: <b>${cleanAddress}${cleanCep ? ` - ZIP: ${cleanCep.replace(/(\d{5})(\d{3})/, '$1-$2')}` : ''}</b></div>` : ''}
           <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e2e8f0;">
-            Saldo Atual Devendo: <b style="color: #ea580c; font-size: 22px;">${formatCurrency(totalDebt)}</b>
+            Current Debt Balance: <b style="color: #ea580c; font-size: 22px;">${formatCurrency(totalDebt)}</b>
           </div>
         </div>
-        <h3>Histórico de Lançamentos e Baixas</h3>
+        <h3>Transactions History</h3>
         <table>
           <thead>
             <tr>
-              <th>Data</th>
-              <th>Movimentação</th>
-              <th style="text-align: right;">Valor</th>
+              <th>Date</th>
+              <th>Movement</th>
+              <th style="text-align: right;">Amount</th>
             </tr>
           </thead>
           <tbody>
-            ${rows || '<tr><td colspan="3" style="text-align:center; padding: 20px; color: #64748b;">Nenhuma movimentação</td></tr>'}
+            ${rows || '<tr><td colspan="3" style="text-align:center; padding: 20px; color: #64748b;">No transactions</td></tr>'}
           </tbody>
         </table>
         ${pixKey ? `
         <div style="background-color: #ecfdf5; border: 1px solid #a7f3d0; padding: 16px; border-radius: 12px; margin-top: 30px; font-size: 14px; line-height: 1.5; color: #064e3b;">
-          💸 <b>Pagamento Facilitado via PIX</b><br>
-          Você pode efetuar o pagamento do saldo devedor utilizando a chave PIX do estabelecimento:<br>
-          Chave PIX: <b style="font-size: 16px; background-color: #ffffff; padding: 2px 8px; border-radius: 4px; border: 1px solid #d1fae5;">${pixKey}</b>
+          💸 <b>Payment via UPI</b><br>
+          You can pay the outstanding balance using the store's UPI key:<br>
+          UPI Key: <b style="font-size: 16px; background-color: #ffffff; padding: 2px 8px; border-radius: 4px; border: 1px solid #d1fae5;">${pixKey}</b>
         </div>
         ` : ''}
       </body>

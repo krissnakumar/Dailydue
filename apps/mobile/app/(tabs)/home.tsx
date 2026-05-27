@@ -6,6 +6,7 @@ import { useDailyDueStore } from '../../src/store';
 import { formatCurrency } from '../../src/utils';
 import { theme } from '../../src/theme';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 
 const isEmoji = (str?: string) => {
   if (!str) return false;
@@ -20,11 +21,12 @@ const isEmoji = (str?: string) => {
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { customers, businessConfig } = useDailyDueStore();
   const overdueDays = businessConfig.overdueDays || 15;
   const [searchQuery, setSearchQuery] = React.useState('');
 
-  // Calcula Métricas de Resumo
+  // Summary Metrics
   let totalReceber = 0;
   let recebidoHoje = 0;
   let clientesDevendo = 0;
@@ -124,10 +126,10 @@ export default function HomeScreen() {
   const dashboardSidebar = (
     <View style={styles.sidebarContent}>
       {[
-        { label: 'Dashboard', icon: 'home-outline' as const, href: '/home' as const },
-        { label: 'Clientes', icon: 'people-outline' as const, href: '/clientes' as const },
-        { label: 'Relatórios', icon: 'bar-chart-outline' as const, href: '/relatorios' as const },
-        { label: 'Configurações', icon: 'settings-outline' as const, href: '/config' as const },
+        { label: t('home.dashboard'), icon: 'home-outline' as const, href: '/home' as const },
+        { label: t('home.customersTab'), icon: 'people-outline' as const, href: '/clientes' as const },
+        { label: t('home.reports'), icon: 'bar-chart-outline' as const, href: '/relatorios' as const },
+        { label: t('home.settings'), icon: 'settings-outline' as const, href: '/config' as const },
       ].map((item) => (
         <TouchableOpacity key={item.label} style={styles.sidebarItem} onPress={() => router.push(item.href)}>
           <Ionicons name={item.icon} size={18} color={theme.colors.textMuted} />
@@ -139,9 +141,9 @@ export default function HomeScreen() {
 
   const dashboardRightPanel = (
     <View style={styles.rightPanelContent}>
-      <Text style={styles.panelTitle}>Resumo da praça</Text>
+      <Text style={styles.panelTitle}>{t('home.panelTitle')}</Text>
       <Text style={styles.panelValue}>{clientesAtrasados}</Text>
-      <Text style={styles.panelMuted}>clientes com cobrança acima de {overdueDays} dias</Text>
+      <Text style={styles.panelMuted}>{t('home.panelMuted', { days: overdueDays })}</Text>
     </View>
   );
 
@@ -157,7 +159,7 @@ export default function HomeScreen() {
       >
         <AdaptiveGrid minItemWidth={160} maxColumns={4} style={styles.metricsContainer}>
           <MetricTile
-            title="Recebido"
+            title={t('home.receivedToday')}
             value={formatCurrency(recebidoHoje)}
             statusColor="#3b82f6"
             valueStyle={styles.valBlue}
@@ -165,7 +167,7 @@ export default function HomeScreen() {
             icon="cash-outline"
           />
           <MetricTile
-            title="A Receber"
+            title={t('home.toReceiveShort')}
             value={formatCurrency(totalReceber)}
             statusColor={theme.colors.primary}
             valueStyle={styles.valGreen}
@@ -173,7 +175,7 @@ export default function HomeScreen() {
             icon="trending-up-outline"
           />
           <MetricTile
-            title="Devedores"
+            title={t('home.debtorsShort')}
             value={String(clientesDevendo)}
             statusColor="#eab308"
             valueStyle={styles.valAmber}
@@ -181,7 +183,7 @@ export default function HomeScreen() {
             icon="person-outline"
           />
           <MetricTile
-            title="Clientes"
+            title={t('home.customersShort')}
             value={String(customers.length)}
             statusColor="#6366f1"
             valueStyle={styles.valIndigo}
@@ -196,7 +198,7 @@ export default function HomeScreen() {
             <Ionicons name="search" size={15} color={theme.colors.textMuted} style={{ marginRight: 6 }} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Buscar cliente..."
+              placeholder={t('home.searchPlaceholder')}
               placeholderTextColor={theme.colors.textMuted}
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -225,7 +227,7 @@ export default function HomeScreen() {
               Resultados ({filteredCustomers.length})
             </Text>
             {filteredCustomers.length === 0 ? (
-              <Text style={styles.noResultsText}>Nenhum cliente encontrado.</Text>
+              <Text style={styles.noResultsText}>{t('home.noResults')}</Text>
             ) : (
               filteredCustomers.map((cust) => (
                 <TouchableOpacity
@@ -257,7 +259,7 @@ export default function HomeScreen() {
                     </View>
                   </View>
                   <Text style={styles.searchResultDebt}>
-                    {cust.total_debt > 0 ? formatCurrency(cust.total_debt) : 'Sem débito'}
+                    {cust.total_debt > 0 ? formatCurrency(cust.total_debt) : t('home.noDebt')}
                   </Text>
                 </TouchableOpacity>
               ))
@@ -267,15 +269,15 @@ export default function HomeScreen() {
 
         {/* Linha do Tempo de Atividades Recentes */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Últimas Movimentações na Loja</Text>
+          <Text style={styles.sectionTitle}>{t('home.recentMovements')}</Text>
           <TouchableOpacity onPress={() => router.push('/relatorios')}>
-            <Text style={styles.linkText}>Ver Relatórios</Text>
+            <Text style={styles.linkText}>{t('home.viewReports')}</Text>
           </TouchableOpacity>
         </View>
 
         <Card style={styles.feedCard}>
           {atividadesRecentes.length === 0 ? (
-            <Text style={styles.emptyFeed}>Nenhuma movimentação registrada na loja hoje.</Text>
+            <Text style={styles.emptyFeed}>{t('home.noMovements')}</Text>
           ) : (
             atividadesRecentes.map((tx, idx) => {
               const isDebt = tx.type === 'debt';

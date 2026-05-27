@@ -5,6 +5,7 @@ import { CustomerClient, useDailyDueStore, HistoryItem, isTempCustomerId } from 
 import { formatCurrency, sendWhatsappReminder } from '../utils';
 import { theme } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 
 const isEmoji = (str?: string) => {
   if (!str) return false;
@@ -34,6 +35,7 @@ export const CustomerRow: React.FC<CustomerRowProps> = ({
   pixKey,
   selected,
 }) => {
+  const { t } = useTranslation();
   const swipeableRef = useRef<Swipeable>(null);
   const { deleteCustomer, deleteHistoryItem, businessConfig, syncQueue } = useDailyDueStore();
   const isZero = customer.total_debt === 0;
@@ -48,7 +50,7 @@ export const CustomerRow: React.FC<CustomerRowProps> = ({
     (h: HistoryItem) => h.type === 'debt' && (Date.now() - new Date(h.created_at).getTime()) / 86400000 > overdueDays
   );
 
-  const lastItem = customer.history.length > 0 ? customer.history[0].description : 'Sem lançamentos';
+  const lastItem = customer.history.length > 0 ? customer.history[0].description : t('clients.noClients');
 
   const handleWhatsappPress = () => {
     sendWhatsappReminder({
@@ -68,16 +70,16 @@ export const CustomerRow: React.FC<CustomerRowProps> = ({
 
     const options: AlertButton[] = [
       {
-        text: 'Excluir Cadastro Permanentemente',
+        text: t('customerDetail.delete'),
         style: 'destructive',
         onPress: () => {
           Alert.alert(
-            'Excluir Cliente',
-            `Deseja realmente excluir "${customer.full_name}" permanentemente?\n\nTodo o histórico de anotações será perdido e excluído do servidor.`,
+            t('customerDetail.delete'),
+            t('customerRow.deleteConfirmDesc', { name: customer.full_name }),
             [
-              { text: 'Cancelar', style: 'cancel' },
+              { text: t('customerRow.cancel'), style: 'cancel' },
               {
-                text: 'Sim, Excluir',
+                text: t('customerRow.yesDelete'),
                 style: 'destructive',
                 onPress: () => {
                   deleteCustomer(customer.id);
@@ -91,16 +93,16 @@ export const CustomerRow: React.FC<CustomerRowProps> = ({
 
     if (lastTx) {
       options.unshift({
-        text: 'Estornar Último Lançamento',
+        text: t('customerDetail.edit'),
         style: 'default',
         onPress: () => {
           Alert.alert(
-            'Confirmar Estorno',
-            `Deseja remover "${lastTx.description}" de ${formatCurrency(lastTx.amount)}?`,
+            t('common.confirm'),
+            t('customerRow.removeConfirmDesc', { description: lastTx.description, value: formatCurrency(lastTx.amount) }),
             [
-              { text: 'Não', style: 'cancel' },
+              { text: t('common.no'), style: 'cancel' },
               {
-                text: 'Sim, Estornar',
+                text: t('common.yes'),
                 style: 'destructive',
                 onPress: () => {
                   deleteHistoryItem(customer.id, lastTx.id);
@@ -113,12 +115,12 @@ export const CustomerRow: React.FC<CustomerRowProps> = ({
     }
 
     options.push({
-      text: 'Cancelar',
+      text: t('common.cancel'),
       style: 'cancel',
       onPress: () => {},
     });
 
-    Alert.alert('Opções do Cliente', customer.full_name, options);
+    Alert.alert(t('common.options'), customer.full_name, options);
   };
 
   const renderLeftActions = (progress: any, dragX: any) => {
@@ -135,9 +137,8 @@ export const CustomerRow: React.FC<CustomerRowProps> = ({
           onSwipeRight();
         }}
         activeOpacity={0.8}
-      >
-        <Animated.Text style={[styles.actionText, { transform: [{ scale }] }]}>
-          Lançar Fiado
+      >            <Animated.Text style={[styles.actionText, { transform: [{ scale }] }]}>
+          {t('newFiado.title')}
         </Animated.Text>
       </TouchableOpacity>
     );
@@ -157,9 +158,8 @@ export const CustomerRow: React.FC<CustomerRowProps> = ({
           onSwipeLeft();
         }}
         activeOpacity={0.8}
-      >
-        <Animated.Text style={[styles.actionText, { transform: [{ scale }] }]}>
-          Receber
+      >            <Animated.Text style={[styles.actionText, { transform: [{ scale }] }]}>
+          {t('payments.title')}
         </Animated.Text>
       </TouchableOpacity>
     );
@@ -204,7 +204,7 @@ export const CustomerRow: React.FC<CustomerRowProps> = ({
                 {hasPendingSync && (
                   <View style={styles.pendingBadge}>
                     <Ionicons name="cloud-upload" size={11} color="#3b82f6" style={{ marginRight: 2 }} />
-                    <Text style={styles.pendingBadgeText}>Pendente</Text>
+                    <Text style={styles.pendingBadgeText}>{t('common.pending')}</Text>
                   </View>
                 )}
               </View>
@@ -259,7 +259,7 @@ export const CustomerRow: React.FC<CustomerRowProps> = ({
                   { color: isZero ? '#065f46' : isAtrasado ? '#991b1b' : '#c2410c' },
                 ]}
               >
-                {isZero ? 'Quitado' : isAtrasado ? 'Atrasado' : 'Devendo'}
+                {isZero ? t('customerDetail.paid') : isAtrasado ? t('customerDetail.overdue') : t('customerDetail.pending')}
               </Text>
             </View>
           </View>
@@ -269,12 +269,12 @@ export const CustomerRow: React.FC<CustomerRowProps> = ({
         <View style={styles.actionsRow}>
           <TouchableOpacity style={styles.btnCardAdd} onPress={onSwipeRight} activeOpacity={0.7}>
             <Ionicons name="add" size={14} color={theme.colors.accent} />
-            <Text style={styles.btnTextAdd}>Fiado</Text>
+            <Text style={styles.btnTextAdd}>{t('newFiado.title')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.btnCardReceive} onPress={onSwipeLeft} activeOpacity={0.7}>
             <Ionicons name="checkmark" size={14} color={theme.colors.primaryDark} />
-            <Text style={styles.btnTextReceive}>Receber</Text>
+            <Text style={styles.btnTextReceive}>{t('payments.title')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.btnWhatsapp} onPress={handleWhatsappPress} activeOpacity={0.7}>

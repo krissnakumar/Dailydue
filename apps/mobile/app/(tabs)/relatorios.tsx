@@ -12,8 +12,10 @@ import { useResponsive } from '../../src/utils/responsive';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
+import { useTranslation } from 'react-i18next';
 
 export default function RelatoriosScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { customers } = useDailyDueStore();
   const layout = useResponsive();
@@ -54,15 +56,15 @@ export default function RelatoriosScreen() {
   historyFlat.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   const handleExportPDF = () => {
-    generateStatementPDF('Balanço Geral da Loja', totalDevendo, historyFlat);
+    generateStatementPDF(t('reports.storeBalanceSheet'), totalDevendo, historyFlat);
   };
 
   const handleExportExcel = async () => {
     try {
-      const header = 'Data;Cliente;Descricao;Tipo;Valor\n';
+      const header = t('reports.csvHeader') + '\n';
       const rows = historyFlat.map(item => {
         const dt = new Date(item.created_at).toLocaleDateString('pt-BR');
-        const typeStr = item.type === 'debt' ? 'Fiado' : 'Pagamento';
+        const typeStr = item.type === 'debt' ? t('reports.csvDebt') : t('reports.csvPayment');
         return `${dt};${item.customerName};${item.description};${typeStr};${item.amount}`;
       }).join('\n');
 
@@ -75,15 +77,15 @@ export default function RelatoriosScreen() {
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(fileUri, {
           mimeType: 'text/csv',
-          dialogTitle: 'Exportar Relatório',
+          dialogTitle: t('reports.exportDialogTitle'),
           UTI: 'public.comma-separated-values-text'
         });
       } else {
-        Alert.alert('Erro', 'O compartilhamento não está disponível neste dispositivo.');
+        Alert.alert(t('common.error'), t('reports.csvError'));
       }
     } catch (error) {
       console.error(error);
-      Alert.alert('Erro', 'Falha ao gerar o arquivo CSV.');
+      Alert.alert(t('common.error'), t('reports.csvFail'));
     }
   };
 
@@ -91,7 +93,7 @@ export default function RelatoriosScreen() {
     <View style={styles.wrapper}>
       <Header
         showTotal={false}
-        title="Relatórios Financeiros"
+        title={t('reports.financialReports')}
         leftAction={
           <TouchableOpacity
             onPress={() => router.back()}
@@ -115,38 +117,38 @@ export default function RelatoriosScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Animated.View entering={FadeInDown.duration(0)}>
-          <Text style={styles.sectionTitle}>Métricas Globais Acumuladas</Text>
+          <Text style={styles.sectionTitle}>{t('reports.globalMetrics')}</Text>
 
           <Card style={styles.cardBox}>
             <View style={styles.rowItem}>
-              <Text style={styles.rowLabel}>Total Lançado (Fiados):</Text>
+              <Text style={styles.rowLabel}>{t('reports.totalDebts')}</Text>
               <Text style={styles.rowValDebt}>{formatCurrency(totalDebts)}</Text>
             </View>
 
             <View style={styles.rowItem}>
-              <Text style={styles.rowLabel}>Total Recebido (Baixas):</Text>
+              <Text style={styles.rowLabel}>{t('reports.totalPayments')}</Text>
               <Text style={styles.rowValPay}>{formatCurrency(totalPayments)}</Text>
             </View>
 
             <View style={[styles.rowItem, styles.rowLast]}>
-              <Text style={styles.rowLabelBold}>Saldo em Aberto na Praça:</Text>
+              <Text style={styles.rowLabelBold}>{t('reports.outstandingBalance')}</Text>
               <Text style={styles.rowValNet}>{formatCurrency(totalDevendo)}</Text>
             </View>
           </Card>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(0).duration(0)}>
-          <Text style={styles.sectionTitle}>Opções de Exportação</Text>
+          <Text style={styles.sectionTitle}>{t('reports.exportOptions')}</Text>
           <AdaptiveGrid minItemWidth={240} maxColumns={2} style={styles.exportGrid}>
             <Button
-              title="Exportar Extrato (PDF)"
+              title={t('reports.exportPDF')}
               leftIcon={<Ionicons name="document-text-outline" size={16} color={theme.colors.textMain} style={{ marginRight: 6 }} />}
               variant="secondary"
               style={styles.exportBtn}
               onPress={handleExportPDF}
             />
             <Button
-              title="Planilha de Dados (CSV)"
+              title={t('reports.exportCSV')}
               leftIcon={<Ionicons name="bar-chart-outline" size={16} color={theme.colors.textMain} style={{ marginRight: 6 }} />}
               variant="secondary"
               style={styles.exportBtn}
@@ -156,11 +158,11 @@ export default function RelatoriosScreen() {
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(0).duration(0)}>
-          <Text style={styles.sectionTitle}>Registro Geral de Auditoria ({historyFlat.length})</Text>
+          <Text style={styles.sectionTitle}>{t('reports.auditLog', { count: historyFlat.length })}</Text>
 
           <Card style={styles.tableCard}>
             {historyFlat.length === 0 ? (
-              <Text style={styles.emptyText}>Nenhum registro encontrado.</Text>
+              <Text style={styles.emptyText}>{t('reports.noRecords')}</Text>
             ) : (
               historyFlat.map((item, idx) => {
                 const dt = new Date(item.created_at).toLocaleDateString('pt-BR');

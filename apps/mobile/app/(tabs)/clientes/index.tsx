@@ -19,6 +19,7 @@ import Animated from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatCurrency } from '../../../src/utils';
+import { useTranslation } from 'react-i18next';
 
 const isEmoji = (str?: string) => {
   if (!str) return false;
@@ -101,6 +102,7 @@ const CustomerTableRow = React.memo(({ item, isSelected, isPendingSync, onPress 
 
 export default function ClientesScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const navigation = useNavigation();
   const layout = useResponsive();
   const insets = useSafeAreaInsets();
@@ -146,7 +148,7 @@ export default function ClientesScreen() {
     return unsubscribe;
   }, [navigation]);
 
-  // Calcula Métricas de Resumo Geral
+  // General Summary Metrics
   const totalReceber = customers.reduce((sum, c) => sum + c.total_debt, 0);
   const clientesDevendo = customers.filter((c) => c.total_debt > 0).length;
   const clientesEmDia = customers.filter((c) => c.total_debt === 0).length;
@@ -216,40 +218,40 @@ export default function ClientesScreen() {
     return (
       <ScrollView contentContainerStyle={styles.summaryScroll} showsVerticalScrollIndicator={false}>
         <View style={styles.summaryHeader}>
-          <Text style={styles.summaryTitle}>Resumo Geral dos Clientes</Text>
-          <Text style={styles.summarySubtitle}>Visão consolidada e atividades recentes</Text>
+          <Text style={styles.summaryTitle}>{t('clients.generalSummary')}</Text>
+          <Text style={styles.summarySubtitle}>{t('clients.consolidatedView')}</Text>
         </View>
 
         <View style={styles.metricsGrid}>
           <View style={[styles.metricCard, { borderLeftColor: theme.colors.accent }]}>
             <Ionicons name="cash-outline" size={20} color={theme.colors.accent} style={{ marginBottom: 6 }} />
-            <Text style={styles.metricLabel}>Total a Receber</Text>
+            <Text style={styles.metricLabel}>{t('clients.totalOwed')}</Text>
             <Text style={[styles.metricValue, { color: theme.colors.accent }]}>{formatCurrency(totalReceber)}</Text>
           </View>
 
           <View style={[styles.metricCard, { borderLeftColor: '#eab308' }]}>
             <Ionicons name="people-outline" size={20} color="#eab308" style={{ marginBottom: 6 }} />
-            <Text style={styles.metricLabel}>Clientes Devendo</Text>
+            <Text style={styles.metricLabel}>{t('clients.debtors')}</Text>
             <Text style={styles.metricValue}>{clientesDevendo}</Text>
           </View>
 
           <View style={[styles.metricCard, { borderLeftColor: '#ef4444' }]}>
             <Ionicons name="alert-circle-outline" size={20} color="#ef4444" style={{ marginBottom: 6 }} />
-            <Text style={styles.metricLabel}>{"Em Atraso (>15 dias)"}</Text>
+            <Text style={styles.metricLabel}>{t('clients.overdue', { days: 15 })}</Text>
             <Text style={[styles.metricValue, { color: '#ef4444' }]}>{clientesAtrasados}</Text>
           </View>
 
           <View style={[styles.metricCard, { borderLeftColor: '#22c55e' }]}>
             <Ionicons name="checkmark-circle-outline" size={20} color="#22c55e" style={{ marginBottom: 6 }} />
-            <Text style={styles.metricLabel}>Clientes em Dia</Text>
+            <Text style={styles.metricLabel}>{t('clients.upToDate')}</Text>
             <Text style={[styles.metricValue, { color: '#22c55e' }]}>{clientesEmDia}</Text>
           </View>
         </View>
 
         <View style={styles.recentSection}>
-          <Text style={styles.recentTitle}>Lançamentos Recentes (Todos os Clientes)</Text>
+          <Text style={styles.recentTitle}>{t('clients.recentEntries')}</Text>
           {recentActivities.length === 0 ? (
-            <Text style={styles.emptyRecentText}>Nenhuma atividade recente registrada.</Text>
+            <Text style={styles.emptyRecentText}>{t('clients.noRecentEntries')}</Text>
           ) : (
             recentActivities.map((item, index) => {
               const isDebt = item.type === 'debt';
@@ -271,7 +273,7 @@ export default function ClientesScreen() {
                       </Text>
                     </View>
                     <Text style={styles.activityDesc}>{item.description}</Text>
-                    <Text style={styles.activityMeta}>{dtStr} • Por {item.created_by || 'Dono'}</Text>
+                    <Text style={styles.activityMeta}>{dtStr} • {t('clients.activityBy')} {item.created_by || t('clients.activityOwner')}</Text>
                   </View>
                 </View>
               );
@@ -285,14 +287,14 @@ export default function ClientesScreen() {
   return (
     <View style={showSplitScreen ? styles.splitWrapper : styles.wrapper}>
       <View style={showSplitScreen ? styles.leftPane : { flex: 1 }}>
-        <Header showTotal={false} title="Relação de Clientes" />
+        <Header showTotal={false} title={t('clients.clientList')} />
 
         <Animated.View style={styles.searchContainer}>
           <View style={styles.inputWrapper}>
             <Ionicons name="search-outline" size={16} color={theme.colors.textMuted} style={{ marginRight: 8 }} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Buscar por nome, celular ou R$..."
+              placeholder={t('clients.search')}
               placeholderTextColor={theme.colors.textMuted}
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -324,7 +326,7 @@ export default function ClientesScreen() {
                   <Ionicons name="ellipse" size={8} color={activeFilter === f ? '#ffffff' : '#22c55e'} style={{ marginRight: 4 }} />
                 )}
                 <Text style={[styles.filterText, activeFilter === f && styles.filterTextActive]}>
-                  {f === 'all' ? 'Todos' : f === 'devendo' ? 'Devendo' : f === 'atrasados' ? 'Atrasados' : 'Em Dia'}
+                  {f === 'all' ? t('clients.filterAll') : f === 'devendo' ? t('clients.filterDebt') : f === 'atrasados' ? t('clients.filterOverdue') : t('clients.filterPaid')}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -333,23 +335,23 @@ export default function ClientesScreen() {
 
         <Animated.View style={styles.listHeader}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text style={styles.listCount}>{filteredCustomers.length} clientes encontrados</Text>
+            <Text style={styles.listCount}>{filteredCustomers.length} {t('clients.clientsFound')}</Text>
             {showSplitScreen && selectedCustomerId && (
               <TouchableOpacity onPress={() => setSelectedCustomerId(undefined)} style={styles.clearSelectionBtn}>
-                <Text style={styles.clearSelectionText}>• Ver Resumo</Text>
+                <Text style={styles.clearSelectionText}>• {t('clients.viewSummary')}</Text>
               </TouchableOpacity>
             )}
           </View>
           <TouchableOpacity onPress={() => router.push('/clientes/novo')} style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Ionicons name="add" size={14} color={theme.colors.primary} style={{ marginRight: 2 }} />
-            <Text style={styles.quickAddText}>Cadastrar</Text>
+            <Text style={styles.quickAddText}>{t('clients.register')}</Text>
           </TouchableOpacity>
         </Animated.View>
 
         {/* Table Header Row */}
         <View style={styles.tableHeader}>
-          <Text style={[styles.thText, { flex: 1 }]}>Cliente</Text>
-          <Text style={[styles.thText, { flex: 1, textAlign: 'right' }]}>Total</Text>
+          <Text style={[styles.thText, { flex: 1 }]}>{t('clients.tableClient')}</Text>
+          <Text style={[styles.thText, { flex: 1, textAlign: 'right' }]}>{t('clients.tableTotal')}</Text>
         </View>
 
         <OptimizedFlashList
@@ -369,9 +371,9 @@ export default function ClientesScreen() {
           ListEmptyComponent={() => (
             <View style={styles.emptyState}>
               <Ionicons name="folder-open-outline" size={48} color={theme.colors.textMuted} style={{ marginBottom: 12, opacity: 0.6 }} />
-              <Text style={styles.emptyText}>Nenhum cliente atende ao critério de busca.</Text>
+              <Text style={styles.emptyText}>{t('clients.noClientsFilter')}</Text>
               <Button
-                title="Cadastrar Novo Cliente"
+                title={t('clients.addNew')}
                 variant="ghost"
                 onPress={() => router.push('/clientes/novo')}
                 style={{ marginTop: 12 }}

@@ -25,30 +25,30 @@ export const SecurityService = {
     return hasHardware && isEnrolled;
   },
 
-  async authenticateAsync(promptMessage = 'Confirme sua identidade para acessar o DailyDue.'): Promise<{ success: boolean; error?: string }> {
+  async authenticateAsync(promptMessage = 'Confirm your identity to access DailyDue.'): Promise<{ success: boolean; error?: string }> {
     try {
       const hasHardware = await this.hasHardwareAsync();
       if (!hasHardware) {
-        return { success: false, error: 'Hardware de biometria/segurança não disponível neste dispositivo.' };
+        return { success: false, error: 'Biometrics/security hardware not available on this device.' };
       }
 
       const isEnrolled = await this.isEnrolledAsync();
       if (!isEnrolled) {
-        return { success: false, error: 'Nenhuma credencial de segurança (PIN, padrão ou biometria) cadastrada no aparelho.' };
+        return { success: false, error: 'No security credentials (PIN, pattern, or biometrics) registered on the device.' };
       }
 
       // LocalAuthentication will fallback to device PIN/Pattern/Password if biometrics fail or is selected
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage,
-        cancelLabel: 'Cancelar',
+        cancelLabel: 'Cancel',
         disableDeviceFallback: false, // Ensure system PIN/pattern fallback is active!
-        fallbackLabel: 'Usar Senha do Aparelho',
+        fallbackLabel: 'Use Device Password',
       });
 
       if (result.success) {
         return { success: true };
       } else {
-        return { success: false, error: result.error || 'Autenticação falhou' };
+        return { success: false, error: result.error || 'Authentication failed' };
       }
     } catch (e) {
       console.error('[SecurityService] Authentication exception:', e);

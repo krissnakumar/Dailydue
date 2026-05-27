@@ -3,25 +3,30 @@ import { View, Text, StyleSheet, ScrollView, TextInput, Alert, Image, TouchableO
 import { useRouter } from 'expo-router';
 import { Header, Card, Button } from '../../src/components';
 import { useDailyDueStore } from '../../src/store';
-import { theme } from '../../src/theme';
+import { useTheme } from '../../src/theme';
 import { updateOwnerProfile, uploadOwnerProfilePicture } from '@dailydue/api';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import * as ImagePicker from 'expo-image-picker';
 import { useResponsive } from '../../src/utils/responsive';
 import { SecurityService } from '../../src/core/security/security-service';
+import { changeLanguage, getCurrentLanguage } from '../../src/core/i18n';
 import Animated, { FadeInDown, FadeOutUp, Layout } from 'react-native-reanimated';
 
 const BUSINESS_TYPES = [
-  { id: 'mercado', label: 'Mercado' },
-  { id: 'padaria', label: 'Padaria' },
-  { id: 'bar', label: 'Bar/Restaurante' },
-  { id: 'petshop', label: 'Petshop' },
-  { id: 'outro', label: 'Outro' },
+  { id: 'mercado', labelKey: 'onboarding.businessMarket' },
+  { id: 'padaria', labelKey: 'onboarding.businessBakery' },
+  { id: 'bar', labelKey: 'onboarding.businessBar' },
+  { id: 'petshop', labelKey: 'onboarding.businessPetshop' },
+  { id: 'outro', labelKey: 'onboarding.businessOther' },
 ];
 
 export default function ConfiguracoesScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const layout = useResponsive();
+  const { theme } = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
   const {
     businessConfig,
     updateBusinessConfig,
@@ -39,6 +44,8 @@ export default function ConfiguracoesScreen() {
     setIsSystemLockEnabled,
     setIsBiometricsEnabled,
     setAutoLockTimeout,
+    colorScheme,
+    setColorScheme,
   } = useDailyDueStore();
 
   const customersCount = getActiveCustomersCount();
@@ -49,18 +56,19 @@ export default function ConfiguracoesScreen() {
   const [phone, setPhone] = useState(businessConfig.phone);
   const [businessType, setBusinessType] = useState(businessConfig.businessType || 'mercado');
   const [overdueDays, setOverdueDays] = useState(Number(businessConfig.overdueDays || 15));
-  const initialMethods = businessConfig.acceptedPaymentMethods || ['cash', 'pix', 'card'];
+  const initialMethods = businessConfig.acceptedPaymentMethods || ['cash', 'upi', 'card'];
   const [methodCash, setMethodCash] = useState(initialMethods.includes('cash'));
-  const [methodPix, setMethodPix] = useState(initialMethods.includes('pix'));
+  const [methodPix, setMethodPix] = useState(initialMethods.includes('upi') || initialMethods.includes('pix'));
   const [methodCard, setMethodCard] = useState(initialMethods.includes('card'));
   const [whatsappTemplate, setWhatsappTemplate] = useState(
     businessConfig.whatsappTemplate ||
-      'Olá {cliente}, passando para lembrar da sua conta em aberto no valor de {valor}. Você pode pagar via PIX ou presencialmente. Obrigado!'
+      t('config.whatsappDefaultTemplate')
   );
   const [showOnboardingDetails, setShowOnboardingDetails] = useState(false);
   
   const [userName, setUserName] = useState(user?.full_name || '');
   const [userPic, setUserPic] = useState(user?.picture || user?.avatar_url || '');
+  const [currentLang, setCurrentLang] = useState(getCurrentLanguage());
 
 
 
@@ -71,7 +79,7 @@ export default function ConfiguracoesScreen() {
     try {
       const acceptedMethods: string[] = [];
       if (methodCash) acceptedMethods.push('cash');
-      if (methodPix) acceptedMethods.push('pix');
+      if (methodPix) acceptedMethods.push('upi');
       if (methodCard) acceptedMethods.push('card');
 
       let nextPicture = userPic;
@@ -116,10 +124,10 @@ export default function ConfiguracoesScreen() {
       });
 
       setUserPic(nextPicture);
-      Alert.alert('Sucesso', 'Configurações salvas com sucesso!');
+      Alert.alert(t('common.success'), t('config.saveSuccess'));
     } catch (err) {
       console.warn('Erro ao atualizar perfil', err);
-      Alert.alert('Ops!', 'Não foi possível salvar o perfil na nuvem agora.');
+      Alert.alert(t('errors.generic'), t('config.saveError'));
     }
   };
 
@@ -127,7 +135,7 @@ export default function ConfiguracoesScreen() {
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert('Permissão necessária', 'Precisamos de acesso à galeria para alterar a foto.', [{ text: 'OK', style: 'cancel' }]);
+        Alert.alert(t('config.permissionRequired'), t('config.galleryPermission'), [{ text: t('common.ok'), style: 'cancel' }]);
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -151,7 +159,7 @@ export default function ConfiguracoesScreen() {
 
   return (
     <View style={styles.wrapper}>
-      <Header showTotal={false} title="Configurações do App" />
+      <Header showTotal={false} title={t('config.appTitle')} />
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -180,29 +188,29 @@ export default function ConfiguracoesScreen() {
             exiting={FadeOutUp.duration(180)}
             layout={Layout.springify().damping(18).stiffness(180)}
           >
-            <Text style={styles.sectionTitle}>Erros de Sincronização</Text>
+            <Text style={styles.sectionTitle}>{t('config.syncHistory')}</Text>
             <Card style={styles.errorCard}>
               <View style={styles.errorHeader}>
                 <Ionicons name="warning" size={20} color="#dc2626" />
-                <Text style={styles.errorTitle}>Falhas Recentes ({failedSyncItems.length})</Text>
+                <Text style={styles.errorTitle}>{t('common.error')} ({failedSyncItems.length})</Text>
               </View>
               {failedSyncItems.map((item: any, idx) => {
                 const errDetails = item.error_details || {};
-                const errMsg = errDetails.message || item.failed_reason || 'Erro desconhecido';
+                const errMsg = errDetails.message || item.failed_reason || t('config.unknownError');
                 
                 return (
                   <View key={item.id || idx} style={styles.errorItem}>
                     <Text style={styles.errorItemType}>
-                      {item.type === 'create_customer' ? 'Criar Cliente' :
-                       item.type === 'update_customer' ? 'Atualizar Cliente' :
-                       item.type === 'delete_customer' ? 'Excluir Cliente' :
-                       item.type === 'delete_transaction' ? 'Excluir Lançamento' :
-                       item.type === 'debt' ? 'Nova Venda' :
-                       item.type === 'payment' ? 'Novo Pagamento' : item.type}
+                      {item.type === 'create_customer' ? t('config.createCustomer') :
+                       item.type === 'update_customer' ? t('config.updateCustomer') :
+                       item.type === 'delete_customer' ? t('config.deleteCustomer') :
+                       item.type === 'delete_transaction' ? t('config.deleteTransaction') :
+                       item.type === 'debt' ? t('config.newSale') :
+                       item.type === 'payment' ? t('config.newPayment') : item.type}
                     </Text>
                     <Text style={styles.errorItemMsg}>{errMsg}</Text>
                     {errDetails.code && (
-                      <Text style={styles.errorItemCode}>Código do erro: {errDetails.code}</Text>
+                      <Text style={styles.errorItemCode}>{t('config.errorCode')} {errDetails.code}</Text>
                     )}
                   </View>
                 );
@@ -213,9 +221,9 @@ export default function ConfiguracoesScreen() {
                 onPress={async () => {
                   try {
                     await retryFailedSyncItems();
-                    Alert.alert('Sincronização', 'Tentando enviar itens pendentes...');
+                    Alert.alert(t('config.sync'), t('config.syncingPending'));
                   } catch (err: any) {
-                    Alert.alert('Erro', err.message || 'Falha ao re-tentar.');
+                    Alert.alert(t('common.error'), err.message || t('config.retryError'));
                   }
                 }}
               >
@@ -225,7 +233,7 @@ export default function ConfiguracoesScreen() {
                   <Ionicons name="refresh-outline" size={18} color="#fff" />
                 )}
                 <Text style={styles.retryErrorsBtnText}>
-                  {isSyncing ? 'Sincronizando...' : 'Re-tentar Sincronização'}
+                  {isSyncing ? t('config.syncing') : t('config.retrySync')}
                 </Text>
               </TouchableOpacity>
 
@@ -233,12 +241,12 @@ export default function ConfiguracoesScreen() {
                 style={styles.clearErrorsBtn}
                 onPress={() => {
                   Alert.alert(
-                    'Limpar Erros',
-                    'Deseja limpar o histórico de erros de sincronização?',
+                    t('config.clearErrors'),
+                    t('config.clearErrorsConfirm'),
                     [
-                      { text: 'Cancelar', style: 'cancel' },
+                      { text: t('common.cancel'), style: 'cancel' },
                       {
-                        text: 'Limpar',
+                        text: t('common.delete'),
                         style: 'destructive',
                         onPress: () => useDailyDueStore.setState({ failedSyncItems: [] }),
                       },
@@ -246,7 +254,7 @@ export default function ConfiguracoesScreen() {
                   );
                 }}
               >
-                <Text style={styles.clearErrorsBtnText}>Limpar Histórico de Erros</Text>
+                <Text style={styles.clearErrorsBtnText}>{t('config.clearErrors')}</Text>
               </TouchableOpacity>
             </Card>
           </Animated.View>
@@ -257,20 +265,20 @@ export default function ConfiguracoesScreen() {
           entering={FadeInDown.duration(220).delay(40)}
           layout={Layout.springify().damping(18).stiffness(180)}
         >
-        <Text style={styles.sectionTitle}>Assinatura & Limites de Uso</Text>
+        <Text style={styles.sectionTitle}>{t('subscription.title')} & {t('subscription.plan')}</Text>
         <Card style={styles.subCard}>
           <View style={styles.subHeader}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Ionicons
-                name={subscription.is_premium ? 'sparkles' : 'ribbon-outline'}
+                name={subscription.is_premium ? 'diamond' : 'ribbon-outline'}
                 size={20}
                 color={subscription.is_premium ? '#eab308' : theme.colors.textMuted}
                 style={{ marginRight: 8 }}
               />
               <Text style={styles.subTitle}>
                 {subscription.plan_id === 'premium_monthly'
-                  ? 'Plano Premium'
-                  : 'Plano Gratuito'}
+                  ? t('subscription.premiumPlan')
+                  : t('subscription.freePlan')}
               </Text>
             </View>
             <View style={[
@@ -286,8 +294,8 @@ export default function ConfiguracoesScreen() {
                   : styles.badgeTextFree
               ]}>
                 {subscription.plan_id === 'premium_monthly'
-                  ? 'Premium'
-                  : 'Grátis'}
+                  ? t('subscription.premium')
+                  : t('subscription.free')}
               </Text>
             </View>
           </View>
@@ -295,7 +303,7 @@ export default function ConfiguracoesScreen() {
           {/* Progress indicators */}
           <View style={styles.limitRow}>
             <View style={styles.limitHeader}>
-              <Text style={styles.limitLabel}>Clientes cadastrados</Text>
+              <Text style={styles.limitLabel}>{t('subscription.registeredCustomers')}</Text>
               <Text style={styles.limitValue}>
                 {customersCount} / {subscription.max_customers ?? '∞'}
               </Text>
@@ -319,7 +327,7 @@ export default function ConfiguracoesScreen() {
 
           <View style={styles.limitRow}>
             <View style={styles.limitHeader}>
-              <Text style={styles.limitLabel}>Lançamentos do mês</Text>
+              <Text style={styles.limitLabel}>{t('subscription.monthlyTransactions')}</Text>
               <Text style={styles.limitValue}>
                 {txCount} / {subscription.max_transactions_per_month ?? '∞'}
               </Text>
@@ -342,7 +350,7 @@ export default function ConfiguracoesScreen() {
           </View>
 
           <Button
-            title="Gerenciar Limites & Planos"
+            title={t('config.managePlans')}
             variant="ghost"
             leftIcon={<Ionicons name="options-outline" size={16} color={theme.colors.primary} style={{ marginRight: 6 }} />}
             onPress={() => router.push('/subscription')}
@@ -356,7 +364,7 @@ export default function ConfiguracoesScreen() {
           entering={FadeInDown.duration(220).delay(80)}
           layout={Layout.springify().damping(18).stiffness(180)}
         >
-        <Text style={styles.sectionTitle}>Meu Perfil e Estabelecimento</Text>
+        <Text style={styles.sectionTitle}>{t('config.profileEstablishment')}</Text>
         <Card style={styles.formCard}>
           {user ? (
             <View style={{ marginBottom: 24, paddingBottom: 24, borderBottomWidth: 1, borderBottomColor: theme.colors.border }}>
@@ -374,7 +382,7 @@ export default function ConfiguracoesScreen() {
                   </View>
                 </TouchableOpacity>
                 <View style={{ flex: 1, marginLeft: 16 }}>
-                  <Text style={styles.label}>Seu Nome</Text>
+                  <Text style={styles.label}>{t('login.nameLabel')}</Text>
                   <TextInput 
                     style={[styles.input, { height: 40, marginBottom: 0 }]} 
                     value={userName} 
@@ -383,19 +391,17 @@ export default function ConfiguracoesScreen() {
                   />
                 </View>
               </View>
-              <Text style={styles.profileEmail}>Conta de Acesso: {user.email}</Text>
+              <Text style={styles.profileEmail}>{t('config.accountAccess')}: {user.email}</Text>
             </View>
           ) : (
             <View style={{ alignItems: 'center', marginBottom: 24, paddingBottom: 24, borderBottomWidth: 1, borderBottomColor: theme.colors.border }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
                 <Ionicons name="warning-outline" size={16} color="#ca8a04" style={{ marginRight: 6 }} />
-                <Text style={[styles.authWarnTitle, { marginBottom: 0 }]}>Conta Local (Sem Nuvem)</Text>
+                <Text style={[styles.authWarnTitle, { marginBottom: 0 }]}>{t('config.localAccount')}</Text>
               </View>
-              <Text style={styles.authWarnDesc}>
-                Conecte-se para manter um backup seguro dos seus dados.
-              </Text>
+              <Text style={styles.authWarnDesc}>{t('config.loginToBackup')}</Text>
               <Button
-                title="Criar Perfil / Entrar"
+                title={t('config.createProfile')}
                 variant="primary"
                 onPress={handleGoToLogin}
                 style={{ marginTop: 12, width: '100%' }}
@@ -404,15 +410,15 @@ export default function ConfiguracoesScreen() {
           )}
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Nome do Estabelecimento</Text>
+            <Text style={styles.label}>{t('onboarding.businessName')}</Text>
             <TextInput style={styles.input} value={bizName} onChangeText={setBizName} />
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Chave PIX (Para Copia e Cola de Faturas)</Text>
+            <Text style={styles.label}>{t('config.pixKey')}</Text>
             <TextInput
               style={styles.input}
-              placeholder="E-mail, CPF, Celular ou Aleatória"
+              placeholder={t('config.pixKeyPlaceholder')}
               value={pix}
               onChangeText={setPix}
               autoCapitalize="none"
@@ -420,7 +426,7 @@ export default function ConfiguracoesScreen() {
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>WhatsApp de Atendimento</Text>
+            <Text style={styles.label}>{t('clients.phone')}</Text>
             <TextInput
               style={styles.input}
               keyboardType="phone-pad"
@@ -436,7 +442,7 @@ export default function ConfiguracoesScreen() {
               onPress={() => setShowOnboardingDetails((prev) => !prev)}
             >
               <View style={{ flex: 1 }}>
-                <Text style={styles.compactOnboardingTitle}>Detalhes do Onboarding</Text>
+                <Text style={styles.compactOnboardingTitle}>{t('config.onboardingDetails')}</Text>
               </View>
               <Ionicons
                 name={showOnboardingDetails ? 'chevron-up' : 'chevron-down'}
@@ -448,7 +454,7 @@ export default function ConfiguracoesScreen() {
             {showOnboardingDetails ? (
               <View style={styles.compactBody}>
                 <View style={[styles.formGroup, styles.compactGroup]}>
-                  <Text style={styles.label}>Tipo de Negócio</Text>
+                  <Text style={styles.label}>{t('onboarding.businessType')}</Text>
                   <View style={styles.typePillsWrap}>
                     {BUSINESS_TYPES.map((item) => (
                       <TouchableOpacity
@@ -458,7 +464,7 @@ export default function ConfiguracoesScreen() {
                         activeOpacity={0.8}
                       >
                         <Text style={[styles.typePillText, businessType === item.id && styles.typePillTextActive]}>
-                          {item.label}
+                          {t(item.labelKey)}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -466,7 +472,7 @@ export default function ConfiguracoesScreen() {
                 </View>
 
                 <View style={[styles.formGroup, styles.compactGroup]}>
-                  <Text style={styles.label}>Prazo de Vencimento (dias)</Text>
+                  <Text style={styles.label}>{t('onboarding.dueDays')}</Text>
                   <View style={styles.compactCounter}>
                     <TouchableOpacity
                       style={styles.counterBtn}
@@ -482,25 +488,25 @@ export default function ConfiguracoesScreen() {
                 </View>
 
                 <View style={[styles.formGroup, styles.compactGroup]}>
-                  <Text style={styles.label}>Métodos de Pagamento</Text>
+                  <Text style={styles.label}>{t('onboarding.paymentMethods')}</Text>
                   <View style={styles.methodsGrid}>
                     <View style={styles.methodRowCompact}>
-                      <Text style={styles.methodLabel}>Dinheiro</Text>
+                      <Text style={styles.methodLabel}>{t('payments.methodCash')}</Text>
                       <Switch value={methodCash} onValueChange={setMethodCash} trackColor={{ true: theme.colors.primary }} />
                     </View>
                     <View style={styles.methodRowCompact}>
-                      <Text style={styles.methodLabel}>PIX</Text>
+                      <Text style={styles.methodLabel}>UPI</Text>
                       <Switch value={methodPix} onValueChange={setMethodPix} trackColor={{ true: theme.colors.primary }} />
                     </View>
                     <View style={styles.methodRowCompact}>
-                      <Text style={styles.methodLabel}>Cartão</Text>
+                      <Text style={styles.methodLabel}>{t('payments.methodCard')}</Text>
                       <Switch value={methodCard} onValueChange={setMethodCard} trackColor={{ true: theme.colors.primary }} />
                     </View>
                   </View>
                 </View>
 
                 <View style={[styles.formGroup, { marginBottom: 0 }]}>
-                  <Text style={styles.label}>Template de Cobrança</Text>
+                  <Text style={styles.label}>{t('onboarding.messageTemplate')}</Text>
                   <TextInput
                     style={[styles.input, styles.templateInput]}
                     multiline
@@ -514,7 +520,7 @@ export default function ConfiguracoesScreen() {
           </View>
 
           <Button
-            title="Salvar Alterações"
+            title={t('config.saveChanges')}
             variant="accent"
             leftIcon={<Ionicons name="save-outline" size={18} color="#ffffff" style={{ marginRight: 6 }} />}
             onPress={handleSaveConfig}
@@ -528,18 +534,14 @@ export default function ConfiguracoesScreen() {
           entering={FadeInDown.duration(220).delay(120)}
           layout={Layout.springify().damping(18).stiffness(180)}
         >
-        <Text style={styles.sectionTitle}>Segurança</Text>
+        <Text style={styles.sectionTitle}>{t('config.securityTitle')}</Text>
         <Card style={styles.infoCard}>
           <View>
             {/* App Lock Master Switch */}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <View style={{ flex: 1, marginRight: 10 }}>
-                <Text style={{ fontSize: 15, fontWeight: '600', color: theme.colors.textMain }}>
-                  Bloqueio por Segurança do Sistema
-                </Text>
-                <Text style={{ fontSize: 12, color: theme.colors.textMuted, marginTop: 2, lineHeight: 16 }}>
-                  Exige biometria ou PIN do seu aparelho após 3 minutos de inatividade.
-                </Text>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: theme.colors.textMain }}>{t('config.securityLock')}</Text>
+                <Text style={{ fontSize: 12, color: theme.colors.textMuted, marginTop: 2, lineHeight: 16 }}>{t('config.securityDesc')}</Text>
               </View>
               <Switch
                 value={!!isSystemLockEnabled}
@@ -548,26 +550,26 @@ export default function ConfiguracoesScreen() {
                     const supported = await SecurityService.isSecuritySupportedAsync();
                     if (!supported) {
                       Alert.alert(
-                        'Segurança não configurada',
-                        'Seu dispositivo não possui uma tela de bloqueio segura configurada (PIN, padrão, senha ou biometria). Ative a segurança nas configurações do Android antes de habilitar esta proteção.',
-                        [{ text: 'Entendi' }]
+                        t('config.securityNotConfigured'),
+                        t('config.securityNotConfiguredDesc'),
+                        [{ text: t('common.ok') }]
                       );
                       return;
                     }
-                    const auth = await SecurityService.authenticateAsync('Confirme sua identidade para ativar a segurança do Fiado.');
+                    const auth = await SecurityService.authenticateAsync(t('config.securityActivate'));
                     if (auth.success) {
                       setIsSystemLockEnabled(true);
                       setIsBiometricsEnabled(true);
                       setAutoLockTimeout(180000); // 3 minutes timeout
-                      Alert.alert('Sucesso', 'Proteção nativa ativada com sucesso!');
+                      Alert.alert(t('common.success'), t('config.securityActivated'));
                     }
                   } else {
-                    const auth = await SecurityService.authenticateAsync('Confirme sua identidade para desativar a segurança do Fiado.');
+                    const auth = await SecurityService.authenticateAsync(t('config.securityDeactivate'));
                     if (auth.success) {
                       setIsSystemLockEnabled(false);
                       setIsBiometricsEnabled(false);
                       setAutoLockTimeout(0);
-                      Alert.alert('Sucesso', 'Proteção de segurança desativada.');
+                      Alert.alert(t('common.success'), t('config.securityDeactivated'));
                     }
                   }
                 }}
@@ -579,54 +581,138 @@ export default function ConfiguracoesScreen() {
             {isSystemLockEnabled && (
               <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)' }}>
                 <Ionicons name="shield-checkmark" size={16} color="#10b981" style={{ marginRight: 6 }} />
-                <Text style={{ color: '#10b981', fontSize: 11, fontWeight: '600' }}>
-                  Protegido pela segurança integrada do dispositivo
-                </Text>
+                <Text style={{ color: '#10b981', fontSize: 11, fontWeight: '600' }}>{t('config.securityDeviceProtected')}</Text>
               </View>
             )}
           </View>
         </Card>
         </Animated.View>
 
-        {/* Informações do Sistema */}
+        {/* Aparência (Tema) */}
+        <Animated.View
+          entering={FadeInDown.duration(220).delay(140)}
+          layout={Layout.springify().damping(18).stiffness(180)}
+        >
+        <Text style={styles.sectionTitle}>{t('config.theme')}</Text>
+        <Card style={styles.infoCard}>
+          <Text style={{ fontSize: 12, color: theme.colors.textMuted, marginBottom: 10 }}>{t('config.theme.desc')}</Text>
+          <View style={styles.langPillsWrap}>
+            {[
+              { id: 'system', label: t('config.theme.system'), icon: 'phone-portrait-outline' as const },
+              { id: 'light', label: t('config.theme.light'), icon: 'sunny-outline' as const },
+              { id: 'dark', label: t('config.theme.dark'), icon: 'moon-outline' as const },
+            ].map((opt) => (
+              <TouchableOpacity
+                key={opt.id}
+                style={[
+                  styles.langPill,
+                  colorScheme === opt.id && styles.langPillActive,
+                ]}
+                onPress={() => setColorScheme(opt.id as 'system' | 'light' | 'dark')}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={opt.icon}
+                  size={18}
+                  color={colorScheme === opt.id ? theme.colors.primary : theme.colors.textMuted}
+                />
+                <Text
+                  style={[
+                    styles.langPillText,
+                    colorScheme === opt.id && styles.langPillTextActive,
+                  ]}
+                >
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Card>
+        </Animated.View>
+
+        {/* Idioma */}
         <Animated.View
           entering={FadeInDown.duration(220).delay(160)}
           layout={Layout.springify().damping(18).stiffness(180)}
         >
-        <Text style={styles.sectionTitle}>Informações do Aplicativo</Text>
+        <Text style={styles.sectionTitle}>{t('config.language')}</Text>
+        <Card style={styles.infoCard}>
+          <View style={styles.langPillsWrap}>
+            {[
+              { id: 'en', label: t('config.language.en'), flag: '🇺🇸' },
+              { id: 'hi', label: t('config.language.hi'), flag: '🇮🇳' },
+              { id: 'ta', label: t('config.language.ta'), flag: '📖' },
+            ].map((lang) => (
+              <TouchableOpacity
+                key={lang.id}
+                style={[
+                  styles.langPill,
+                  currentLang === lang.id && styles.langPillActive,
+                ]}
+                onPress={async () => {
+                  await changeLanguage(lang.id as 'en' | 'hi' | 'ta');
+                  setCurrentLang(lang.id);
+                  Alert.alert(
+                    t('config.languageSelected'),
+                    t('config.languageChangedTo', { language: lang.label })
+                  );
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.langPillFlag}>{lang.flag}</Text>
+                <Text
+                  style={[
+                    styles.langPillText,
+                    currentLang === lang.id && styles.langPillTextActive,
+                  ]}
+                >
+                  {lang.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Card>
+        </Animated.View>
+
+        {/* Informações do Sistema */}
+        <Animated.View
+          entering={FadeInDown.duration(220).delay(180)}
+          layout={Layout.springify().damping(18).stiffness(180)}
+        >
+        <Text style={styles.sectionTitle}>{t('config.systemInfo')}</Text>
         <Card style={styles.infoCard}>
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={async () => {
               if (syncQueue.length === 0) {
                 Alert.alert(
-                  'Sincronização',
-                  'Excelente! Todos os seus dados locais já estão 100% atualizados na nuvem.',
-                  [{ text: 'Entendi', style: 'default' }]
+                  t('config.sync'),
+                  t('config.syncComplete'),
+                  [{ text: t('common.ok'), style: 'default' }]
                 );
                 return;
               }
               if (isSyncing) {
                 Alert.alert(
-                  'Sincronização em Andamento',
-                  'O aplicativo já está enviando suas alterações pendentes para a nuvem neste momento. Por favor, aguarde.',
-                  [{ text: 'Entendi', style: 'default' }]
+                  t('config.syncInProgress'),
+                  t('config.syncInProgressDesc'),
+                  [{ text: t('common.ok'), style: 'default' }]
                 );
                 return;
               }
               Alert.alert(
-                'Sincronizar Agora',
-                `Deseja enviar manualmente suas ${syncQueue.length} alteração(ões) pendente(s) para a nuvem agora?`,
+                t('config.sync'),
+                t('config.syncManualConfirm', { count: syncQueue.length }),
                 [
-                  { text: 'Cancelar', style: 'cancel' },
+                  { text: t('common.cancel'), style: 'cancel' },
                   {
-                    text: 'Sincronizar',
+                    text: t('config.sync'),
                     style: 'default',
                     onPress: async () => {
                       try {
                         await attemptBackgroundSync();
                       } catch (err) {
-                        Alert.alert('Erro', 'Não foi possível sincronizar no momento. Verifique sua conexão com a internet.');
+                        Alert.alert(t('common.error'), t('config.syncError'));
                       }
                     }
                   }
@@ -637,14 +723,14 @@ export default function ConfiguracoesScreen() {
           >
             <Ionicons name="sync-outline" size={14} color={syncQueue.length > 0 ? theme.colors.primary : theme.colors.textMuted} style={{ marginRight: 6 }} />
             <Text style={[styles.infoText, { marginVertical: 0, color: syncQueue.length > 0 ? theme.colors.primary : theme.colors.textMuted, textDecorationLine: syncQueue.length > 0 ? 'underline' : 'none' }]}>
-              Fila de Sincronização Local: <Text style={{ fontWeight: 'bold' }}>{syncQueue.length} pendente(s)</Text>
+              {t('config.syncQueue')} <Text style={{ fontWeight: 'bold' }}>{syncQueue.length} {t('config.pending')}</Text>
             </Text>
           </TouchableOpacity>
           
           <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 3 }}>
             <Ionicons name="information-circle-outline" size={14} color={theme.colors.textMuted} style={{ marginRight: 6 }} />
             <Text style={[styles.infoText, { marginVertical: 0 }]}>
-              Versão do App: <Text style={{ fontWeight: 'bold' }}>1.0.0</Text>
+              {t('config.appVersion')} <Text style={{ fontWeight: 'bold' }}>1.0.0</Text>
             </Text>
           </View>
           
@@ -652,17 +738,15 @@ export default function ConfiguracoesScreen() {
             activeOpacity={0.7}
             onPress={() => {
               Alert.alert(
-                'Política de Privacidade',
-                'Nós valorizamos a privacidade dos seus dados. As informações de vendas, fiados e dados de clientes cadastrados no Controle Fiado são armazenadas com segurança na nuvem (Supabase), com acesso restrito à sua conta.\n\nNenhum dado é compartilhado com terceiros. Para ver os termos completos, visite nosso site oficial.',
-                [{ text: 'Entendi', style: 'default' }]
+                t('config.privacyPolicy'),
+                t('config.privacyPolicyDesc'),
+                [{ text: t('common.ok'), style: 'default' }]
               );
             }}
             style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center' }}
           >
             <Ionicons name="shield-checkmark-outline" size={14} color={theme.colors.primary} style={{ marginRight: 6 }} />
-            <Text style={{ color: theme.colors.primary, fontSize: 13, fontWeight: '600', textDecorationLine: 'underline' }}>
-              Política de Privacidade
-            </Text>
+            <Text style={{ color: theme.colors.primary, fontSize: 13, fontWeight: '600', textDecorationLine: 'underline' }}>{t('config.privacyPolicy')}</Text>
           </TouchableOpacity>
         </Card>
         </Animated.View>
@@ -675,7 +759,7 @@ export default function ConfiguracoesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: ReturnType<typeof useTheme>['theme']) => StyleSheet.create({
   wrapper: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -1063,5 +1147,40 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 0,
     top: 6,
+  },
+  langPillsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  langPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.card,
+    flex: 1,
+    minWidth: 100,
+    justifyContent: 'center',
+  },
+  langPillActive: {
+    backgroundColor: theme.colors.primaryLight,
+    borderColor: theme.colors.primary,
+  },
+  langPillFlag: {
+    fontSize: 18,
+  },
+  langPillText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.textMain,
+  },
+  langPillTextActive: {
+    fontWeight: '800',
+    color: theme.colors.primary,
   },
 });

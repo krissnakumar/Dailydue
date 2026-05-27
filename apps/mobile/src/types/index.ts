@@ -17,14 +17,18 @@ export interface CustomerClient {
   total_debt: number;
   created_at: string;
   history: HistoryItem[];
+  postalCode?: string;
   cep?: string;
   address?: string;
-  documentType?: 'cpf' | 'cnpj';
+  idType?: 'aadhaar' | 'pan';
+  documentType?: 'aadhaar' | 'pan';
+  idValue?: string;
   documentValue?: string;
   picture?: string;
   picture_storage_path?: string | null;
   picture_mime_type?: string | null;
   picture_updated_at?: string;
+  notes?: string | null;
 }
 
 export interface QuickItemClient {

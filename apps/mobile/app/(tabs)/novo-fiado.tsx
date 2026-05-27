@@ -17,8 +17,10 @@ import { theme } from '../../src/theme';
 import { useDailyDueStore } from '../../src/store';
 import { useAdaptiveColors, useResponsive } from '../../src/utils/responsive';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 
 export default function NovoFiadoPage() {
+  const { t } = useTranslation();
   const router = useRouter();
   const params = useLocalSearchParams<{ customerId?: string }>();
   const layout = useResponsive();
@@ -61,12 +63,12 @@ export default function NovoFiadoPage() {
   const handleConfirmSubmit = () => {
     const amt = parseFloat(amountStr);
     if (isNaN(amt) || amt <= 0) {
-      Alert.alert('Ops!', 'Qual o valor da compra? 💰', [{ text: 'OK' }], { cancelable: true });
+      Alert.alert(t('newFiado.errorTitle'), t('newFiado.enterAmount'), [{ text: t('common.ok') }], { cancelable: true });
       return;
     }
 
     if (!selectedCustId) {
-      Alert.alert('Ops!', 'Para quem é essa anotação? Selecione um cliente. 👤', [{ text: 'OK' }], { cancelable: true });
+      Alert.alert(t('newFiado.errorTitle'), t('newFiado.selectCustomer'), [{ text: t('common.ok') }], { cancelable: true });
       return;
     }
 
@@ -76,12 +78,12 @@ export default function NovoFiadoPage() {
       getCurrentMonthTransactionsCount() >= subscription.max_transactions_per_month
     ) {
       Alert.alert(
-        'Limite do Plano Grátis 🔒',
-        'Limite de lançamentos do mês atingido. Faça o upgrade para o Premium!',
+        t('payments.planLimitTitle'),
+        t('newFiado.planLimitReached'),
         [
-          { text: 'Depois', style: 'cancel' },
+          { text: t('payments.later'), style: 'cancel' },
           {
-            text: 'Ver Planos',
+            text: t('payments.seePlans'),
             onPress: () => {
               router.push('/subscription');
             },
@@ -93,7 +95,7 @@ export default function NovoFiadoPage() {
     }
 
     const targetCust = customers.find((c) => c.id === selectedCustId);
-    let finalDesc = descInput.trim() || 'Venda a Prazo';
+    let finalDesc = descInput.trim() || t('newFiado.defaultDescription');
 
     if (reminderDays !== null) {
       const futureDate = new Date();
@@ -106,25 +108,25 @@ export default function NovoFiadoPage() {
       addDebt(selectedCustId, amt, finalDesc);
 
       Alert.alert(
-        'Pronto! 🎉',
-        `Anotação de R$ ${amt.toFixed(2)} salva para ${targetCust?.full_name.split(' ')[0]}!`,
-        [{ text: 'OK' }],
+        t('newFiado.successTitle'),
+        t('newFiado.successDesc', { amount: amt.toFixed(2), name: targetCust?.full_name.split(' ')[0] }),
+        [{ text: t('common.ok') }],
         { cancelable: true }
       );
       router.back();
     } catch (err: any) {
       if (err.message === 'FREE_PLAN_TRANSACTION_LIMIT_REACHED') {
         Alert.alert(
-          'Limite do Plano Grátis 🔒',
-          'Limite de lançamentos atingido. Faça o upgrade para o Premium!',
+          t('payments.planLimitTitle'),
+          t('newFiado.planLimitReached'),
           [
-            { text: 'Depois', style: 'cancel' },
-            { text: 'Ver Planos', onPress: () => router.push('/subscription') },
+            { text: t('payments.later'), style: 'cancel' },
+            { text: t('payments.seePlans'), onPress: () => router.push('/subscription') },
           ],
           { cancelable: true }
         );
       } else {
-        Alert.alert('Eita!', 'Não conseguimos salvar agora. Tente de novo! 😅', [{ text: 'OK' }], { cancelable: true });
+        Alert.alert(t('newFiado.errorTitle'), t('newFiado.errorDesc'), [{ text: t('common.ok') }], { cancelable: true });
       }
     }
   };
@@ -136,7 +138,7 @@ export default function NovoFiadoPage() {
           <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: colors.mutedSurface, borderColor: colors.border }]} activeOpacity={0.7}>
             <Ionicons name="chevron-back" size={22} color={colors.text} />
           </TouchableOpacity>
-          <Text style={[styles.topBarTitle, { color: colors.text }]}>Novo Fiado</Text>
+          <Text style={[styles.topBarTitle, { color: colors.text }]}>{t('newFiado.title')}</Text>
           <View style={styles.topBarSpacer} />
         </View>
       </View>
@@ -163,19 +165,19 @@ export default function NovoFiadoPage() {
           keyboardDismissMode="on-drag"
         >
           <View style={[styles.header, { backgroundColor: colors.mutedSurface, borderColor: colors.border }]}>
-            <Text style={[styles.headerTitle, { color: colors.text }]}>Lançamento Rápido</Text>
-            <Text style={styles.headerBadge}>Balcão em 5s</Text>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>{t('newFiado.quickEntry')}</Text>
+            <Text style={styles.headerBadge}>{t('newFiado.counter5s')}</Text>
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>1. Selecione o Cliente *</Text>
+            <Text style={[styles.label, { color: colors.text }]}>{t('newFiado.selectClient')}</Text>
             <TouchableOpacity
               style={[styles.dropdownSelector, { backgroundColor: colors.mutedSurface, borderColor: colors.border }]}
               onPress={() => setShowCustomerDropdown(!showCustomerDropdown)}
               activeOpacity={0.8}
             >
               <Text style={[styles.dropdownSelectorText, { color: colors.text }]} numberOfLines={1}>
-                {selectedCustId ? customers.find((c) => c.id === selectedCustId)?.full_name || 'Selecione um…' : 'Selecione um…'}
+                {selectedCustId ? customers.find((c) => c.id === selectedCustId)?.full_name || t('newFiado.selectOption') : t('newFiado.selectOption')}
               </Text>
               <Ionicons
                 name={showCustomerDropdown ? 'chevron-up' : 'chevron-down'}
@@ -194,7 +196,7 @@ export default function NovoFiadoPage() {
                   }}
                 >
                   <Ionicons name="add-circle-outline" size={20} color={theme.colors.primary} style={{ marginRight: 8 }} />
-                  <Text style={styles.dropdownCreateText}>Cadastrar Novo Cliente</Text>
+                  <Text style={styles.dropdownCreateText}>{t('newFiado.registerClient')}</Text>
                 </TouchableOpacity>
 
                 {customers.map((c) => (
@@ -215,10 +217,10 @@ export default function NovoFiadoPage() {
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>2. O que levou?</Text>
+            <Text style={[styles.label, { color: colors.text }]}>{t('newFiado.whatItem')}</Text>
             <TextInput
               style={[styles.descInput, { backgroundColor: colors.mutedSurface, borderColor: colors.border, color: colors.text }]}
-              placeholder="Digite para buscar ou adicionar item..."
+              placeholder={t('newFiado.searchItemPlaceholder')}
               placeholderTextColor={theme.colors.textMuted}
               value={descInput}
               onChangeText={(txt) => {
@@ -255,7 +257,7 @@ export default function NovoFiadoPage() {
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>3. Valor da Compra (R$) *</Text>
+            <Text style={[styles.label, { color: colors.text }]}>{t('newFiado.purchaseAmount')}</Text>
             <TextInput
               style={[styles.amountDisplay, styles.amountText, { backgroundColor: colors.mutedSurface, borderColor: colors.border }]}
               value={amountStr}
@@ -264,25 +266,25 @@ export default function NovoFiadoPage() {
                 setAmountStr(cleaned);
               }}
               keyboardType="decimal-pad"
-              placeholder="R$ 0.00"
+              placeholder={t('newFiado.amountPlaceholder')}
               placeholderTextColor={theme.colors.textMuted}
             />
 
             <View style={styles.shortcutsRow}>
               {[10, 20, 50, 100].map((val) => (
                 <TouchableOpacity key={val} style={styles.shortcutBtn} onPress={() => addQuickShortcut(val)}>
-                  <Text style={styles.shortcutText}>+ R$ {val}</Text>
+                  <Text style={styles.shortcutText}>{t('newFiado.quickAdd', { amount: val })}</Text>
                 </TouchableOpacity>
               ))}
             </View>
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>Lembrete Inteligente (Dias para Cobrança)</Text>
+            <Text style={[styles.label, { color: colors.text }]}>{t('newFiado.smartReminder')}</Text>
             <View style={styles.reminderRow}>
               <TextInput
                 style={[styles.reminderInput, { backgroundColor: colors.mutedSurface, borderColor: colors.border, color: colors.text }]}
-                placeholder="Quantos dias até a cobrança?"
+                placeholder={t('newFiado.reminderPlaceholder')}
                 placeholderTextColor={theme.colors.textMuted}
                 keyboardType="number-pad"
                 value={reminderDays !== null ? String(reminderDays) : ''}
@@ -295,7 +297,7 @@ export default function NovoFiadoPage() {
             </View>
             {reminderDays !== null && (
               <Text style={styles.reminderFeedback}>
-                Cobrança agendada para:{' '}
+                {t('newFiado.reminderScheduled')}{' '}
                 <Text style={{ fontWeight: '700', color: theme.colors.primary }}>
                   {(() => {
                     const d = new Date();
@@ -308,7 +310,7 @@ export default function NovoFiadoPage() {
           </View>
 
           <Button
-            title="Confirmar Anotação Agora"
+            title={t('newFiado.confirmNow')}
             variant="accent"
             size="lg"
             leftIcon={<Ionicons name="checkmark" size={18} color="#ffffff" style={{ marginRight: 6 }} />}

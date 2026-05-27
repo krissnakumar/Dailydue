@@ -14,8 +14,9 @@ import { useDailyDueStore } from '../../src/store';
 import { formatCurrency, sendWhatsappReminder } from '../../src/utils';
 import { theme } from '../../src/theme';
 import { Ionicons } from '@expo/vector-icons';
-
+import { useTranslation } from 'react-i18next';
 export default function CobrancasScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { customers, businessConfig } = useDailyDueStore();
 
@@ -125,9 +126,9 @@ export default function CobrancasScreen() {
     const comCelular = selectedList.filter((c) => c.phone && c.phone.length >= 10);
     if (comCelular.length === 0) {
       showAlert(
-        'Aviso',
-        'Nenhum dos clientes selecionados possui celular/WhatsApp válido cadastrado.',
-        [{ text: 'Entendi', variant: 'primary' }],
+        t('collections.alertNotice'),
+        t('collections.alertNoPhone'),
+        [{ text: t('collections.gotIt'), variant: 'primary' }],
         'alert-circle-outline',
         '#eab308'
       );
@@ -140,12 +141,12 @@ export default function CobrancasScreen() {
       if (currentIndex < comCelular.length) {
         const customer = comCelular[currentIndex];
         showAlert(
-          'Enviar Cobrança',
-          `Deseja enviar cobrança (${messageType === 'simple' ? 'Simplificada' : 'Detalhada'}) para ${customer.full_name}? (${currentIndex + 1} de ${comCelular.length})`,
+          t('cobrancas.sendCollection'),
+          t('collections.sendTo', { name: customer.full_name, current: currentIndex + 1, total: comCelular.length }),
           [
-            { text: 'Parar', onPress: () => {}, variant: 'danger' },
+            { text: t('collections.stop'), onPress: () => {}, variant: 'danger' },
             {
-              text: 'Pular',
+              text: t('collections.skip'),
               onPress: () => {
                 currentIndex++;
                 setTimeout(sendNext, 300);
@@ -153,7 +154,7 @@ export default function CobrancasScreen() {
               variant: 'secondary',
             },
             {
-              text: 'Enviar',
+              text: t('collections.send'),
               onPress: () => {
                 handleSendReminder(customer);
                 currentIndex++;
@@ -167,9 +168,9 @@ export default function CobrancasScreen() {
         );
       } else {
         showAlert(
-          'Sucesso',
-          'Processo de cobrança em lote finalizado.',
-          [{ text: 'Concluir', variant: 'primary' }],
+          t('common.success'),
+          t('collections.batchComplete'),
+          [{ text: t('collections.complete'), variant: 'primary' }],
           'checkmark-circle-outline',
           '#10b981'
         );
@@ -177,11 +178,11 @@ export default function CobrancasScreen() {
     };
 
     showAlert(
-      'Cobrança em Lote',
-      `Iniciar envio sequencial (${messageType === 'simple' ? 'Simplificado' : 'Detalhado'}) para ${comCelular.length} cliente(s) selecionado(s)?`,
+      t('collections.batchSendTitle'),
+      t('collections.batchConfirm', { type: messageType === 'simple' ? t('collections.simplified') : t('collections.detailed'), count: comCelular.length }),
       [
-        { text: 'Não', variant: 'secondary' },
-        { text: 'Sim, Iniciar', onPress: sendNext, variant: 'primary' },
+        { text: t('common.no'), variant: 'secondary' },
+        { text: t('collections.yesStart'), onPress: sendNext, variant: 'primary' },
       ],
       'chatbubbles-outline',
       '#0284c7'
@@ -190,7 +191,7 @@ export default function CobrancasScreen() {
 
   return (
     <View style={styles.wrapper}>
-      <Header showTotal={false} title="Painel de Cobranças" />
+      <Header showTotal={false} title={t('collections.panelTitle')} />
 
       <ScrollView
         style={styles.contentScroll}
@@ -200,20 +201,20 @@ export default function CobrancasScreen() {
       >
         <View style={styles.summaryWrapper}>
           <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>Pendente</Text>
+            <Text style={styles.summaryLabel}>{t('collections.pending')}</Text>
             <Text style={styles.summaryVal}>{formatCurrency(totalEmAberto)}</Text>
           </View>
           <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>Devedores</Text>
+            <Text style={styles.summaryLabel}>{t('collections.debtors')}</Text>
             <Text style={styles.summaryVal}>{totalDevedores}</Text>
           </View>
         </View>
 
       <View style={styles.tabsRow}>
         {[
-          { id: 'all', label: 'Todos', icon: 'people-outline' as const },
-          { id: 'acima50', label: '> R$ 50', icon: 'cash-outline' as const },
-          { id: 'atrasados', label: 'Atrasados', icon: 'alert-circle-outline' as const },
+          { id: 'all', label: t('collections.filterAll'), icon: 'people-outline' as const },
+          { id: 'acima50', label: t('collections.filterAbove', { amount: '50' }), icon: 'cash-outline' as const },
+          { id: 'atrasados', label: t('collections.filterOverdue'), icon: 'alert-circle-outline' as const },
         ].map((tab) => {
           const isActive = activeFilter === tab.id;
           return (
@@ -239,7 +240,7 @@ export default function CobrancasScreen() {
       <View style={styles.batchBox}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Ionicons name="chatbubbles-outline" size={16} color="#0369a1" />
-          <Text style={styles.batchTitle}>Lote ({selectedIds.size})</Text>
+          <Text style={styles.batchTitle}>{t('collections.batch')} ({selectedIds.size})</Text>
         </View>
 
         <View style={styles.toggleGroup}>
@@ -249,7 +250,7 @@ export default function CobrancasScreen() {
             activeOpacity={0.7}
           >
             <Text style={[styles.toggleText, messageType === 'simple' && styles.toggleTextActive]}>
-              Total
+              {t('collections.messageTotal')}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -258,7 +259,7 @@ export default function CobrancasScreen() {
             activeOpacity={0.7}
           >
             <Text style={[styles.toggleText, messageType === 'detailed' && styles.toggleTextActive]}>
-              Detalhes
+              {t('collections.messageDetails')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -278,11 +279,11 @@ export default function CobrancasScreen() {
 
       <View style={styles.listContent}>
         <View style={styles.listHeaderRow}>
-          <Text style={styles.listTitle}>Lista de Contatos ({devedores.length})</Text>
+          <Text style={styles.listTitle}>{t('collections.contactList', { count: devedores.length })}</Text>
           {devedores.length > 0 && (
             <TouchableOpacity onPress={toggleSelectAll} activeOpacity={0.7} style={styles.selectAllBtn}>
               <Text style={styles.selectAllText}>
-                {devedores.every((d) => selectedIds.has(d.id)) ? "Desmarcar Todos" : "Selecionar Todos"}
+                {devedores.every((d) => selectedIds.has(d.id)) ? t('collections.deselectAll') : t('collections.selectAll')}
               </Text>
             </TouchableOpacity>
           )}
@@ -295,7 +296,7 @@ export default function CobrancasScreen() {
               <View style={styles.emptyIconDotRight} />
               <Ionicons name="checkmark" size={18} color="#0f766e" />
             </View>
-            <Text style={styles.emptyText}>Tudo em ordem por aqui!</Text>
+            <Text style={styles.emptyText}>{t('collections.emptyState')}</Text>
           </View>
         ) : (
           devedores.map((c, idx) => {
@@ -359,14 +360,14 @@ export default function CobrancasScreen() {
       <AnimatedPopup visible={!!selectedForNotice} onClose={() => setSelectedForNotice(null)}>
         {selectedForNotice && (
           <View style={styles.popupContent}>
-            <Text style={styles.popupTitle}>Enviar Cobrança</Text>
+            <Text style={styles.popupTitle}>{t('collections.sendCollection')}</Text>
             <Text style={styles.popupSub}>
-              Deseja enviar o lembrete de pagamento para <Text style={{ fontWeight: 'bold' }}>{selectedForNotice.full_name}</Text>?
+              {t('collections.confirmReminder', { name: selectedForNotice.full_name })}
             </Text>
 
             {/* Custom Model Toggle inside Popup */}
             <View style={{ marginBottom: 16 }}>
-              <Text style={styles.popupSectionLabel}>Modelo de Mensagem</Text>
+              <Text style={styles.popupSectionLabel}>{t('collections.messageModel')}</Text>
               <View style={[styles.toggleGroup, { alignSelf: 'flex-start', marginTop: 8 }]}>
                 <TouchableOpacity
                   style={[styles.toggleBtn, messageType === 'simple' && styles.toggleBtnActive]}
@@ -374,7 +375,7 @@ export default function CobrancasScreen() {
                   activeOpacity={0.7}
                 >
                   <Text style={[styles.toggleText, messageType === 'simple' && styles.toggleTextActive]}>
-                    Só o Total
+                    {t('collections.onlyTotal')}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -383,24 +384,24 @@ export default function CobrancasScreen() {
                   activeOpacity={0.7}
                 >
                   <Text style={[styles.toggleText, messageType === 'detailed' && styles.toggleTextActive]}>
-                    Detalhado
+                    {t('collections.detailed')}
                   </Text>
                 </TouchableOpacity>
               </View>
             </View>
 
             <View style={styles.previewBox}>
-              <Text style={styles.previewLabel}>Conteúdo da Mensagem:</Text>
+              <Text style={styles.previewLabel}>{t('collections.messageContent')}</Text>
               <Text style={styles.previewText}>
                 {messageType === 'simple'
-                  ? `Olá ${selectedForNotice.full_name.split(' ')[0]}! Tudo bem? Passando para enviar o lembrete de pagamento do seu saldo no Caderninho. Valor pendente: ${formatCurrency(selectedForNotice.total_debt)}`
-                  : `Olá ${selectedForNotice.full_name.split(' ')[0]}! Tudo bem? Passando para enviar o resumo da sua continha no nosso Caderninho de Fiado. Total devendo: ${formatCurrency(selectedForNotice.total_debt)}`}
+                  ? t('cobrancas.simpleReminder', { name: selectedForNotice.full_name.split(' ')[0], value: formatCurrency(selectedForNotice.total_debt) })
+                  : t('cobrancas.detailedReminder', { name: selectedForNotice.full_name.split(' ')[0], value: formatCurrency(selectedForNotice.total_debt) })}
               </Text>
             </View>
 
             <View style={{ marginBottom: 12 }}>
               <Button
-                title="Ver Perfil"
+                title={t('collections.viewProfile')}
                 variant="secondary"
                 leftIcon={<Ionicons name="person-outline" size={16} color={theme.colors.textMain} style={{ marginRight: 6 }} />}
                 onPress={() => {
@@ -413,13 +414,13 @@ export default function CobrancasScreen() {
 
             <View style={styles.popupActions}>
               <Button
-                title="Cancelar"
+                title={t('common.cancel')}
                 variant="ghost"
                 onPress={() => setSelectedForNotice(null)}
                 style={{ flex: 1 }}
               />
               <Button
-                title={selectedForNotice.phone ? "Enviar WhatsApp" : "Compartilhar"}
+                title={selectedForNotice.phone ? t('collections.sendWhatsApp') : t('collections.share')}
                 variant="primary"
                 leftIcon={
                   selectedForNotice.phone ? (

@@ -24,7 +24,7 @@ export const HashingService = {
       return hashed;
     } catch (error) {
       console.error('[HashingService] Erro ao gerar hash:', error);
-      throw new Error('Falha na cifragem de segurança do PIN.');
+      throw new Error('Security PIN encryption failed.');
     }
   },
 

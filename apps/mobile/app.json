@@ -51,7 +51,7 @@
       [
         "expo-local-authentication",
         {
-          "faceIDPermission": "Permitir que o aplicativo use a biometria do seu celular para acesso rápido e seguro."
+          "faceIDPermission": "Allow the app to use your device's biometrics for quick and secure access."
         }
       ],
       [

@@ -18,8 +18,10 @@ import { theme } from '../../src/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useAdaptiveColors, useResponsive } from '../../src/utils/responsive';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 
 export default function PagamentosModal() {
+  const { t } = useTranslation();
   const router = useRouter();
   const params = useLocalSearchParams<{ customerId?: string }>();
   const layout = useResponsive();
@@ -28,7 +30,7 @@ export default function PagamentosModal() {
   const { customers, receivePayment, subscription, getCurrentMonthTransactionsCount } = useDailyDueStore();
 
   const [selectedCustId, setSelectedCustId] = useState<string>(params.customerId || '');
-  const [payMethod, setPayMethod] = useState<'dinheiro' | 'PIX' | 'cartao'>('dinheiro');
+  const [payMethod, setPayMethod] = useState<'dinheiro' | 'UPI' | 'cartao'>('dinheiro');
   const [amountStr, setAmountStr] = useState('');
   const [sendReceipt, setSendReceipt] = useState(false);
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
@@ -65,19 +67,19 @@ export default function PagamentosModal() {
   const handleConfirmPayment = async () => {
     const amt = parseFloat(amountStr);
     if (isNaN(amt) || amt <= 0) {
-      Alert.alert('Ops!', 'Qual foi o valor pago? 💰');
+      Alert.alert(t('payments.errorTitle'), t('payments.enterAmount'));
       return;
     }
 
     if (!selectedCustId || !targetCust) {
-      Alert.alert('Ops!', 'Quem fez o pagamento? Selecione um cliente. 👤');
+      Alert.alert(t('payments.errorTitle'), t('payments.selectCustomer'));
       return;
     }
 
     if (amt > currentDebt) {
       Alert.alert(
-        'Valor Excedido ⚠️',
-        `O pagamento (R$ ${amt.toFixed(2)}) não pode ser maior que a dívida atual (R$ ${currentDebt.toFixed(2)}).`
+        t('payments.exceededTitle'),
+        t('payments.exceededDesc', { amount: amt.toFixed(2), debt: currentDebt.toFixed(2) })
       );
       return;
     }
@@ -89,11 +91,11 @@ export default function PagamentosModal() {
       getCurrentMonthTransactionsCount() >= subscription.max_transactions_per_month
     ) {
       Alert.alert(
-        'Limite do Plano Grátis 🔒',
-        'Limite de lançamentos do mês atingido. Faça o upgrade para o Premium!',
+        t('payments.planLimitTitle'),
+        t('payments.planLimitDesc'),
         [
-          { text: 'Depois', style: 'cancel' },
-          { text: 'Ver Planos', onPress: () => router.push('/subscription') }
+          { text: t('payments.later'), style: 'cancel' },
+          { text: t('payments.seePlans'), onPress: () => router.push('/subscription') }
         ]
       );
       return;
@@ -114,8 +116,8 @@ export default function PagamentosModal() {
         );
       } else {
         Alert.alert(
-          'Pronto! 🎉',
-          `Abatemos R$ ${amt.toFixed(2)} da conta de ${targetCust.full_name.split(' ')[0]}!`
+          t('payments.successTitle'),
+          t('payments.successDesc', { amount: amt.toFixed(2), name: targetCust.full_name.split(' ')[0] })
         );
       }
 
@@ -123,20 +125,20 @@ export default function PagamentosModal() {
     } catch (err: any) {
       if (err.message === 'FREE_PLAN_TRANSACTION_LIMIT_REACHED') {
         Alert.alert(
-          'Limite do Plano Grátis 🔒',
-          'Limite de lançamentos atingido. Faça o upgrade para o Premium!',
+          t('payments.planLimitTitle'),
+          t('payments.planLimitDesc'),
           [
-            { text: 'Depois', style: 'cancel' },
-            { text: 'Ver Planos', onPress: () => router.push('/subscription') }
+            { text: t('payments.later'), style: 'cancel' },
+            { text: t('payments.seePlans'), onPress: () => router.push('/subscription') }
           ]
         );
       } else if (err.message === 'PAYMENT_EXCEEDS_DEBT') {
         Alert.alert(
-          'Valor Excedido ⚠️',
-          `O valor do pagamento não pode ser maior que a dívida atual.`
+          t('payments.exceededTitle'),
+          t('payments.payExceededDesc')
         );
       } else {
-        Alert.alert('Eita!', 'Não conseguimos salvar agora. Tente de novo! 😅');
+        Alert.alert(t('payments.errorTitle'), t('payments.errorDesc'));
       }
     }
   };
@@ -149,8 +151,8 @@ export default function PagamentosModal() {
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 12), backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <View style={[styles.headerInner, { maxWidth: layout.formMaxWidth + layout.spacing.screen * 2 }]}>
         <View style={styles.headerLeft}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Receber Pagamento</Text>
-          <Text style={styles.headerBadge}>Abater Dívida</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>{t('payments.receivePayment')}</Text>
+          <Text style={styles.headerBadge}>{t('payments.reduceDebt')}</Text>
         </View>
         <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
           <Ionicons name="close" size={24} color={theme.colors.textMuted} />
@@ -174,7 +176,7 @@ export default function PagamentosModal() {
       >
         {/* 1. Selecionar Cliente */}
         <View style={styles.formGroup}>
-          <Text style={[styles.label, { color: colors.text }]}>1. Selecione o Cliente *</Text>
+          <Text style={[styles.label, { color: colors.text }]}>{t('payments.selectClient')}</Text>
           <TouchableOpacity
             style={[styles.dropdownSelector, { backgroundColor: colors.mutedSurface, borderColor: colors.border }]}
             onPress={() => setShowCustomerDropdown(!showCustomerDropdown)}
@@ -184,9 +186,9 @@ export default function PagamentosModal() {
               {selectedCustId 
                 ? (() => {
                     const c = customers.find((cust) => cust.id === selectedCustId);
-                    return c ? `${c.full_name} (${formatCurrency(c.total_debt)})` : 'Selecione um…';
+                    return c ? `${c.full_name} (${formatCurrency(c.total_debt)})` : t('payments.selectOption');
                   })()
-                : 'Selecione um…'}
+                : t('payments.selectOption')}
             </Text>
             <Ionicons
               name={showCustomerDropdown ? 'chevron-up' : 'chevron-down'}
@@ -205,7 +207,7 @@ export default function PagamentosModal() {
                 }}
               >
                 <Ionicons name="add-circle-outline" size={20} color={theme.colors.primary} style={{ marginRight: 8 }} />
-                <Text style={styles.dropdownCreateText}>Cadastrar Novo Cliente</Text>
+                <Text style={styles.dropdownCreateText}>{t('payments.newCustomer')}</Text>
               </TouchableOpacity>
 
               {customers.map((c) => (
@@ -230,7 +232,7 @@ export default function PagamentosModal() {
 
         {/* 2. Forma de Pagamento */}
         <View style={styles.formGroup}>
-          <Text style={[styles.label, { color: colors.text }]}>2. Método de Pagamento</Text>
+          <Text style={[styles.label, { color: colors.text }]}>{t('payments.paymentMethod')}</Text>
           <View style={styles.methodsRow}>
             <TouchableOpacity
               style={[styles.methodBtn, payMethod === 'dinheiro' && styles.methodBtnActive, { flexDirection: 'row' }]}
@@ -243,22 +245,22 @@ export default function PagamentosModal() {
                 style={{ marginRight: 4 }}
               />
               <Text style={[styles.methodText, payMethod === 'dinheiro' && styles.methodTextActive]}>
-                Dinheiro
+                {t('payments.methodCash')}
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.methodBtn, payMethod === 'PIX' && styles.methodBtnActive, { flexDirection: 'row' }]}
-              onPress={() => setPayMethod('PIX')}
+              style={[styles.methodBtn, payMethod === 'UPI' && styles.methodBtnActive, { flexDirection: 'row' }]}
+              onPress={() => setPayMethod('UPI')}
             >
               <Ionicons
                 name="flash-outline"
                 size={14}
-                color={payMethod === 'PIX' ? theme.colors.primaryDark : theme.colors.textMuted}
+                color={payMethod === 'UPI' ? theme.colors.primaryDark : theme.colors.textMuted}
                 style={{ marginRight: 4 }}
               />
-              <Text style={[styles.methodText, payMethod === 'PIX' && styles.methodTextActive]}>
-                PIX
+              <Text style={[styles.methodText, payMethod === 'UPI' && styles.methodTextActive]}>
+                {t('payments.methodPix')}
               </Text>
             </TouchableOpacity>
 
@@ -273,7 +275,7 @@ export default function PagamentosModal() {
                 style={{ marginRight: 4 }}
               />
               <Text style={[styles.methodText, payMethod === 'cartao' && styles.methodTextActive]}>
-                Cartão
+                {t('payments.methodCard')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -281,7 +283,7 @@ export default function PagamentosModal() {
 
         {/* 4. Valor Recebido com Display Gigante */}
         <View style={styles.formGroup}>
-          <Text style={[styles.label, { color: colors.text }]}>3. Valor Recebido (R$) *</Text>
+          <Text style={[styles.label, { color: colors.text }]}>{t('payments.receivedAmount')}</Text>
           <TextInput
             style={[styles.amountDisplay, styles.amountText, { textAlign: 'center', backgroundColor: colors.mutedSurface, borderColor: colors.border }]}
             value={amountStr}
@@ -290,17 +292,17 @@ export default function PagamentosModal() {
                setAmountStr(cleaned);
             }}
             keyboardType="decimal-pad"
-            placeholder="R$ 0.00"
+            placeholder={t('payments.amountPlaceholder')}
             placeholderTextColor={theme.colors.textMuted}
           />
 
           {/* Opções de Preenchimento Automático */}
           <View style={styles.shortcutsRow}>
             <TouchableOpacity style={styles.shortcutBtn} onPress={applyFullPayment}>
-              <Text style={styles.shortcutText}>Valor Total</Text>
+              <Text style={styles.shortcutText}>{t('payments.fullAmount')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.shortcutBtn} onPress={() => applyPartialPayment(0.5)}>
-              <Text style={styles.shortcutText}>Metade (50%)</Text>
+              <Text style={styles.shortcutText}>{t('payments.halfAmount')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -317,12 +319,12 @@ export default function PagamentosModal() {
                 <Ionicons name="checkmark" size={14} color="#ffffff" />
               )}
             </View>
-            <Text style={[styles.checkboxLabel, { color: colors.text }]}>Enviar recibo digital no WhatsApp do cliente</Text>
+            <Text style={[styles.checkboxLabel, { color: colors.text }]}>{t('payments.sendDigitalReceipt')}</Text>
           </TouchableOpacity>
         ) : null}
 
         <Button
-          title="Confirmar Baixa na Caderneta"
+          title={t('payments.confirmWriteOff')}
           variant="success"
           size="lg"
           leftIcon={<Ionicons name="checkmark" size={18} color={theme.colors.primaryDark} style={{ marginRight: 6 }} />}

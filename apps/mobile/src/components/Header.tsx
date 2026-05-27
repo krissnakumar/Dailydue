@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNetworkStatus } from '../core/hooks/useNetworkStatus';
 import { promptLogout } from '../core/auth/logout-flow';
 import { BookWriteLogo } from './BookWriteLogo';
+import { useTranslation } from 'react-i18next';
 
 export interface HeaderProps {
   showTotal?: boolean;
@@ -27,6 +28,7 @@ export const Header: React.FC<HeaderProps> = ({
   hideTitle = false,
   bottomContent,
 }) => {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const isOffline = useNetworkStatus();
@@ -108,7 +110,7 @@ export const Header: React.FC<HeaderProps> = ({
             <TouchableOpacity onPress={() => router.push('/subscription')} style={styles.planBadgeContainer}>
                 <Animated.View style={[styles.planBadge, subscription.is_premium ? styles.planBadgePremium : styles.planBadgeFree, subscription.is_premium && { transform: [{ scale: pulseAnim }] }]}>
                   <Ionicons name={subscription.is_premium ? "star" : "leaf"} size={10} color="#fff" />
-                  <Text style={styles.planBadgeText}>{subscription.is_premium ? 'PRO' : 'GRÁTIS'}</Text>
+                  <Text style={styles.planBadgeText}>{subscription.is_premium ? t('subscription.premium') : t('subscription.free')}</Text>
                </Animated.View>
             </TouchableOpacity>
           </View>
@@ -132,7 +134,7 @@ export const Header: React.FC<HeaderProps> = ({
               <View style={styles.planBadgeContainer}>
                   <Animated.View style={[styles.planBadge, subscription.is_premium ? styles.planBadgePremium : styles.planBadgeFree, subscription.is_premium && { transform: [{ scale: pulseAnim }] }]}>
                     <Ionicons name={subscription.is_premium ? "star" : "leaf"} size={10} color="#fff" />
-                    <Text style={styles.planBadgeText}>{subscription.is_premium ? 'PRO' : 'GRÁTIS'}</Text>
+                    <Text style={styles.planBadgeText}>{subscription.is_premium ? t('subscription.premium') : t('subscription.free')}</Text>
                  </Animated.View>
               </View>
             </View>
@@ -142,7 +144,7 @@ export const Header: React.FC<HeaderProps> = ({
         <View style={styles.actionsWrapper}>
           <TouchableOpacity
             accessibilityRole="button"
-            accessibilityLabel={user && user.id !== 'usr_offline' ? 'Sair' : 'Conta'}
+            accessibilityLabel={user && user.id !== 'usr_offline' ? t('config.logout') : t('config.account')}
             style={styles.accountIconBtn}
             onPress={handleAccountAction}
             activeOpacity={0.7}
@@ -164,17 +166,17 @@ export const Header: React.FC<HeaderProps> = ({
           <Animated.View style={{ transform: [{ rotate: spin }] }}>
             <Ionicons name="sync-outline" size={14} color="#10b981" />
           </Animated.View>
-          <Text style={styles.syncIndicatorText}>Sincronizando com a nuvem...</Text>
+          <Text style={styles.syncIndicatorText}>{t('common.loading')}</Text>
         </View>
       ) : isOffline ? (
         <View style={styles.syncIndicatorRow}>
           <Ionicons name="cloud-offline-outline" size={14} color="#f59e0b" />
-          <Text style={styles.syncIndicatorText}>Aguardando conexão para sincronizar...</Text>
+          <Text style={styles.syncIndicatorText}>{t('errors.network')}</Text>
         </View>
       ) : syncQueue.length > 0 ? (
         <View style={styles.syncIndicatorRow}>
           <Ionicons name="cloud-upload-outline" size={14} color="#3b82f6" />
-          <Text style={styles.syncIndicatorText}>{syncQueue.length} alteração(ões) pendente(s)</Text>
+          <Text style={styles.syncIndicatorText}>{syncQueue.length} {t('common.pending')}</Text>
         </View>
       ) : null}
 
@@ -182,7 +184,7 @@ export const Header: React.FC<HeaderProps> = ({
         <View style={styles.offlineBanner}>
           <Ionicons name="wifi-outline" size={14} color="#fff" style={{ marginRight: 6 }} />
           <Text style={styles.offlineBannerText}>
-            Sem internet. Alterações salvando localmente.
+            {t('header.offlineMessage')}
           </Text>
         </View>
       )}

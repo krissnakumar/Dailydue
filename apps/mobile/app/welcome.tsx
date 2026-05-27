@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -9,7 +10,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { useDailyDueStore } from '../src/store';
-import { theme } from '../src/theme';
+import { useTheme } from '../src/theme';
 
 const ENTRY_MS = 420;
 const HOLD_MS = 950;
@@ -17,6 +18,8 @@ const EXIT_MS = 320;
 
 export default function WelcomeScreen() {
   const router = useRouter();
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { user } = useDailyDueStore();
 
   const welcomeOpacity = useSharedValue(0);
@@ -73,10 +76,12 @@ export default function WelcomeScreen() {
     opacity: pageOpacity.value,
   }));
 
+  const { t } = useTranslation();
+
   // Extract first name or use fallback
   const fullName = user?.full_name || '';
-  const firstName = fullName ? fullName.trim().split(' ')[0] : 'usuário';
-  const greeting = fullName ? `Olá, ${firstName}!` : 'Bem-vindo de volta!';
+  const firstName = fullName ? fullName.trim().split(' ')[0] : t('common.user');
+  const greeting = fullName ? `${t('welcome.greeting')}, ${firstName}!` : t('welcome.back');
 
   return (
     <Animated.View style={[styles.container, animatedPageStyle]}>
@@ -90,7 +95,7 @@ export default function WelcomeScreen() {
         <Animated.View style={[styles.textContainer, animatedWelcomeStyle]}>
           <Animated.Text style={styles.title}>{greeting}</Animated.Text>
           <Animated.Text style={styles.subtitle}>
-            Seu Controle de Fiado está pronto.
+            {t('welcome.ready')}
           </Animated.Text>
         </Animated.View>
       </View>
@@ -98,7 +103,7 @@ export default function WelcomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: ReturnType<typeof useTheme>['theme']) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.primaryBrand,

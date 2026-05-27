@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { View, Text, StyleSheet, ScrollView, Alert, ActivityIndicator, TouchableOpacity, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Header, Card, Button } from '../../src/components';
@@ -14,6 +15,7 @@ const premiumSubId = process.env.EXPO_PUBLIC_GOOGLE_PLAY_PREMIUM_SUB_ID || '';
 const androidPackageName = Constants.expoConfig?.android?.package || 'com.dailydue.app';
 
 export default function SubscriptionNativeScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const layout = useResponsive();
   const {
@@ -54,18 +56,18 @@ export default function SubscriptionNativeScreen() {
     try {
       await Linking.openURL('https://play.google.com/store/account/subscriptions');
     } catch {
-      Alert.alert('Google Play', 'Não foi possível abrir o Google Play neste dispositivo.');
+      Alert.alert(t('subscription.googlePlayAlert'), t('subscription.cantOpenPlay'));
     }
   };
 
   const handleUpgrade = async () => {
     if (!premiumSubId) {
-      Alert.alert('Configuração', 'Defina EXPO_PUBLIC_GOOGLE_PLAY_PREMIUM_SUB_ID para habilitar assinatura via Google Play.');
+      Alert.alert(t('subscription.config'), t('subscription.setSubId'));
       return;
     }
 
     if (billing.isOffline) {
-      Alert.alert('Modo Offline', 'Você está offline. Conecte-se à internet para realizar compras.');
+      Alert.alert(t('subscription.offlineMode'), t('subscription.offlineMessage'));
       return;
     }
 
@@ -74,12 +76,12 @@ export default function SubscriptionNativeScreen() {
       const success = await billing.handleUpgrade(premiumSubId, androidPackageName);
       if (success) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert('Upgrade', 'Upgrade solicitado com sucesso!');
+        Alert.alert(t('subscription.upgrade'), t('subscription.upgradeSuccess'));
       } else {
-        Alert.alert('Cancelado/Erro', 'Não foi possível completar o upgrade pelo Google Play.');
+        Alert.alert(t('subscription.cancelError'), t('subscription.upgradeFailed'));
       }
     } catch (e: any) {
-      Alert.alert('Ops!', e?.message || 'Falha ao processar assinatura.');
+      Alert.alert(t('common.error'), e?.message || t('subscription.processFail'));
     } finally {
       setInAppLoading(false);
     }
@@ -87,7 +89,7 @@ export default function SubscriptionNativeScreen() {
 
   const handleRestore = async () => {
     if (!premiumSubId) {
-      Alert.alert('Configuração', 'Defina EXPO_PUBLIC_GOOGLE_PLAY_PREMIUM_SUB_ID para restaurar compras.');
+      Alert.alert(t('subscription.config'), t('subscription.setSubId'));
       return;
     }
     setInAppLoading(true);
@@ -95,12 +97,12 @@ export default function SubscriptionNativeScreen() {
       const success = await billing.handleRestore(premiumSubId, androidPackageName);
       if (success) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert('Restaurado', 'Assinatura Premium ativa restaurada com sucesso!');
+        Alert.alert(t('subscription.restored'), t('subscription.restoreSuccess'));
       } else {
-        Alert.alert('Restauração', 'Nenhuma assinatura ativa encontrada ou falha ao restaurar.');
+        Alert.alert(t('subscription.restorationTitle'), t('subscription.restoreFailed'));
       }
     } catch (e: any) {
-      Alert.alert('Ops!', e?.message || 'Falha ao restaurar compras.');
+      Alert.alert(t('common.error'), e?.message || t('subscription.restoreError'));
     } finally {
       setInAppLoading(false);
     }
@@ -110,7 +112,7 @@ export default function SubscriptionNativeScreen() {
     <View style={styles.wrapper}>
       <Header
         showTotal={false}
-        title="Assinatura & Limites"
+        title={t('subscription.title')}
         leftAction={
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={22} color={theme.colors.textMain} />
@@ -130,12 +132,12 @@ export default function SubscriptionNativeScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.sectionTitle}>Plano e limites</Text>
+        <Text style={styles.sectionTitle}>{t('subscription.planAndLimits')}</Text>
         <Card style={styles.planCard}>
           <View style={styles.subHeader}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Ionicons
-                name={subscription.is_premium ? 'sparkles' : 'ribbon-outline'}
+                name={subscription.is_premium ? 'diamond' : 'ribbon-outline'}
                 size={20}
                 color={subscription.is_premium ? '#eab308' : theme.colors.textMuted}
                 style={{ marginRight: 8 }}
@@ -143,12 +145,12 @@ export default function SubscriptionNativeScreen() {
               <View>
                 <Text style={styles.subTitle}>
                   {subscription.plan_id === 'premium_monthly'
-                    ? 'Plano Premium'
-                    : 'Plano Gratuito'}
+                    ? t('subscription.premiumPlan')
+                    : t('subscription.freePlan')}
                 </Text>
                 <Text style={styles.subMeta}>
-                  Fonte: {subscription.source === 'play' ? 'Google Play' : subscription.source === 'cloud' ? 'Nuvem' : 'Simulado'}
-                  {billing.connected ? ' • Play OK' : ' • Play…'}
+                  {t('subscription.source')}: {subscription.source === 'play' ? t('subscription.googlePlay') : subscription.source === 'cloud' ? t('subscription.cloud') : t('subscription.simulated')}
+                  {billing.connected ? t('subscription.playOk') : t('subscription.playEllipsis')}
                 </Text>
               </View>
             </View>
@@ -167,17 +169,16 @@ export default function SubscriptionNativeScreen() {
                     ? styles.badgeTextPremium
                     : styles.badgeTextFree,
                 ]}
-              >
-                {subscription.plan_id === 'premium_monthly'
-                  ? 'Premium'
-                  : 'Grátis'}
+              >{subscription.plan_id === 'premium_monthly'
+                    ? t('subscription.premium')
+                    : t('subscription.free')}
               </Text>
             </View>
           </View>
 
           <View style={styles.limitRow}>
             <View style={styles.limitHeader}>
-              <Text style={styles.limitLabel}>Clientes cadastrados</Text>
+              <Text style={styles.limitLabel}>{t('subscription.registeredCustomers')}</Text>
               <Text style={styles.limitValue}>
                 {customersCount} / {subscription.max_customers ?? '∞'}
               </Text>
@@ -201,7 +202,7 @@ export default function SubscriptionNativeScreen() {
 
           <View style={styles.limitRow}>
             <View style={styles.limitHeader}>
-              <Text style={styles.limitLabel}>Lançamentos do mês</Text>
+              <Text style={styles.limitLabel}>{t('subscription.monthlyTransactions')}</Text>
               <Text style={styles.limitValue}>
                 {txCount} / {subscription.max_transactions_per_month ?? '∞'}
               </Text>
@@ -224,14 +225,14 @@ export default function SubscriptionNativeScreen() {
           </View>
         </Card>
 
-        <Text style={styles.sectionTitle}>Google Play</Text>
+        <Text style={styles.sectionTitle}>{t('subscription.googlePlay')}</Text>
         <Card style={styles.googleCard}>
           <View style={styles.googlePlayHeader}>
             <Ionicons name="logo-google-playstore" size={22} color="#10b981" />
             <View style={{ marginLeft: 10, flex: 1 }}>
-              <Text style={styles.googlePlayTitle}>Assinatura Premium</Text>
+              <Text style={styles.googlePlayTitle}>{t('subscription.premiumSub')}</Text>
               <Text style={styles.googlePlayDesc}>
-                {premiumPriceLabel ? `Preço: ${premiumPriceLabel}` : premiumSubId ? 'Carregando preço…' : 'Configuração pendente'}
+                {premiumPriceLabel ? `${t('subscription.price')}: ${premiumPriceLabel}` : premiumSubId ? t('subscription.loadingPrice') : t('subscription.pendingConfig')}
               </Text>
             </View>
           </View>
@@ -239,7 +240,7 @@ export default function SubscriptionNativeScreen() {
           {!subscription.is_premium ? (
             <>
               <Button
-                title={inAppLoading ? 'Abrindo Google Play…' : 'Assinar com Google Play'}
+                title={inAppLoading ? t('subscription.openingPlay') : t('subscription.subscribePlay')}
                 variant="primary"
                 leftIcon={
                   inAppLoading ? (
@@ -252,19 +253,19 @@ export default function SubscriptionNativeScreen() {
                 onPress={handleUpgrade}
                 style={{ marginTop: 10, backgroundColor: '#10b981' }}
               />
-              <Button title="Restaurar compras" variant="ghost" disabled={inAppLoading} onPress={handleRestore} style={{ marginTop: 10 }} />
+              <Button title={t('subscription.restorePurchases')} variant="ghost" disabled={inAppLoading} onPress={handleRestore} style={{ marginTop: 10 }} />
             </>
           ) : (
             <>
               <Button
-                title="Gerenciar assinatura no Google Play"
+                title={t('subscription.managePlay')}
                 variant="primary"
                 leftIcon={<Ionicons name="open-outline" size={18} color="#ffffff" style={{ marginRight: 6 }} />}
                 onPress={openPlayManageSubscriptions}
                 style={{ marginTop: 10 }}
               />
               <Button
-                title="Restaurar / revalidar Premium"
+                title={t('subscription.restoreRevalidate')}
                 variant="ghost"
                 disabled={inAppLoading}
                 onPress={handleRestore}

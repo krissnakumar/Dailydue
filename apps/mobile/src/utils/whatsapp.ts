@@ -1,6 +1,7 @@
 import { Alert, Linking } from "react-native";
+import i18n from '../core/i18n';
 
-export function normalizeBrazilWhatsapp(raw?: string | null) {
+export function normalizeIndiaWhatsapp(raw?: string | null) {
   if (!raw) return null;
 
   let phone = raw.replace(/\D/g, "");
@@ -17,16 +18,15 @@ export function normalizeBrazilWhatsapp(raw?: string | null) {
     phone = phone.slice(1);
   }
 
-  if (!phone.startsWith("55")) {
-    phone = `55${phone}`;
+  if (!phone.startsWith("91")) {
+    phone = `91${phone}`;
   }
 
-  // Keep only plausible BR WhatsApp sizes:
-  // 55 + DDD + 8/9 digits => 12 or 13 total digits
-  if (phone.length < 12) return null;
-  if (phone.length > 13) {
-    // If extra digits slipped in, keep the rightmost 13 (usually includes DDI+DDD+number)
-    phone = phone.slice(-13);
+  // Keep only plausible IN WhatsApp sizes:
+  // 91 + 10 digits => 12 total digits
+  if (phone.length < 10) return null;
+  if (phone.length > 12) {
+    phone = phone.slice(-12);
   }
 
   return phone;
@@ -36,10 +36,10 @@ export async function openClientWhatsapp(
   whatsapp: string | null | undefined,
   message: string
 ) {
-  const phone = normalizeBrazilWhatsapp(whatsapp);
+  const phone = normalizeIndiaWhatsapp(whatsapp);
 
   if (!phone) {
-    Alert.alert("WhatsApp não cadastrado", "Este cliente não tem WhatsApp cadastrado.");
+    Alert.alert(i18n.t('whatsapp.noWhatsApp'), i18n.t('whatsapp.noWhatsAppDesc'));
     return;
   }
 

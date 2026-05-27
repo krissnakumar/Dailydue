@@ -1,6 +1,6 @@
 /**
  * Supabase Edge Function: whatsapp-service (Deno)
- * Integração Oficial com a Meta WhatsApp Cloud API
+ * Official Meta WhatsApp Cloud API Integration
  */
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
@@ -14,7 +14,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Dispara a mensagem transacional direta pela Cloud API da Meta
+// Sends the transactional message directly via Meta Cloud API
 async function sendWhatsAppMessage(toPhone: string, text: string) {
   const url = `https://graph.facebook.com/v19.0/${META_PHONE_NUMBER_ID}/messages`;
   
@@ -38,13 +38,13 @@ async function sendWhatsAppMessage(toPhone: string, text: string) {
 
   const data = await response.json();
   if (!response.ok) {
-    throw new Error(`Erro na API da Meta: ${JSON.stringify(data)}`);
+    throw new Error(`Meta API Error: ${JSON.stringify(data)}`);
   }
   return data;
 }
 
 serve(async (req) => {
-  // Tratamento de requisições de preflight (CORS)
+  // CORS preflight handling
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -52,7 +52,7 @@ serve(async (req) => {
   const url = new URL(req.url);
 
   // ==========================================================================
-  // HANDSHAKE DE VERIFICAÇÃO DO WEBHOOK (Painel de Desenvolvedores da Meta)
+  // WEBHOOK VERIFICATION HANDSHAKE (Meta Developer Dashboard)
   // ==========================================================================
   if (req.method === 'GET') {
     const mode = url.searchParams.get('hub.mode');
@@ -60,49 +60,49 @@ serve(async (req) => {
     const challenge = url.searchParams.get('hub.challenge');
 
     if (mode === 'subscribe' && token === WEBHOOK_VERIFY_TOKEN) {
-      console.log('Webhook validado com sucesso pela Meta!');
+      console.log('Webhook successfully validated by Meta!');
       return new Response(challenge, { status: 200 });
     }
-    return new Response('Acesso Proibido', { status: 403 });
+    return new Response('Forbidden', { status: 403 });
   }
 
   // ==========================================================================
-  // DISPARO DE MENSAGENS TRANSACIONAIS (Chamadas internas seguras)
+  // TRANSACTIONAL MESSAGE DISPATCH (Secure internal calls)
   // ==========================================================================
   try {
     const { action, customerPhone, customerName, amount, pixString } = await req.json();
 
     if (!customerPhone || !action) {
       return new Response(
-        JSON.stringify({ error: 'Parâmetros obrigatórios ausentes: action, customerPhone' }),
+        JSON.stringify({ error: 'Missing required parameters: action, customerPhone' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Formatação de moeda simples em Deno
+    // Simple currency formatting in Deno
     const formatBRL = (val: number) => `R$ ${Number(val).toFixed(2).replace('.', ',')}`;
     const firstName = customerName ? customerName.split(' ')[0] : 'Cliente';
     let messageBody = '';
 
-    // Lógica e Templates Empáticos Locais (Sem agressividade)
+    // Template messages in English (localized, friendly tone)
     switch (action) {
       case 'send_reminder':
-        messageBody = `Olá ${firstName} 🙂 tudo bem? Passando para lembrar do seu saldo pendente de ${formatBRL(amount)} no nosso Caderninho de Fiado.\n\nQuando tiver um tempinho de passar por aqui, agradecemos muito! 🙏`;
+        messageBody = `Hi ${firstName} 🙂 Just a friendly reminder about your pending balance of ${formatBRL(amount)} at the Ledger.\n\nWhen you get a moment, please stop by to settle it. Thank you! 🙏`;
         if (pixString) {
-          messageBody += `\n\nPara facilitar, segue a nossa chave PIX Copia e Cola:\n\n${pixString}`;
+          messageBody += `\n\nTo make it easier, here is our UPI Copy & Paste key:\n\n${pixString}`;
         }
         break;
 
       case 'send_payment_confirmation':
-        messageBody = `Que maravilha, ${firstName}! ✨ Recebemos o seu pagamento de ${formatBRL(amount)} e já demos baixa no Caderninho.\n\nMuito obrigado pela preferência e amizade de sempre! 🤝`;
+        messageBody = `Great news, ${firstName}! ✨ We have received your payment of ${formatBRL(amount)} and updated the Ledger.\n\nThank you for your continued trust and preference! 🤝`;
         break;
 
       case 'send_overdue_alert':
-        messageBody = `Olá ${firstName}, como vai? 📒 Notamos que a sua continha no valor de ${formatBRL(amount)} está em aberto há algum tempo.\n\nSabemos que a correria do dia a dia é grande, então se preferir, você pode quitar direto pelo PIX Copia e Cola abaixo:\n\n${pixString || 'Chave PIX da loja'}\n\nForte abraço!`;
+        messageBody = `Hi ${firstName}, how are you? 📒 We noticed that your balance of ${formatBRL(amount)} has been open for a while.\n\nWe know life gets busy, so if you prefer, you can pay directly using our UPI Copy & Paste key below:\n\n${pixString || 'Store UPI Key'}\n\nBest regards!`;
         break;
 
       default:
-        throw new Error('Ação não reconhecida.');
+        throw new Error('Unrecognized action.');
     }
 
     // Dispara via Graph API
@@ -114,7 +114,7 @@ serve(async (req) => {
     );
 
   } catch (err: any) {
-    console.error('Erro no processamento do WhatsApp Service:', err);
+    console.error('WhatsApp Service processing error:', err);
     return new Response(
       JSON.stringify({ error: err.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

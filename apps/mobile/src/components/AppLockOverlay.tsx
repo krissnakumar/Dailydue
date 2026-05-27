@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ActivityIndicator, Vibration, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SecurityService } from '../core/security/security-service';
+import { useTranslation } from 'react-i18next';
 
 let Haptics: any = null;
 try {
@@ -13,6 +14,7 @@ interface AppLockOverlayProps {
 }
 
 export function AppLockOverlay({ onUnlock }: AppLockOverlayProps) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -36,21 +38,21 @@ export function AppLockOverlay({ onUnlock }: AppLockOverlayProps) {
     setErrorMsg('');
     
     try {
-      const res = await SecurityService.authenticateAsync('Acesse o aplicativo DailyDue de forma segura.');
+      const res = await SecurityService.authenticateAsync(t('lock.authPrompt'));
       if (res.success) {
         triggerHaptic('success');
         onUnlock();
       } else {
         triggerHaptic('error');
         if (res.error?.includes('cancel') || res.error?.includes('Cancel')) {
-          setErrorMsg('Autenticação cancelada.');
+          setErrorMsg(t('lock.cancelled'));
         } else {
-          setErrorMsg(res.error || 'Falha na autenticação do sistema.');
+          setErrorMsg(res.error || t('lock.systemFail'));
         }
       }
     } catch (e) {
       triggerHaptic('error');
-      setErrorMsg('Erro inesperado na autenticação do dispositivo.');
+      setErrorMsg(t('lock.unexpectedError'));
     } finally {
       setLoading(false);
     }
@@ -70,9 +72,9 @@ export function AppLockOverlay({ onUnlock }: AppLockOverlayProps) {
         <View style={styles.logoContainer}>
           <Ionicons name="shield-checkmark" size={46} color="#10b981" />
         </View>
-        <Text style={styles.title}>Fiado Protegido</Text>
+        <Text style={styles.title}>{t('lock.unlockTitle')}</Text>
         <Text style={styles.subtitle}>
-          Acesso protegido pelas credenciais de segurança do seu dispositivo.
+          {t('lock.subtitle')}
         </Text>
       </View>
 
@@ -95,7 +97,7 @@ export function AppLockOverlay({ onUnlock }: AppLockOverlayProps) {
           ) : (
             <>
               <Ionicons name="lock-open-outline" size={20} color="#ffffff" style={{ marginRight: 8 }} />
-              <Text style={styles.unlockBtnText}>Desbloquear com o Sistema</Text>
+              <Text style={styles.unlockBtnText}>{t('lock.unlockButton')}</Text>
             </>
           )}
         </TouchableOpacity>

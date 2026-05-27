@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Redirect, Tabs, useRouter } from 'expo-router';
 import { Platform, View, Text, StyleSheet, TouchableOpacity, useWindowDimensions, Animated, Easing, StyleProp, ViewStyle } from 'react-native';
-import { theme } from '../../src/theme';
+import { useTheme } from '../../src/theme';
 import { useDailyDueStore } from '../../src/store';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 
 function DailyDueRunningLight({ triggerCount }: { triggerCount: number }) {
   const pulse = useRef(new Animated.Value(0)).current;
@@ -39,8 +40,8 @@ function DailyDueRunningLight({ triggerCount }: { triggerCount: number }) {
   });
 
   return (
-    <Animated.View style={[styles.runningLightOrbit, { transform: [{ scale }] }]}>
-      <Animated.View style={[styles.dailydueCircleGlow, { opacity: glowOpacity }]} />
+    <Animated.View style={[{ position: 'absolute', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'flex-start', transform: [{ scale }] }]}>
+      <Animated.View style={[{ width: '100%', height: '100%', borderRadius: 999, backgroundColor: '#fdba74', opacity: glowOpacity }]} />
     </Animated.View>
   );
 }
@@ -89,9 +90,7 @@ function DailyDueAnimatedCircle({
     <Animated.View
       style={[
         style,
-        {
-          transform: [{ scale }, { rotate }],
-        },
+        { transform: [{ scale }, { rotate }] },
       ]}
     >
       {children}
@@ -142,14 +141,8 @@ function OutlineGlowIcon({
   return (
     <Animated.View
       style={[
-        styles.glowWrap,
-        {
-          transform: [{ scale }],
-          opacity,
-          shadowColor: glowColor,
-          shadowOpacity: focused ? 0.75 : 0.35,
-          elevation: focused ? 12 : 4,
-        },
+        { alignItems: 'center', justifyContent: 'center', shadowOffset: { width: 0, height: 0 }, shadowRadius: 14 },
+        { transform: [{ scale }], opacity, shadowColor: glowColor, shadowOpacity: focused ? 0.75 : 0.35, elevation: focused ? 12 : 4 },
       ]}
     >
       <Ionicons name={outlineName} size={size} color={color} />
@@ -158,8 +151,10 @@ function OutlineGlowIcon({
 }
 
 export default function TabsLayout() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { user, authChecked } = useDailyDueStore();
+  const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const [pressBump, setPressBump] = useState<Record<string, number>>({});
@@ -178,6 +173,83 @@ export default function TabsLayout() {
     setPressBump((prev) => ({ ...prev, [key]: (prev[key] ?? 0) + 1 }));
   };
 
+  const computedStyles = useMemo(() => StyleSheet.create({
+    tabBar: {
+      backgroundColor: theme.colors.tabBarBg,
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.tabBarBorder,
+      elevation: 8,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: -2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 10,
+    },
+    webTabBar: {
+      maxWidth: 760,
+      alignSelf: 'center',
+      left: 0,
+      right: 0,
+      borderTopLeftRadius: theme.borderRadius.lg,
+      borderTopRightRadius: theme.borderRadius.lg,
+    },
+    label: {
+      fontSize: 11,
+      fontWeight: '600' as const,
+      fontFamily: 'Inter',
+    },
+    centerButtonWrapper: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: 44,
+      marginTop: -14,
+    },
+    centerButtonWrapperSmall: {
+      marginTop: -10,
+    },
+    centerButton: {
+      width: 50,
+      height: 50,
+      borderRadius: 25,
+      backgroundColor: theme.colors.centerButtonBg,
+      borderWidth: 2,
+      borderColor: theme.colors.accent,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+      elevation: 4,
+      shadowColor: theme.colors.accent,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+    },
+    centerButtonSmall: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+    },
+    centerButtonTablet: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+    },
+    centerIcon: {
+      fontSize: 22,
+      color: theme.colors.accent,
+    },
+    centerText: {
+      fontSize: 11,
+      fontWeight: '700' as const,
+      color: theme.colors.accent,
+      marginTop: 4,
+    },
+    centerLabel: {
+      fontSize: 11,
+      fontWeight: '700' as const,
+      color: theme.colors.textMuted,
+    },
+  }), [theme]);
+
   if (authChecked && !user) {
     return <Redirect href="/(auth)/login" />;
   }
@@ -189,24 +261,24 @@ export default function TabsLayout() {
           headerShown: false,
           tabBarHideOnKeyboard: true,
           tabBarStyle: [
-            styles.tabBar,
+            computedStyles.tabBar,
             {
               height: tabBarHeight,
               paddingBottom: tabBarPaddingBottom,
               paddingTop: isSmall ? 6 : 8,
             },
-            Platform.OS === 'web' && styles.webTabBar,
+            Platform.OS === 'web' && computedStyles.webTabBar,
           ],
           tabBarActiveTintColor: theme.colors.primary,
           tabBarInactiveTintColor: theme.colors.textMuted,
-          tabBarLabelStyle: [styles.label, isSmall && styles.labelSmall, isTablet && styles.labelTablet],
-          tabBarItemStyle: styles.tabItem,
+          tabBarLabelStyle: [computedStyles.label, isSmall && { fontSize: 10 }, isTablet && { fontSize: 12 }],
+          tabBarItemStyle: { minHeight: 44 },
         }}
       >
         <Tabs.Screen
           name="home"
           options={{
-            title: 'Home',
+            title: t('tabs.home'),
             tabBarIcon: ({ color, focused }) => (
               <OutlineGlowIcon
                 focused={focused}
@@ -224,14 +296,12 @@ export default function TabsLayout() {
         />
         <Tabs.Screen
           name="home-details"
-          options={{
-            href: null,
-          }}
+          options={{ href: null }}
         />
         <Tabs.Screen
           name="clientes"
           options={{
-            title: 'Clientes',
+            title: t('tabs.clients'),
             tabBarIcon: ({ color, focused }) => (
               <OutlineGlowIcon
                 focused={focused}
@@ -253,17 +323,15 @@ export default function TabsLayout() {
         />
         <Tabs.Screen
           name="relatorios"
-          options={{
-            href: null,
-          }}
+          options={{ href: null }}
         />
         <Tabs.Screen
           name="novo-fiado"
           options={{
-            title: 'Vender',
+            title: t('tabs.sell'),
             tabBarLabel: ({ focused }) => (
-              <Text style={[styles.centerLabel, focused && { color: theme.colors.accent }]}>
-                Fiado
+              <Text style={[computedStyles.centerLabel, focused && { color: theme.colors.accent }]}>
+                {t('tabs.sell')}
               </Text>
             ),
             tabBarButton: ({ ...props }: any) => (
@@ -275,16 +343,16 @@ export default function TabsLayout() {
                   bump('novo-fiado');
                   router.push('/novo-fiado');
                 }}
-                style={[styles.centerButtonWrapper, isSmall && styles.centerButtonWrapperSmall]}
+                style={[computedStyles.centerButtonWrapper, isSmall && computedStyles.centerButtonWrapperSmall]}
               >
                 <DailyDueAnimatedCircle
                   triggerCount={pressCountFor('novo-fiado')}
-                  style={[styles.centerButton, isSmall && styles.centerButtonSmall, isTablet && styles.centerButtonTablet]}
+                  style={[computedStyles.centerButton, isSmall && computedStyles.centerButtonSmall, isTablet && computedStyles.centerButtonTablet]}
                 >
                   <DailyDueRunningLight triggerCount={pressCountFor('novo-fiado')} />
-                  <Text style={styles.centerIcon}>R$</Text>
+                  <Text style={computedStyles.centerIcon}>₹</Text>
                 </DailyDueAnimatedCircle>
-                <Text style={[styles.centerText, isSmall && styles.labelSmall]}>Vender</Text>
+                <Text style={[computedStyles.centerText, isSmall && { fontSize: 10 }]}>{t('tabs.sell')}</Text>
               </TouchableOpacity>
             ),
           }}
@@ -292,7 +360,7 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="cobrancas"
           options={{
-            title: 'Cobranças',
+            title: t('tabs.collections'),
             tabBarIcon: ({ color, focused }) => (
               <OutlineGlowIcon
                 focused={focused}
@@ -310,20 +378,16 @@ export default function TabsLayout() {
         />
         <Tabs.Screen
           name="pagamentos"
-          options={{
-            href: null,
-          }}
+          options={{ href: null }}
         />
         <Tabs.Screen
           name="subscription"
-          options={{
-            href: null,
-          }}
+          options={{ href: null }}
         />
         <Tabs.Screen
           name="config"
           options={{
-            title: 'Config',
+            title: t('tabs.settings'),
             tabBarIcon: ({ color, focused }) => (
               <OutlineGlowIcon
                 focused={focused}
@@ -343,108 +407,3 @@ export default function TabsLayout() {
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  tabBar: {
-    backgroundColor: theme.colors.card,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-  },
-  webTabBar: {
-    maxWidth: 760,
-    alignSelf: 'center',
-    left: 0,
-    right: 0,
-    borderTopLeftRadius: theme.borderRadius.lg,
-    borderTopRightRadius: theme.borderRadius.lg,
-  },
-  tabItem: {
-    minHeight: 44,
-  },
-  glowWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowOffset: { width: 0, height: 0 },
-    shadowRadius: 14,
-  },
-  label: {
-    fontSize: 11,
-    fontWeight: '600',
-    fontFamily: 'Inter',
-  },
-  labelSmall: {
-    fontSize: 10,
-  },
-  labelTablet: {
-    fontSize: 12,
-  },
-  centerButtonWrapper: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 44,
-    marginTop: -14,
-  },
-  centerButtonWrapperSmall: {
-    marginTop: -10,
-  },
-  centerButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#ffedd5',
-    borderWidth: 2,
-    borderColor: theme.colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    elevation: 4,
-    shadowColor: theme.colors.accent,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-  runningLightOrbit: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-  },
-  dailydueCircleGlow: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 999,
-    backgroundColor: '#fdba74',
-  },
-  centerButtonSmall: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-  },
-  centerButtonTablet: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-  },
-  centerIcon: {
-    fontSize: 22,
-    color: theme.colors.accent,
-  },
-  centerText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: theme.colors.accent,
-    marginTop: 4,
-  },
-  centerLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: theme.colors.textMuted,
-  },
-});
