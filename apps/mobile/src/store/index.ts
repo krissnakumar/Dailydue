@@ -749,6 +749,34 @@ export const useFiadoStore = create<FiadoMobileState>()(
           amount: newAmount,
         });
 
+        if (itemId.startsWith('hist_')) {
+          // Update the pending sync item in the queue in-place
+          let foundPending = false;
+          set((state) => {
+            const updatedQueue = state.syncQueue.map((q) => {
+              if ((q.type === 'debt' || q.type === 'payment') && q.payload?.local_id === itemId) {
+                foundPending = true;
+                return {
+                  ...q,
+                  payload: {
+                    ...q.payload,
+                    amount: newAmount,
+                    description: newDesc.trim() || q.payload.description || originalItem.description,
+                  },
+                };
+              }
+              return q;
+            });
+            return { syncQueue: updatedQueue };
+          });
+
+          if (foundPending) {
+            void syncLocalDatabaseQueue(get().syncQueue);
+            get().attemptBackgroundSync();
+            return;
+          }
+        }
+
         if (!itemId.startsWith('hist_')) {
           get().enqueueSync('delete_transaction', { id: itemId });
         }
