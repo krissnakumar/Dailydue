@@ -1,5 +1,5 @@
 import * as Linking from 'expo-linking';
-import { supabase } from '@controle-fiado/api';
+import { supabase } from '@dailydue/api';
 
 export type OAuthCallbackParams = {
   code: string | null;
@@ -39,7 +39,7 @@ export function parseOAuthCallbackParams(urlStr: string): OAuthCallbackParams {
 }
 
 export function isAuthCallbackUrl(url: string): boolean {
-  if (url.startsWith('controlefiado://')) return true;
+  if (url.startsWith('dailydue://')) return true;
   const normalizedUrl = url.replace('#', url.includes('?') ? '&' : '?');
   const parsed = Linking.parse(normalizedUrl);
   return (

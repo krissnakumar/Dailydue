@@ -1,4 +1,4 @@
--- Fiado production contract repair.
+-- DailyDue production contract repair.
 -- Keeps older installs compatible with the current Expo app and Google Play flow.
 
 create extension if not exists pgcrypto;

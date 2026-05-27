@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Image, Alert, AlertButton } from 'react-native';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
-import { CustomerClient, useFiadoStore, HistoryItem, isTempCustomerId } from '../store';
+import { CustomerClient, useDailyDueStore, HistoryItem, isTempCustomerId } from '../store';
 import { formatCurrency, sendWhatsappReminder } from '../utils';
 import { theme } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -35,7 +35,7 @@ export const CustomerRow: React.FC<CustomerRowProps> = ({
   selected,
 }) => {
   const swipeableRef = useRef<Swipeable>(null);
-  const { deleteCustomer, deleteHistoryItem, businessConfig, syncQueue } = useFiadoStore();
+  const { deleteCustomer, deleteHistoryItem, businessConfig, syncQueue } = useDailyDueStore();
   const isZero = customer.total_debt === 0;
   
   const hasPendingSync = isTempCustomerId(customer.id) || syncQueue.some(

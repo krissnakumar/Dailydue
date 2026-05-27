@@ -1,4 +1,4 @@
-import { supabaseEnvOk } from '@controle-fiado/api';
+import { supabaseEnvOk } from '@dailydue/api';
 
 export const CONFIG = {
   sync: {

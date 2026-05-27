@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Header, Card } from '../../src/components';
-import { useFiadoStore } from '../../src/store';
+import { useDailyDueStore } from '../../src/store';
 import { formatCurrency } from '../../src/utils';
 import { theme } from '../../src/theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,7 +19,7 @@ export default function HomeDetailsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const kind = normalizeKind(params.kind);
-  const { customers } = useFiadoStore();
+  const { customers } = useDailyDueStore();
 
   const startOfToday = useMemo(() => {
     const d = new Date();

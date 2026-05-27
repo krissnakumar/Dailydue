@@ -1,12 +1,12 @@
 {
-  "name": "@controle-fiado/api",
+  "name": "@dailydue/api",
   "version": "1.0.0",
   "main": "./index.ts",
   "types": "./index.ts",
   "private": true,
   "dependencies": {
     "@supabase/supabase-js": "2.105.4",
-    "@controle-fiado/types": "*",
+    "@dailydue/types": "*",
     "expo-crypto": "~15.0.9"
   }
 }

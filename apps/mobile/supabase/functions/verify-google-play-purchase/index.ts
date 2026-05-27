@@ -6,7 +6,7 @@ const GOOGLE_PLAY_PACKAGE_NAME = Deno.env.get('GOOGLE_PLAY_PACKAGE_NAME') || '';
 const GOOGLE_PLAY_PREMIUM_PRODUCT_ID =
   Deno.env.get('GOOGLE_PLAY_PREMIUM_PRODUCT_ID') ||
   Deno.env.get('EXPO_PUBLIC_GOOGLE_PLAY_PREMIUM_SUB_ID') ||
-  'fiado_premium';
+  'dailydue_premium';
 const GOOGLE_SERVICE_ACCOUNT_JSON = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_JSON') || '';
 const PREMIUM_PLAN_ID = 'premium_monthly';
 

@@ -2,13 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
-import { useFiadoStore } from '../../src/store';
+import { useDailyDueStore } from '../../src/store';
 import { theme } from '../../src/theme';
-import { supabase, extractUserMetadata } from '@controle-fiado/api';
+import { supabase, extractUserMetadata } from '@dailydue/api';
 
 export default function AuthCallback() {
   const router = useRouter();
-  const { user, authChecked, setUser } = useFiadoStore();
+  const { user, authChecked, setUser } = useDailyDueStore();
   const [message, setMessage] = useState('Finalizando autenticação...');
 
   useEffect(() => {

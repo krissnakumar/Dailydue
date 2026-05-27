@@ -25,7 +25,7 @@ export const SecurityService = {
     return hasHardware && isEnrolled;
   },
 
-  async authenticateAsync(promptMessage = 'Confirme sua identidade para acessar o Fiado.'): Promise<{ success: boolean; error?: string }> {
+  async authenticateAsync(promptMessage = 'Confirme sua identidade para acessar o DailyDue.'): Promise<{ success: boolean; error?: string }> {
     try {
       const hasHardware = await this.hasHardwareAsync();
       if (!hasHardware) {

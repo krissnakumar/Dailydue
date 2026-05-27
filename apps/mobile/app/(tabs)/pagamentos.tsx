@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Button } from '../../src/components';
-import { useFiadoStore } from '../../src/store';
+import { useDailyDueStore } from '../../src/store';
 import { formatCurrency, sendWhatsappReceipt } from '../../src/utils';
 import { theme } from '../../src/theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,7 +25,7 @@ export default function PagamentosModal() {
   const layout = useResponsive();
   const colors = useAdaptiveColors();
   const insets = useSafeAreaInsets();
-  const { customers, receivePayment, subscription, getCurrentMonthTransactionsCount } = useFiadoStore();
+  const { customers, receivePayment, subscription, getCurrentMonthTransactionsCount } = useDailyDueStore();
 
   const [selectedCustId, setSelectedCustId] = useState<string>(params.customerId || '');
   const [payMethod, setPayMethod] = useState<'dinheiro' | 'PIX' | 'cartao'>('dinheiro');

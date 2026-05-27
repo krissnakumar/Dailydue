@@ -36,7 +36,7 @@ export function AppLockOverlay({ onUnlock }: AppLockOverlayProps) {
     setErrorMsg('');
     
     try {
-      const res = await SecurityService.authenticateAsync('Acesse o aplicativo Controle Fiado de forma segura.');
+      const res = await SecurityService.authenticateAsync('Acesse o aplicativo DailyDue de forma segura.');
       if (res.success) {
         triggerHaptic('success');
         onUnlock();

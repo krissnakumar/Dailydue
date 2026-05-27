@@ -3,11 +3,11 @@
  */
 
 export const STORAGE_KEYS = {
-  CUSTOMERS: 'controle_fiado_mobile_clientes',
-  SYNC_QUEUE: 'controle_fiado_mobile_sync_queue',
-  QUICK_ITEMS: 'controle_fiado_mobile_quick_items',
-  AUTH_SESSION: 'controle_fiado_mobile_auth_session',
-  BUSINESS_CONFIG: 'controle_fiado_mobile_business_config',
+  CUSTOMERS: 'dailydue_mobile_clientes',
+  SYNC_QUEUE: 'dailydue_mobile_sync_queue',
+  QUICK_ITEMS: 'dailydue_mobile_quick_items',
+  AUTH_SESSION: 'dailydue_mobile_auth_session',
+  BUSINESS_CONFIG: 'dailydue_mobile_business_config',
 };
 
 export const INITIAL_QUICK_ITEMS = [

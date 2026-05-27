@@ -1,10 +1,10 @@
 import { Alert, Platform } from 'react-native';
 import { Router } from 'expo-router';
-import { supabase } from '@controle-fiado/api';
-import { useFiadoStore } from '../../store';
+import { supabase } from '@dailydue/api';
+import { useDailyDueStore } from '../../store';
 
 async function executeLogout(router: Router) {
-  const { user, backupOfflineUserData, setUser, resetDemoData } = useFiadoStore.getState();
+  const { user, backupOfflineUserData, setUser, resetDemoData } = useDailyDueStore.getState();
 
   try {
     if (user?.id && user.id !== 'usr_offline') {
@@ -23,12 +23,12 @@ async function executeLogout(router: Router) {
 
 async function performSyncAndLogout(router: Router) {
   try {
-    await useFiadoStore.getState().flushSyncQueue();
+    await useDailyDueStore.getState().flushSyncQueue();
   } catch (err) {
     console.warn('[Logout] Falha na sincronização final:', err);
   }
 
-  const remainingCount = useFiadoStore.getState().syncQueue.length;
+  const remainingCount = useDailyDueStore.getState().syncQueue.length;
   if (remainingCount > 0) {
     if (Platform.OS === 'web') {
       if (
@@ -68,7 +68,7 @@ async function performSyncAndLogout(router: Router) {
 
 /** Prompts the user to sync pending changes (if any) and then logs out. */
 export function promptLogout(router: Router) {
-  const pendingCount = useFiadoStore.getState().syncQueue.length;
+  const pendingCount = useDailyDueStore.getState().syncQueue.length;
 
   if (pendingCount > 0) {
     if (Platform.OS === 'web') {

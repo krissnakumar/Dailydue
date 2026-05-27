@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { Card } from './Card';
 import { Button } from './Button';
-import { useFiadoStore, HistoryItem, isTempCustomerId } from '../store';
+import { useDailyDueStore, HistoryItem, isTempCustomerId } from '../store';
 import { formatCurrency, sendWhatsappReminder, generateStatementPDF } from '../utils';
 import { theme } from '../theme';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
@@ -58,7 +58,7 @@ export function CustomerDetailContent({
     editHistoryItem,
     deleteHistoryItem,
     syncQueue,
-  } = useFiadoStore();
+  } = useDailyDueStore();
 
   const customer = customers.find((c) => c.id === id);
   const redirectingRef = useRef(false);

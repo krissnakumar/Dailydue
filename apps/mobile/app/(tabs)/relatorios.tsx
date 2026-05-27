@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { Header, Card, Button } from '../../src/components';
-import { useFiadoStore } from '../../src/store';
+import { useDailyDueStore } from '../../src/store';
 import { formatCurrency, generateStatementPDF } from '../../src/utils';
 import { theme } from '../../src/theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,7 +15,7 @@ import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 
 export default function RelatoriosScreen() {
   const router = useRouter();
-  const { customers } = useFiadoStore();
+  const { customers } = useDailyDueStore();
   const layout = useResponsive();
 
   let totalDebts = 0;

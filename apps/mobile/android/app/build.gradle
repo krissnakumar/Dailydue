@@ -87,9 +87,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'br.com.controlefiado.app'
+    namespace 'com.dailydue.app'
     defaultConfig {
-        applicationId 'br.com.controlefiado.app'
+        applicationId 'com.dailydue.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 9
@@ -111,7 +111,7 @@ android {
             // NEVER commit these credentials to version control.
             storeFile file('release.keystore')
             storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD') ?: ''
-            keyAlias System.getenv('ANDROID_KEY_ALIAS') ?: 'fiado-release'
+            keyAlias System.getenv('ANDROID_KEY_ALIAS') ?: 'dailydue-release'
             keyPassword System.getenv('ANDROID_KEY_PASSWORD') ?: ''
         }
     }

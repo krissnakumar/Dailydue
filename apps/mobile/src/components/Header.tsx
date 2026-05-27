@@ -2,7 +2,7 @@ import React, { ReactNode, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useFiadoStore } from '../store';
+import { useDailyDueStore } from '../store';
 import { formatCurrency } from '../utils';
 import { theme } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,7 +21,7 @@ export interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({
   showTotal = true,
-  title = 'Fiado',
+  title = 'DailyDue',
   onLogoutPress,
   leftAction,
   hideTitle = false,
@@ -36,7 +36,7 @@ export const Header: React.FC<HeaderProps> = ({
     subscription,
     syncQueue,
     isSyncing,
-  } = useFiadoStore();
+  } = useDailyDueStore();
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const spinAnim = useRef(new Animated.Value(0)).current;

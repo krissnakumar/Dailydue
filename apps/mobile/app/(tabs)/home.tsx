@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { AdaptiveCard, AdaptiveContainer, AdaptiveGrid, Header, Card } from '../../src/components';
-import { useFiadoStore } from '../../src/store';
+import { useDailyDueStore } from '../../src/store';
 import { formatCurrency } from '../../src/utils';
 import { theme } from '../../src/theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,7 +20,7 @@ const isEmoji = (str?: string) => {
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { customers, businessConfig } = useFiadoStore();
+  const { customers, businessConfig } = useDailyDueStore();
   const overdueDays = businessConfig.overdueDays || 15;
   const [searchQuery, setSearchQuery] = React.useState('');
 
@@ -147,7 +147,7 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.wrapper}>
-      <Header showTotal={true} title="Fiado" hideTitle />
+      <Header showTotal={true} title="DailyDue" hideTitle />
 
       <AdaptiveContainer
         safeArea={false}

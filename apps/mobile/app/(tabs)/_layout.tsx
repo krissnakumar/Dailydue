@@ -2,11 +2,11 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Redirect, Tabs, useRouter } from 'expo-router';
 import { Platform, View, Text, StyleSheet, TouchableOpacity, useWindowDimensions, Animated, Easing, StyleProp, ViewStyle } from 'react-native';
 import { theme } from '../../src/theme';
-import { useFiadoStore } from '../../src/store';
+import { useDailyDueStore } from '../../src/store';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
-function FiadoRunningLight({ triggerCount }: { triggerCount: number }) {
+function DailyDueRunningLight({ triggerCount }: { triggerCount: number }) {
   const pulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -40,12 +40,12 @@ function FiadoRunningLight({ triggerCount }: { triggerCount: number }) {
 
   return (
     <Animated.View style={[styles.runningLightOrbit, { transform: [{ scale }] }]}>
-      <Animated.View style={[styles.fiadoCircleGlow, { opacity: glowOpacity }]} />
+      <Animated.View style={[styles.dailydueCircleGlow, { opacity: glowOpacity }]} />
     </Animated.View>
   );
 }
 
-function FiadoAnimatedCircle({
+function DailyDueAnimatedCircle({
   triggerCount,
   children,
   style,
@@ -159,7 +159,7 @@ function OutlineGlowIcon({
 
 export default function TabsLayout() {
   const router = useRouter();
-  const { user, authChecked } = useFiadoStore();
+  const { user, authChecked } = useDailyDueStore();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const [pressBump, setPressBump] = useState<Record<string, number>>({});
@@ -260,7 +260,7 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="novo-fiado"
           options={{
-            title: 'Fiado',
+            title: 'Vender',
             tabBarLabel: ({ focused }) => (
               <Text style={[styles.centerLabel, focused && { color: theme.colors.accent }]}>
                 Fiado
@@ -277,14 +277,14 @@ export default function TabsLayout() {
                 }}
                 style={[styles.centerButtonWrapper, isSmall && styles.centerButtonWrapperSmall]}
               >
-                <FiadoAnimatedCircle
+                <DailyDueAnimatedCircle
                   triggerCount={pressCountFor('novo-fiado')}
                   style={[styles.centerButton, isSmall && styles.centerButtonSmall, isTablet && styles.centerButtonTablet]}
                 >
-                  <FiadoRunningLight triggerCount={pressCountFor('novo-fiado')} />
+                  <DailyDueRunningLight triggerCount={pressCountFor('novo-fiado')} />
                   <Text style={styles.centerIcon}>R$</Text>
-                </FiadoAnimatedCircle>
-                <Text style={[styles.centerText, isSmall && styles.labelSmall]}>Fiado</Text>
+                </DailyDueAnimatedCircle>
+                <Text style={[styles.centerText, isSmall && styles.labelSmall]}>Vender</Text>
               </TouchableOpacity>
             ),
           }}
@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'flex-start',
   },
-  fiadoCircleGlow: {
+  dailydueCircleGlow: {
     width: '100%',
     height: '100%',
     borderRadius: 999,

@@ -8,8 +8,8 @@ import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Linking from 'expo-linking';
 import { LogBox, AppState } from 'react-native';
-import { useFiadoStore } from '../src/store';
-import { supabase, extractUserMetadata } from '@controle-fiado/api';
+import { useDailyDueStore } from '../src/store';
+import { supabase, extractUserMetadata } from '@dailydue/api';
 import { BillingProvider } from '../src/features/billing/providers/BillingProvider';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { AppLockOverlay } from '../src/components/AppLockOverlay';
@@ -25,7 +25,7 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 
 import { queryClient } from '../src/core/services/query-client';
 
-const AUTH_SESSION_ACTIVE_KEY = '__fiadoAuthSessionActive';
+const AUTH_SESSION_ACTIVE_KEY = '__dailydueAuthSessionActive';
 
 export default function RootLayout() {
   const {
@@ -39,7 +39,7 @@ export default function RootLayout() {
     isSystemLockEnabled,
     setLastActiveTimestamp,
     hasBootstrappedProfile,
-  } = useFiadoStore();
+  } = useDailyDueStore();
   const segments = useSegments();
   const router = useRouter();
   const navigationState = useRootNavigationState();
@@ -55,12 +55,12 @@ export default function RootLayout() {
   const lockInitialized = useRef(false);
 
   const getLockTimeoutMs = () => {
-    const timeout = useFiadoStore.getState().autoLockTimeout;
+    const timeout = useDailyDueStore.getState().autoLockTimeout;
     return timeout > 0 ? timeout : 180_000;
   };
 
   const shouldRequireLock = () => {
-    const { lastActiveTimestamp } = useFiadoStore.getState();
+    const { lastActiveTimestamp } = useDailyDueStore.getState();
     if (!lastActiveTimestamp) return false;
     return Date.now() - lastActiveTimestamp > getLockTimeoutMs();
   };
@@ -80,7 +80,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     const handleStateChange = (nextState: string) => {
-      if (!useFiadoStore.getState().isSystemLockEnabled) return;
+      if (!useDailyDueStore.getState().isSystemLockEnabled) return;
 
       if (nextState === 'background' || nextState === 'inactive') {
         setLastActiveTimestamp(Date.now());
@@ -150,7 +150,7 @@ export default function RootLayout() {
     // Clean up invalid local image URIs (file:// or content://) from customer picture fields
     // since scoped storage permissions are revoked by the OS on cold start/app restart.
     try {
-      const state = useFiadoStore.getState();
+      const state = useDailyDueStore.getState();
       if (state.customers && state.customers.length > 0) {
         const cleaned = state.customers.map((c) => {
           if (c.picture && (c.picture.startsWith('file:') || c.picture.startsWith('content:'))) {
@@ -158,7 +158,7 @@ export default function RootLayout() {
           }
           return c;
         });
-        useFiadoStore.setState({ customers: cleaned });
+        useDailyDueStore.setState({ customers: cleaned });
       }
     } catch (e) {
       console.warn('[Layout] Failed to clean local URIs on cold start:', e);
@@ -185,7 +185,7 @@ export default function RootLayout() {
     if (!authChecked) return;
 
     if (!user?.id) {
-      useFiadoStore.setState({ customers: [], syncQueue: [] });
+      useDailyDueStore.setState({ customers: [], syncQueue: [] });
       return;
     }
     if (user.id === 'usr_offline') return;
@@ -193,7 +193,7 @@ export default function RootLayout() {
     // Restore offline backed-up data first, then refresh picture URLs and load cloud data
     const initUserData = async () => {
       try {
-        await useFiadoStore.getState().restoreOfflineUserData(user.id as string);
+        await useDailyDueStore.getState().restoreOfflineUserData(user.id as string);
       } catch (err) {
         console.warn('[Layout] Failed to restore offline user data:', err);
       }
@@ -221,7 +221,7 @@ export default function RootLayout() {
         const sess = data.session;
         if (__DEV__) console.log('[Layout] Auth session check:', { hasSession: !!sess, userId: sess?.user?.id });
         if (!sess) {
-          const currentUser = useFiadoStore.getState().user;
+          const currentUser = useDailyDueStore.getState().user;
           if (!currentUser) {
             setUser(null);
           }
@@ -240,7 +240,7 @@ export default function RootLayout() {
           }
         }
         if (active) {
-          const currentUser = useFiadoStore.getState().user;
+          const currentUser = useDailyDueStore.getState().user;
           if (!currentUser) {
             setUser(null);
           }
@@ -282,7 +282,7 @@ export default function RootLayout() {
   useEffect(() => {
     // Failsafe background sync: only attempt if there are pending items.
     const interval = setInterval(() => {
-      const queue = useFiadoStore.getState().syncQueue;
+      const queue = useDailyDueStore.getState().syncQueue;
       if (queue.length > 0) {
         attemptBackgroundSync();
       }

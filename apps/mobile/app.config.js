@@ -4,7 +4,7 @@
 /** @type {import('expo/config').ExpoConfig} */
 module.exports = ({ config }) => {
   // Keep the existing `scheme` (used by Expo AuthSession redirect URIs).
-  const scheme = config.scheme || 'controlefiado';
+  const scheme = config.scheme || 'dailydue';
 
   // Required by `@react-native-google-signin/google-signin` config plugin when not using Firebase files.
   // Must start with "com.googleusercontent.apps.".

@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Fiado",
-    "slug": "controle-fiado-mobile",
+    "name": "DailyDue",
+    "slug": "dailydue-mobile",
     "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "scheme": "controlefiado",
+    "scheme": "dailydue",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash.png",
@@ -25,14 +25,14 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "br.com.controlefiado.app"
+      "bundleIdentifier": "com.dailydue.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "br.com.controlefiado.app",
+      "package": "com.dailydue.app",
       "versionCode": 9,
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [

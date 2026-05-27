@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import {
   supabase,
   getCustomersWithTransactions,
-} from '@controle-fiado/api';
+} from '@dailydue/api';
 import * as Haptics from 'expo-haptics';
 
 import {
@@ -99,7 +99,7 @@ export const FALLBACK_QUICK_ITEMS_BY_BUSINESS: Record<string, QuickItemClient[]>
 
 export const FALLBACK_QUICK_ITEMS: QuickItemClient[] = FALLBACK_QUICK_ITEMS_BY_BUSINESS.mercado;
 
-export interface FiadoMobileState {
+export interface DailyDueMobileState {
   // Auth State
   user: { email?: string; id?: string; full_name?: string; picture?: string; avatar_url?: string } | null;
   authChecked: boolean;
@@ -112,9 +112,9 @@ export interface FiadoMobileState {
     whatsappTemplate?: string;
     businessType?: string;
   };
-  setUser: (user: FiadoMobileState['user']) => void;
+  setUser: (user: DailyDueMobileState['user']) => void;
   setAuthChecked: (checked: boolean) => void;
-  updateBusinessConfig: (config: Partial<FiadoMobileState['businessConfig']>) => void;
+  updateBusinessConfig: (config: Partial<DailyDueMobileState['businessConfig']>) => void;
 
   // App Lock State
   isSystemLockEnabled: boolean;
@@ -217,7 +217,7 @@ function mimeFromUri(uri?: string) {
   return 'image/jpeg';
 }
 
-export const useFiadoStore = create<FiadoMobileState>()(
+export const useDailyDueStore = create<FiadoMobileState>()(
   persist(
     (set, get) => ({
       user: null,
@@ -1185,7 +1185,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
       },
     }),
     {
-      name: 'fiado-store',
+      name: 'dailydue-store',
       storage: createJSONStorage(() => ({
         getItem: (key) => EncryptedStorage.getItem(key),
         setItem: (key, value) => EncryptedStorage.setItem(key, value),

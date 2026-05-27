@@ -7,7 +7,7 @@ import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 
 const META_ACCESS_TOKEN = Deno.env.get('META_ACCESS_TOKEN') || '';
 const META_PHONE_NUMBER_ID = Deno.env.get('META_PHONE_NUMBER_ID') || '';
-const WEBHOOK_VERIFY_TOKEN = Deno.env.get('WEBHOOK_VERIFY_TOKEN') || 'fiado_seguro_token';
+const WEBHOOK_VERIFY_TOKEN = Deno.env.get('WEBHOOK_VERIFY_TOKEN') || 'dailydue_seguro_token';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',

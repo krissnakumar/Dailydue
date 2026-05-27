@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import * as ExpoCrypto from 'expo-crypto';
-import type { Customer, CustomerBalanceView, Transaction, Business, SubscriptionPlanName } from '@controle-fiado/types';
+import type { Customer, CustomerBalanceView, Transaction, Business, SubscriptionPlanName } from '@dailydue/types';
 
 function installReactNativeWebCryptoPolyfill() {
   const target = globalThis as any;
@@ -239,7 +239,7 @@ export async function updateOwnerProfile(params: {
 }
 
 // ============================================================================
-// SERVIÇOS DE DADOS COMPARTILHADOS (Tipados com @controle-fiado/types)
+// SERVIÇOS DE DADOS COMPARTILHADOS (Tipados com @dailydue/types)
 // ============================================================================
 export async function getCustomers() {
   const { data, error } = await supabase

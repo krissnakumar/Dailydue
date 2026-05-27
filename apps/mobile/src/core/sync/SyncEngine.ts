@@ -4,7 +4,7 @@ import {
   updateCustomer,
   deleteCustomer as apiDeleteCustomer,
   deleteTransaction as apiDeleteTransaction,
-} from '@controle-fiado/api';
+} from '@dailydue/api';
 import { isTempCustomerId, isTransientNetworkError, localId } from '../utils';
 import { PendingQueueItem, CustomerClient, HistoryItem } from '../../types';
 import { LocalDatabase } from '../database/LocalDatabase';
@@ -110,7 +110,7 @@ export async function backupOfflineUserData(getState: () => any) {
         customerIdMap,
         savedAt: new Date().toISOString(),
       };
-      const storageKey = `fiado_offline_data_${userId}`;
+      const storageKey = `dailydue_offline_data_${userId}`;
       await EncryptedStorage.setItem(storageKey, JSON.stringify(dataToSave));
       console.log(`[Backup] Dados locais do usuário ${userId} salvos em backup offline.`);
     }
@@ -124,7 +124,7 @@ export async function restoreOfflineUserData(getState: () => any, set: (fn: any)
   const activeUserId = userId || state.user?.id;
   if (!activeUserId || activeUserId === 'usr_offline') return;
   try {
-    const storageKey = `fiado_offline_data_${activeUserId}`;
+    const storageKey = `dailydue_offline_data_${activeUserId}`;
     const raw = await EncryptedStorage.getItem(storageKey);
     if (raw) {
       const parsed = JSON.parse(raw);

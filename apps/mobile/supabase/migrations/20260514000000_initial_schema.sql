@@ -1,6 +1,6 @@
 -- ====================================================================
 -- SUPABASE MIGRATION: Schema Inicial e Políticas de RLS Multi-Tenant
--- Projeto: Controle de Fiado (Idempotente)
+-- Projeto: DailyDue (Idempotente)
 -- ====================================================================
 
 -- Habilita extensão para geração de UUIDs nativos

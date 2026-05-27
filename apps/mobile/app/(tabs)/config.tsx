@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, Alert, Image, TouchableOpacity, Platform, KeyboardAvoidingView, ActivityIndicator, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Header, Card, Button } from '../../src/components';
-import { useFiadoStore } from '../../src/store';
+import { useDailyDueStore } from '../../src/store';
 import { theme } from '../../src/theme';
-import { updateOwnerProfile, uploadOwnerProfilePicture } from '@controle-fiado/api';
+import { updateOwnerProfile, uploadOwnerProfilePicture } from '@dailydue/api';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useResponsive } from '../../src/utils/responsive';
@@ -39,7 +39,7 @@ export default function ConfiguracoesScreen() {
     setIsSystemLockEnabled,
     setIsBiometricsEnabled,
     setAutoLockTimeout,
-  } = useFiadoStore();
+  } = useDailyDueStore();
 
   const customersCount = getActiveCustomersCount();
   const txCount = getCurrentMonthTransactionsCount();
@@ -240,7 +240,7 @@ export default function ConfiguracoesScreen() {
                       {
                         text: 'Limpar',
                         style: 'destructive',
-                        onPress: () => useFiadoStore.setState({ failedSyncItems: [] }),
+                        onPress: () => useDailyDueStore.setState({ failedSyncItems: [] }),
                       },
                     ]
                   );

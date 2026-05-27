@@ -1,4 +1,4 @@
-import { supabase } from '@controle-fiado/api';
+import { supabase } from '@dailydue/api';
 import { ApiResponse } from './types';
 
 export const apiClient = {

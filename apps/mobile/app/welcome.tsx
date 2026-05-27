@@ -8,7 +8,7 @@ import Animated, {
   withDelay,
   Easing,
 } from 'react-native-reanimated';
-import { useFiadoStore } from '../src/store';
+import { useDailyDueStore } from '../src/store';
 import { theme } from '../src/theme';
 
 const ENTRY_MS = 420;
@@ -17,7 +17,7 @@ const EXIT_MS = 320;
 
 export default function WelcomeScreen() {
   const router = useRouter();
-  const { user } = useFiadoStore();
+  const { user } = useDailyDueStore();
 
   const welcomeOpacity = useSharedValue(0);
   const welcomeTranslateY = useSharedValue(20);
@@ -46,7 +46,7 @@ export default function WelcomeScreen() {
       checkScale.value = withTiming(0.92, { duration: EXIT_MS, easing: Easing.inOut(Easing.quad) });
     }, HOLD_MS);
     const routeTimer = setTimeout(() => {
-      const state = useFiadoStore.getState();
+      const state = useDailyDueStore.getState();
       if (state.user && state.user.id !== 'usr_offline' && !state.hasBootstrappedProfile) {
         router.replace('/(onboarding)');
       } else {

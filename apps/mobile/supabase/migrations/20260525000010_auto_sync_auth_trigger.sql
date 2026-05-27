@@ -1,6 +1,6 @@
 -- ====================================================================
 -- SUPABASE MIGRATION: Automatic User & Business Provisioning Trigger
--- Projeto: Controle de Fiado
+-- Projeto: DailyDue
 -- Date: 2026-05-25
 -- ====================================================================
 

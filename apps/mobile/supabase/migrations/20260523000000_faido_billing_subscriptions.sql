@@ -1,5 +1,5 @@
 -- 20260523000000_faido_billing_subscriptions.sql
--- Fiado: production subscription billing schema + limits + RLS + storage bucket policies
+-- DailyDue: production subscription billing schema + limits + RLS + storage bucket policies
 -- Idempotent where possible.
 
 -- ============================================================================

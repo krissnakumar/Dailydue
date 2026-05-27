@@ -23,10 +23,10 @@ import Animated, {
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import Constants from 'expo-constants';
-import { useFiadoStore } from '../../src/store';
+import { useDailyDueStore } from '../../src/store';
 import { theme } from '../../src/theme';
 import { Button } from '../../src/components';
-import { supabase, extractUserMetadata } from '@controle-fiado/api';
+import { supabase, extractUserMetadata } from '@dailydue/api';
 import { getGoogleIdTokenViaNative, isGoogleNativeEnabled } from '../../src/core/auth/googleNative';
 import {
   establishSessionFromOAuthParams,
@@ -35,10 +35,10 @@ import {
 
 WebBrowser.maybeCompleteAuthSession();
 
-const APP_SCHEME = 'controlefiado';
+const APP_SCHEME = 'dailydue';
 const AUTH_CALLBACK_PATH = 'auth/callback';
 const NATIVE_REDIRECT_URI = `${APP_SCHEME}://${AUTH_CALLBACK_PATH}`;
-const AUTH_SESSION_ACTIVE_KEY = '__fiadoAuthSessionActive';
+const AUTH_SESSION_ACTIVE_KEY = '__dailydueAuthSessionActive';
 
 function replaceLocalhostForPhysicalDevice(uri: string): string {
   if (Platform.OS === 'web' || !uri.includes('localhost')) {
@@ -113,7 +113,7 @@ async function startWebOAuth(provider: 'google' | 'facebook', redirectTo: string
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { setUser } = useFiadoStore();
+  const { setUser } = useDailyDueStore();
   const [showContent, setShowContent] = useState(false);
   const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
   const [email, setEmail] = useState('');

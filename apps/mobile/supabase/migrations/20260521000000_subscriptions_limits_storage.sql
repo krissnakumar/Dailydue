@@ -1,6 +1,6 @@
 -- ====================================================================
 -- SUPABASE MIGRATION: Subscriptions, Limits Enforcement, Storage Photos
--- Projeto: Controle de Fiado (Idempotente)
+-- Projeto: DailyDue (Idempotente)
 -- ====================================================================
 
 -- 0) Compatibility: rename legacy tables to requested names

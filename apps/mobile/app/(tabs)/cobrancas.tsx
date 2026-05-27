@@ -10,14 +10,14 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Header, Card, Button, AnimatedPopup } from '../../src/components';
-import { useFiadoStore } from '../../src/store';
+import { useDailyDueStore } from '../../src/store';
 import { formatCurrency, sendWhatsappReminder } from '../../src/utils';
 import { theme } from '../../src/theme';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function CobrancasScreen() {
   const router = useRouter();
-  const { customers, businessConfig } = useFiadoStore();
+  const { customers, businessConfig } = useDailyDueStore();
 
   const [activeFilter, setActiveFilter] = useState<'all' | 'acima50' | 'atrasados'>('all');
   const [selectedForNotice, setSelectedForNotice] = useState<any>(null);

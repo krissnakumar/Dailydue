@@ -17,9 +17,9 @@ Below is the state summary across the synchronization chain:
 
 | Layer | Component | Status | Verification & Verification Mechanism |
 | :--- | :--- | :---: | :--- |
-| **App State** | Zustand (`useFiadoStore`) | **Green** | Strict TypeScript compilation (`tsc --noEmit` passed). Automatic persistence and memory cleaning on logout verified. |
+| **App State** | Zustand (`useDailyDueStore`) | **Green** | Strict TypeScript compilation (`tsc --noEmit` passed). Automatic persistence and memory cleaning on logout verified. |
 | **Local Cache** | AsyncStorage & `LocalDatabase` | **Green** | Transactional mock-relational SQLite overlay is fully type-safe. Recalculates customer debt balances locally on mutate. |
-| **API Client** | `@controle-fiado/api` | **Green** | Shared monorepo library with typed RPC call interfaces, fallback mechanisms, and Crypto polyfills. |
+| **API Client** | `@dailydue/api` | **Green** | Shared monorepo library with typed RPC call interfaces, fallback mechanisms, and Crypto polyfills. |
 | **Network Sync** | `SyncEngine.ts` | **Green** | Fully transactional batch processing. Handles ID translation, network backoff, and cascading parent failure correction. |
 | **Database Schema**| Supabase Postgres | **Green** | Migrations run up to date. Idempotent compatibility triggers handle both legacy column names and renames. |
 | **Server Logic** | Secure RPC Functions | **Green** | RPC triggers enforce active subscription limits (customers/transactions) and merchant RLS isolation server-side. |

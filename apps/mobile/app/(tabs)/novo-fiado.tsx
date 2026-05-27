@@ -14,7 +14,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../src/components/Button';
 import { theme } from '../../src/theme';
-import { useFiadoStore } from '../../src/store';
+import { useDailyDueStore } from '../../src/store';
 import { useAdaptiveColors, useResponsive } from '../../src/utils/responsive';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -25,7 +25,7 @@ export default function NovoFiadoPage() {
   const colors = useAdaptiveColors();
   const insets = useSafeAreaInsets();
 
-  const { customers, getSmartSuggestions, addDebt, subscription, getCurrentMonthTransactionsCount } = useFiadoStore();
+  const { customers, getSmartSuggestions, addDebt, subscription, getCurrentMonthTransactionsCount } = useDailyDueStore();
 
   const [selectedCustId, setSelectedCustId] = useState<string>('');
   const [descInput, setDescInput] = useState('');
@@ -93,7 +93,7 @@ export default function NovoFiadoPage() {
     }
 
     const targetCust = customers.find((c) => c.id === selectedCustId);
-    let finalDesc = descInput.trim() || 'Fiado / Balcão';
+    let finalDesc = descInput.trim() || 'Venda a Prazo';
 
     if (reminderDays !== null) {
       const futureDate = new Date();

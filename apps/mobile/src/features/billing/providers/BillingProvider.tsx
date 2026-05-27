@@ -1,6 +1,6 @@
 import React, { createContext, useState } from 'react';
 import Constants from 'expo-constants';
-import { useFiadoStore } from '../../../store';
+import { useDailyDueStore } from '../../../store';
 import { useIAP } from '../../../core/services/iap.native';
 import { useNetworkStatus } from '../../../core/hooks/useNetworkStatus';
 import { billingService } from '../services/billing.service';
@@ -21,9 +21,9 @@ export const BillingContext = createContext<BillingContextProps | undefined>(und
 export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const isOffline = useNetworkStatus();
-  const { fetchSubscription } = useFiadoStore();
+  const { fetchSubscription } = useDailyDueStore();
   const premiumSubId = process.env.EXPO_PUBLIC_GOOGLE_PLAY_PREMIUM_SUB_ID || '';
-  const androidPackageName = Constants.expoConfig?.android?.package || 'br.com.controlefiado.app';
+  const androidPackageName = Constants.expoConfig?.android?.package || 'com.dailydue.app';
 
   const iap = useIAP({
     onPurchaseSuccess: async (purchase) => {

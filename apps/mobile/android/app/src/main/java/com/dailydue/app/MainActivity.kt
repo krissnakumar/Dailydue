@@ -1,4 +1,4 @@
-package br.com.controlefiado.app
+package com.dailydue.app
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

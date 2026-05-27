@@ -19,9 +19,9 @@ import Animated, {
   FadeOutLeft,
   Layout,
 } from 'react-native-reanimated';
-import { useFiadoStore } from '../../src/store';
+import { useDailyDueStore } from '../../src/store';
 import { theme } from '../../src/theme';
-import { supabase, bootstrapOwnerProfile } from '@controle-fiado/api';
+import { supabase, bootstrapOwnerProfile } from '@dailydue/api';
 import * as Haptics from 'expo-haptics';
 
 const BUSINESS_TYPES = [
@@ -34,7 +34,7 @@ const BUSINESS_TYPES = [
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const { user, updateBusinessConfig, addCustomer } = useFiadoStore();
+  const { user, updateBusinessConfig, addCustomer } = useDailyDueStore();
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -161,7 +161,7 @@ export default function OnboardingScreen() {
       }
 
       // 5. Complete Onboarding
-      useFiadoStore.setState({ hasBootstrappedProfile: true });
+      useDailyDueStore.setState({ hasBootstrappedProfile: true });
 
       // 6. Navigate to Home Dashboard
       router.replace('/(tabs)/home');

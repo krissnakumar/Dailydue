@@ -1,4 +1,4 @@
-export * from '@controle-fiado/types';
+export * from '@dailydue/types';
 
 export interface ApiResponse<T = any> {
   success: boolean;

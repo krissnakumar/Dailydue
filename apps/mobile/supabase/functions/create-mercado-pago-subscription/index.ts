@@ -29,7 +29,7 @@ serve(async (req) => {
     if (!payerEmail) return jsonResponse({ error: 'USER_EMAIL_REQUIRED' }, { status: 400 });
 
     const mpPayload = {
-      reason: 'Fiado Premium Mensal',
+      reason: 'DailyDue Premium Mensal',
       auto_recurring: {
         frequency: 1,
         frequency_type: 'months',

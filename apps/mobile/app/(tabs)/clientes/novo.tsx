@@ -15,7 +15,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Button } from '../../../src/components/Button';
-import { useFiadoStore } from '../../../src/store';
+import { useDailyDueStore } from '../../../src/store';
 import { theme } from '../../../src/theme';
 import { useAdaptiveColors, useResponsive } from '../../../src/utils/responsive';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,7 +27,7 @@ export default function NovoClientePage() {
   const colors = useAdaptiveColors();
   const insets = useSafeAreaInsets();
 
-  const { addCustomer, subscription, getActiveCustomersCount } = useFiadoStore();
+  const { addCustomer, subscription, getActiveCustomersCount } = useDailyDueStore();
   const customersCount = getActiveCustomersCount();
 
   useEffect(() => {

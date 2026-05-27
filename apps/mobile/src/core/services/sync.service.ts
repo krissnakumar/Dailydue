@@ -1,10 +1,10 @@
 import { attemptBackgroundSync } from '../sync/SyncEngine';
-import { useFiadoStore } from '../../store';
+import { useDailyDueStore } from '../../store';
 
 export const syncService = {
   triggerSync: async () => {
-    const state = useFiadoStore.getState;
-    const set = useFiadoStore.setState;
+    const state = useDailyDueStore.getState;
+    const set = useDailyDueStore.setState;
     return attemptBackgroundSync(state, set);
   },
 };

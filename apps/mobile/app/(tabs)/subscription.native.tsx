@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, ActivityIndicator, TouchableOpacity, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Header, Card, Button } from '../../src/components';
-import { useFiadoStore } from '../../src/store';
+import { useDailyDueStore } from '../../src/store';
 import { theme } from '../../src/theme';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -11,7 +11,7 @@ import Constants from 'expo-constants';
 import { useBilling } from '../../src/features/billing/hooks/useBilling';
 
 const premiumSubId = process.env.EXPO_PUBLIC_GOOGLE_PLAY_PREMIUM_SUB_ID || '';
-const androidPackageName = Constants.expoConfig?.android?.package || 'br.com.controlefiado.app';
+const androidPackageName = Constants.expoConfig?.android?.package || 'com.dailydue.app';
 
 export default function SubscriptionNativeScreen() {
   const router = useRouter();
@@ -20,7 +20,7 @@ export default function SubscriptionNativeScreen() {
     subscription,
     getActiveCustomersCount,
     getCurrentMonthTransactionsCount,
-  } = useFiadoStore();
+  } = useDailyDueStore();
 
   const customersCount = getActiveCustomersCount();
   const txCount = getCurrentMonthTransactionsCount();

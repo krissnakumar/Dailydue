@@ -1,4 +1,4 @@
-import { verifyGooglePlaySubscription } from '@controle-fiado/api';
+import { verifyGooglePlaySubscription } from '@dailydue/api';
 import { extractPurchaseToken } from '../validators/receipt.validator';
 
 export const billingService = {

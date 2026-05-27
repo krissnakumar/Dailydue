@@ -49,9 +49,9 @@ export const SecureStorageService = {
   },
 
   async clearAllCredentials(): Promise<void> {
-    await this.deleteSecureItem('fiado_app_lock_pin');
-    await this.deleteSecureItem('fiado_is_biometrics_enabled');
-    await this.deleteSecureItem('fiado_is_system_lock_enabled');
-    await this.deleteSecureItem('fiado_auto_lock_timeout');
+    await this.deleteSecureItem('dailydue_app_lock_pin');
+    await this.deleteSecureItem('dailydue_is_biometrics_enabled');
+    await this.deleteSecureItem('dailydue_is_system_lock_enabled');
+    await this.deleteSecureItem('dailydue_auto_lock_timeout');
   },
 };

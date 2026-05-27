@@ -12,8 +12,8 @@
     "install-biometrics": "npm install expo-local-authentication"
   },
   "dependencies": {
-    "@controle-fiado/api": "*",
-    "@controle-fiado/types": "*",
+    "@dailydue/api": "*",
+    "@dailydue/types": "*",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-google-signin/google-signin": "^16.1.2",
     "@shopify/flash-list": "^2.3.1",

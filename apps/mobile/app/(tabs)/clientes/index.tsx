@@ -12,7 +12,7 @@ import { FlashList } from '@shopify/flash-list';
 const OptimizedFlashList = FlashList as any;
 import { useRouter, useNavigation } from 'expo-router';
 import { Header, Button, CustomerRow, CustomerDetailContent } from '../../../src/components';
-import { useFiadoStore, isTempCustomerId } from '../../../src/store';
+import { useDailyDueStore, isTempCustomerId } from '../../../src/store';
 import { theme } from '../../../src/theme';
 import { useResponsive } from '../../../src/utils/responsive';
 import Animated from 'react-native-reanimated';
@@ -109,7 +109,7 @@ export default function ClientesScreen() {
     businessConfig,
     subscription,
     syncQueue,
-  } = useFiadoStore();
+  } = useDailyDueStore();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'devendo' | 'atrasados' | 'pagos'>('all');

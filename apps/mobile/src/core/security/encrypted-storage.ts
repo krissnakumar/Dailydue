@@ -3,7 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
 import CryptoJS from 'crypto-js';
 
-const KEY_ALIAS = 'fiado_local_data_encryption_key_v1';
+const KEY_ALIAS = 'dailydue_local_data_encryption_key_v1';
 const ENCRYPTED_PREFIX = 'enc:v2:';
 const LEGACY_ENCRYPTED_PREFIX = 'enc:v1:';
 const PLAINTEXT_PREFIX = 'plain:v0:';
