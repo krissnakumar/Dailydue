@@ -1,9 +1,20 @@
 import { Platform } from 'react-native';
 
 let NotificationsModule: any = null;
+let isExpoGo = false;
 
 try {
-  NotificationsModule = require('expo-notifications');
+  const Constants = require('expo-constants').default;
+  isExpoGo = Constants?.appOwnership === 'expo';
+} catch {
+  isExpoGo = false;
+}
+
+try {
+  // Expo Go on Android (SDK 53+) does not support remote push notifications.
+  if (!(Platform.OS === 'android' && isExpoGo)) {
+    NotificationsModule = require('expo-notifications');
+  }
 } catch (e) {
   console.warn('[Native Notifications] Failed to import expo-notifications module:', e);
 }

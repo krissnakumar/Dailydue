@@ -1,12 +1,161 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Redirect, Tabs, useRouter } from 'expo-router';
-import { Platform, View, Text, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
+import { Platform, View, Text, StyleSheet, TouchableOpacity, useWindowDimensions, Animated, Easing, StyleProp, ViewStyle } from 'react-native';
 import { theme } from '../../src/theme';
-import { Ionicons } from '@expo/vector-icons';
 import { useFiadoStore } from '../../src/store';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AnimatedFillIonicon } from '../../src/components/AnimatedFillIonicon';
-import { AnimatedDollarMascot } from '../../src/components/AnimatedDollarMascot';
+import { Ionicons } from '@expo/vector-icons';
+
+function FiadoRunningLight({ triggerCount }: { triggerCount: number }) {
+  const pulse = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (triggerCount === 0) return;
+    pulse.setValue(0);
+    Animated.sequence([
+      Animated.timing(pulse, {
+        toValue: 1,
+        duration: 260,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(pulse, {
+        toValue: 0,
+        duration: 320,
+        easing: Easing.inOut(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [triggerCount, pulse]);
+
+  const scale = pulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.08],
+  });
+
+  const glowOpacity = pulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 0.35],
+  });
+
+  return (
+    <Animated.View style={[styles.runningLightOrbit, { transform: [{ scale }] }]}>
+      <Animated.View style={[styles.fiadoCircleGlow, { opacity: glowOpacity }]} />
+    </Animated.View>
+  );
+}
+
+function FiadoAnimatedCircle({
+  triggerCount,
+  children,
+  style,
+}: {
+  triggerCount: number;
+  children: React.ReactNode;
+  style: StyleProp<ViewStyle>;
+}) {
+  const pulse = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (triggerCount === 0) return;
+    pulse.setValue(0);
+    Animated.sequence([
+      Animated.timing(pulse, {
+        toValue: 1,
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(pulse, {
+        toValue: 0,
+        duration: 280,
+        easing: Easing.inOut(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [triggerCount, pulse]);
+
+  const scale = pulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.06],
+  });
+
+  const rotate = pulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '8deg'],
+  });
+
+  return (
+    <Animated.View
+      style={[
+        style,
+        {
+          transform: [{ scale }, { rotate }],
+        },
+      ]}
+    >
+      {children}
+    </Animated.View>
+  );
+}
+
+function OutlineGlowIcon({
+  focused,
+  pressCount,
+  outlineName,
+  size,
+  color,
+  glowColor,
+}: {
+  focused: boolean;
+  pressCount: number;
+  outlineName: React.ComponentProps<typeof Ionicons>['name'];
+  size: number;
+  color: string;
+  glowColor: string;
+}) {
+  const glow = useRef(new Animated.Value(focused ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.timing(glow, {
+      toValue: focused ? 1 : 0,
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [focused, glow]);
+
+  useEffect(() => {
+    if (pressCount === 0) return;
+    glow.setValue(0.35);
+    Animated.timing(glow, {
+      toValue: focused ? 1 : 0.75,
+      duration: 300,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [pressCount, focused, glow]);
+
+  const scale = glow.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] });
+  const opacity = glow.interpolate({ inputRange: [0, 1], outputRange: [0.78, 1] });
+
+  return (
+    <Animated.View
+      style={[
+        styles.glowWrap,
+        {
+          transform: [{ scale }],
+          opacity,
+          shadowColor: glowColor,
+          shadowOpacity: focused ? 0.75 : 0.35,
+          elevation: focused ? 12 : 4,
+        },
+      ]}
+    >
+      <Ionicons name={outlineName} size={size} color={color} />
+    </Animated.View>
+  );
+}
 
 export default function TabsLayout() {
   const router = useRouter();
@@ -59,14 +208,13 @@ export default function TabsLayout() {
           options={{
             title: 'Home',
             tabBarIcon: ({ color, focused }) => (
-              <AnimatedFillIonicon
+              <OutlineGlowIcon
                 focused={focused}
                 pressCount={pressCountFor('home')}
                 outlineName="home-outline"
-                filledName="home"
                 size={iconSize}
                 color={color}
-                fillColor={theme.colors.primary}
+                glowColor={theme.colors.primary}
               />
             ),
           }}
@@ -85,14 +233,13 @@ export default function TabsLayout() {
           options={{
             title: 'Clientes',
             tabBarIcon: ({ color, focused }) => (
-              <AnimatedFillIonicon
+              <OutlineGlowIcon
                 focused={focused}
                 pressCount={pressCountFor('clientes')}
                 outlineName="people-outline"
-                filledName="people"
                 size={iconSize}
                 color={color}
-                fillColor={theme.colors.primary}
+                glowColor={theme.colors.primary}
               />
             ),
           }}
@@ -119,7 +266,7 @@ export default function TabsLayout() {
                 Fiado
               </Text>
             ),
-            tabBarButton: ({ delayLongPress, onPress, href, ...props }: any) => (
+            tabBarButton: ({ ...props }: any) => (
               <TouchableOpacity
                 {...props}
                 activeOpacity={0.8}
@@ -130,12 +277,13 @@ export default function TabsLayout() {
                 }}
                 style={[styles.centerButtonWrapper, isSmall && styles.centerButtonWrapperSmall]}
               >
-                <View style={[styles.centerButton, isSmall && styles.centerButtonSmall, isTablet && styles.centerButtonTablet]}>
-                  <AnimatedDollarMascot
-                    size={isSmall ? 36 : isTablet ? 48 : 42}
-                    triggerCount={pressCountFor('novo-fiado')}
-                  />
-                </View>
+                <FiadoAnimatedCircle
+                  triggerCount={pressCountFor('novo-fiado')}
+                  style={[styles.centerButton, isSmall && styles.centerButtonSmall, isTablet && styles.centerButtonTablet]}
+                >
+                  <FiadoRunningLight triggerCount={pressCountFor('novo-fiado')} />
+                  <Text style={styles.centerIcon}>R$</Text>
+                </FiadoAnimatedCircle>
                 <Text style={[styles.centerText, isSmall && styles.labelSmall]}>Fiado</Text>
               </TouchableOpacity>
             ),
@@ -146,14 +294,13 @@ export default function TabsLayout() {
           options={{
             title: 'Cobranças',
             tabBarIcon: ({ color, focused }) => (
-              <AnimatedFillIonicon
+              <OutlineGlowIcon
                 focused={focused}
                 pressCount={pressCountFor('cobrancas')}
                 outlineName="chatbubble-ellipses-outline"
-                filledName="chatbubble-ellipses"
                 size={iconSize}
                 color={color}
-                fillColor={theme.colors.primary}
+                glowColor={theme.colors.primary}
               />
             ),
           }}
@@ -178,14 +325,13 @@ export default function TabsLayout() {
           options={{
             title: 'Config',
             tabBarIcon: ({ color, focused }) => (
-              <AnimatedFillIonicon
+              <OutlineGlowIcon
                 focused={focused}
                 pressCount={pressCountFor('config')}
                 outlineName="settings-outline"
-                filledName="settings"
                 size={iconSize}
                 color={color}
-                fillColor={theme.colors.primary}
+                glowColor={theme.colors.primary}
               />
             ),
           }}
@@ -220,6 +366,12 @@ const styles = StyleSheet.create({
   tabItem: {
     minHeight: 44,
   },
+  glowWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowOffset: { width: 0, height: 0 },
+    shadowRadius: 14,
+  },
   label: {
     fontSize: 11,
     fontWeight: '600',
@@ -230,9 +382,6 @@ const styles = StyleSheet.create({
   },
   labelTablet: {
     fontSize: 12,
-  },
-  icon: {
-    fontSize: 20,
   },
   centerButtonWrapper: {
     flex: 1,
@@ -259,6 +408,19 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
+  },
+  runningLightOrbit: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+  },
+  fiadoCircleGlow: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 999,
+    backgroundColor: '#fdba74',
   },
   centerButtonSmall: {
     width: 44,
