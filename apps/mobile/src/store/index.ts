@@ -1001,8 +1001,13 @@ export const useFiadoStore = create<FiadoMobileState>()(
                   businessName: bizData.business_name || '',
                   pixKey: bizData.pix_key || '',
                   phone: bizData.phone || '',
+                  overdueDays: get().businessConfig.overdueDays || 15,
+                  acceptedPaymentMethods: get().businessConfig.acceptedPaymentMethods || ['cash', 'pix', 'card'],
+                  whatsappTemplate: get().businessConfig.whatsappTemplate || 'Olá {cliente}, passando para lembrar da sua conta em aberto no valor de {valor}. Você pode pagar via PIX ou presencialmente. Obrigado!',
+                  businessType: get().businessConfig.businessType || '',
                 },
                 currentBusinessId: bizData.id || null,
+                hasBootstrappedProfile: true,
               });
             }
           } catch (bizFetchError) {
