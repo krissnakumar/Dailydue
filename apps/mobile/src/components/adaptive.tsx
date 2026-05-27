@@ -68,6 +68,7 @@ export const AdaptiveContainer = ({
 
   const body = scroll ? (
     <ScrollView
+      style={styles.flex}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"

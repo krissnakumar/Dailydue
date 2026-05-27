@@ -13,6 +13,7 @@ import {
   isEmoji,
 } from '../core/utils';
 import { LocalDatabase } from '../core/database/LocalDatabase';
+import { syncLocalDatabaseCustomers, syncLocalDatabaseQueue } from '../core/database/sync-local-db';
 import {
   backupOfflineUserData,
   restoreOfflineUserData,
@@ -35,6 +36,19 @@ export {
   UserSubscriptionState,
 } from '../types';
 
+// Signed URL Cache Magic Numbers (Warning #12 Fix)
+export const PICTURE_URL_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
+export const PICTURE_URL_REFRESH_THRESHOLD_MS = (PICTURE_URL_TTL_SECONDS - 60 * 60 * 24) * 1000; // 6 days
+
+// Fallback Portuguese suggestions list (Warning #15 Fix)
+export const FALLBACK_QUICK_ITEMS: QuickItemClient[] = [
+  { name: 'Pão', price: 5, count: 1, lastUsed: new Date().toISOString() },
+  { name: 'Coca-cola', price: 8, count: 1, lastUsed: new Date().toISOString() },
+  { name: 'Cerveja', price: 6, count: 1, lastUsed: new Date().toISOString() },
+  { name: 'Salgado', price: 7, count: 1, lastUsed: new Date().toISOString() },
+  { name: 'Doces', price: 3, count: 1, lastUsed: new Date().toISOString() },
+];
+
 export interface FiadoMobileState {
   // Auth State
   user: { email?: string; id?: string; full_name?: string; picture?: string; avatar_url?: string } | null;
@@ -47,6 +61,16 @@ export interface FiadoMobileState {
   setUser: (user: FiadoMobileState['user']) => void;
   setAuthChecked: (checked: boolean) => void;
   updateBusinessConfig: (config: Partial<FiadoMobileState['businessConfig']>) => void;
+
+  // App Lock State
+  isSystemLockEnabled: boolean;
+  setIsSystemLockEnabled: (enabled: boolean) => void;
+  isBiometricsEnabled: boolean;
+  setIsBiometricsEnabled: (enabled: boolean) => void;
+  autoLockTimeout: number;
+  setAutoLockTimeout: (timeout: number) => void;
+  lastActiveTimestamp: number;
+  setLastActiveTimestamp: (timestamp: number) => void;
 
   // Subscription State
   subscription: UserSubscriptionState;
@@ -114,14 +138,14 @@ export interface FiadoMobileState {
   retryFailedSyncItems: () => Promise<void>;
   clearSyncQueue: () => void;
   flushSyncQueue: () => Promise<void>;
-  backupOfflineUserData: (userId: string) => Promise<void>;
+  backupOfflineUserData: () => Promise<void>;
   restoreOfflineUserData: (userId: string) => Promise<void>;
   resetDemoData: () => void;
   loadSupabaseData: () => Promise<void>;
 }
 
 async function signedUrlForCustomerPicture(path: string) {
-  const { data, error } = await supabase.storage.from('customer-pictures').createSignedUrl(path, 60 * 60 * 24 * 7);
+  const { data, error } = await supabase.storage.from('customer-pictures').createSignedUrl(path, PICTURE_URL_TTL_SECONDS);
   if (error) throw error;
   return data?.signedUrl || null;
 }
@@ -149,14 +173,15 @@ export const useFiadoStore = create<FiadoMobileState>()(
         pixKey: 'mercadinho@bairro.com.br',
         phone: '11999999999',
       },
+      isSystemLockEnabled: false,
+      isBiometricsEnabled: false,
+      autoLockTimeout: 0,
+      lastActiveTimestamp: 0,
       currentBusinessId: null,
       setUser: (user) => {
         set({ user });
         if (user) {
           get().fetchSubscription();
-          if (user.id) {
-            get().restoreOfflineUserData(user.id);
-          }
         } else {
           set({
             subscription: {
@@ -179,6 +204,10 @@ export const useFiadoStore = create<FiadoMobileState>()(
         set((state) => ({
           businessConfig: { ...state.businessConfig, ...config },
         })),
+      setIsSystemLockEnabled: (enabled) => set({ isSystemLockEnabled: enabled }),
+      setIsBiometricsEnabled: (enabled) => set({ isBiometricsEnabled: enabled }),
+      setAutoLockTimeout: (timeout) => set({ autoLockTimeout: timeout }),
+      setLastActiveTimestamp: (timestamp) => set({ lastActiveTimestamp: timestamp }),
 
       subscription: {
         plan_id: 'free',
@@ -374,8 +403,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
 
             if (c.picture && c.picture_updated_at) {
               const ageMs = Date.now() - new Date(c.picture_updated_at).getTime();
-              const sixDaysMs = 6 * 24 * 60 * 60 * 1000;
-              if (ageMs < sixDaysMs) {
+              if (ageMs < PICTURE_URL_REFRESH_THRESHOLD_MS) {
                 return null;
               }
             }
@@ -478,17 +506,23 @@ export const useFiadoStore = create<FiadoMobileState>()(
           const updated = state.customers.map((c) => {
             if (c.id === id) {
               const cleanPhone = phone.replace(/\D/g, '');
-              const newHistory = [
-                {
-                  id: localId('hist'),
-                  description: 'Perfil Atualizado',
-                  amount: 0,
-                  created_at: new Date().toISOString(),
-                  type: 'system' as const,
-                  created_by: state.user?.full_name || 'Dono',
-                },
-                ...c.history,
-              ];
+              const auditLog = {
+                id: localId('hist'),
+                description: 'Perfil Atualizado',
+                amount: 0,
+                created_at: new Date().toISOString(),
+                type: 'system' as const,
+                created_by: state.user?.full_name || 'Dono',
+              };
+              const fullHistory = [auditLog, ...c.history];
+              let systemCount = 0;
+              const prunedHistory = fullHistory.filter((h) => {
+                if (h.type === 'system') {
+                  systemCount++;
+                  return systemCount <= 20;
+                }
+                return true;
+              });
               const updatedCust = {
                 ...c,
                 full_name: name.trim() || c.full_name,
@@ -499,7 +533,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
                 documentType: documentType !== undefined ? documentType : c.documentType,
                 documentValue: documentValue !== undefined ? documentValue : c.documentValue,
                 picture: picture !== undefined ? picture : c.picture,
-                history: newHistory,
+                history: prunedHistory,
               };
               void LocalDatabase.getInstance().updateCustomer(id, updatedCust);
               return updatedCust;
@@ -676,7 +710,17 @@ export const useFiadoStore = create<FiadoMobileState>()(
                 created_by: state.user?.full_name || 'Dono',
               };
 
-              return { ...c, total_debt, history: [auditLog, ...history] };
+              const fullHistory = [auditLog, ...history];
+              let systemCount = 0;
+              const prunedHistory = fullHistory.filter((h) => {
+                if (h.type === 'system') {
+                  systemCount++;
+                  return systemCount <= 20;
+                }
+                return true;
+              });
+
+              return { ...c, total_debt, history: prunedHistory };
             }
             return c;
           });
@@ -731,7 +775,17 @@ export const useFiadoStore = create<FiadoMobileState>()(
                 created_by: state.user?.full_name || 'Dono',
               };
 
-              return { ...c, total_debt, history: [auditLog, ...history] };
+              const fullHistory = [auditLog, ...history];
+              let systemCount = 0;
+              const prunedHistory = fullHistory.filter((h) => {
+                if (h.type === 'system') {
+                  systemCount++;
+                  return systemCount <= 20;
+                }
+                return true;
+              });
+
+              return { ...c, total_debt, history: prunedHistory };
             }
             return c;
           });
@@ -778,13 +832,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
         });
 
         if (sorted.length === 0) {
-          sorted = [
-            { name: 'Pão', price: 5, count: 1, lastUsed: new Date().toISOString() },
-            { name: 'Coca-cola', price: 8, count: 1, lastUsed: new Date().toISOString() },
-            { name: 'Cerveja', price: 6, count: 1, lastUsed: new Date().toISOString() },
-            { name: 'Salgado', price: 7, count: 1, lastUsed: new Date().toISOString() },
-            { name: 'Doces', price: 3, count: 1, lastUsed: new Date().toISOString() },
-          ];
+          sorted = FALLBACK_QUICK_ITEMS;
         }
 
         const cleanQuery = query.toLowerCase().trim();
@@ -805,8 +853,9 @@ export const useFiadoStore = create<FiadoMobileState>()(
         set((state) => ({
           syncQueue: [...state.syncQueue, item],
         }));
-        
-        void LocalDatabase.getInstance().enqueueOperation(type, payload);
+
+        void syncLocalDatabaseQueue(get().syncQueue);
+        void LocalDatabase.getInstance().enqueueOperation(type, payload, item.id);
         
         get().attemptBackgroundSync();
       },
@@ -823,8 +872,10 @@ export const useFiadoStore = create<FiadoMobileState>()(
 
         if (get().isSyncing) {
           console.log('[Sync] Já sincronizando. Aguardando conclusão para logout...');
-          while (get().isSyncing) {
+          let retries = 50;
+          while (get().isSyncing && retries > 0) {
             await new Promise((resolve) => setTimeout(resolve, 100));
+            retries--;
           }
           return;
         }
@@ -845,7 +896,7 @@ export const useFiadoStore = create<FiadoMobileState>()(
         }
       },
 
-      backupOfflineUserData: async (userId: string) => {
+      backupOfflineUserData: async () => {
         return backupOfflineUserData(get);
       },
 
@@ -880,9 +931,14 @@ export const useFiadoStore = create<FiadoMobileState>()(
           const localCustomers = get().customers;
 
           if (!serverCustomers || serverCustomers.length === 0) {
-             const tempCustomers = localCustomers.filter(c => isTempCustomerId(c.id));
-             set({ customers: tempCustomers });
-             return;
+            const hasSyncedLocalCustomers = localCustomers.some((c) => !isTempCustomerId(c.id));
+            if (hasSyncedLocalCustomers || get().syncQueue.length > 0) {
+              return;
+            }
+            const tempCustomers = localCustomers.filter((c) => isTempCustomerId(c.id));
+            set({ customers: tempCustomers });
+            void syncLocalDatabaseCustomers(tempCustomers);
+            return;
           }
           
           const mappedCustomers: CustomerClient[] = [];
@@ -959,9 +1015,10 @@ export const useFiadoStore = create<FiadoMobileState>()(
           }
           
           const tempCustomers = localCustomers.filter(c => isTempCustomerId(c.id));
-          
-          set({ customers: [...mappedCustomers, ...tempCustomers] });
-          void LocalDatabase.getInstance().saveCustomers([...mappedCustomers, ...tempCustomers]);
+          const mergedCustomers = [...mappedCustomers, ...tempCustomers];
+
+          set({ customers: mergedCustomers });
+          void syncLocalDatabaseCustomers(mergedCustomers);
           
           await get().refreshCustomerPictureUrls();
         } catch (error) {
@@ -979,6 +1036,8 @@ export const useFiadoStore = create<FiadoMobileState>()(
           currentBusinessId: null,
           hasBootstrappedProfile: false,
         });
+        void LocalDatabase.getInstance().clearPendingOperations();
+        void LocalDatabase.getInstance().saveCustomers([]);
       },
     }),
     {
@@ -997,6 +1056,11 @@ export const useFiadoStore = create<FiadoMobileState>()(
       partialize: (state) => {
         const { user: _user, authChecked: _authChecked, ...rest } = state;
         return rest;
+      },
+      onRehydrateStorage: () => (state) => {
+        if (!state) return;
+        void syncLocalDatabaseCustomers(state.customers);
+        void syncLocalDatabaseQueue(state.syncQueue);
       },
     }
   )

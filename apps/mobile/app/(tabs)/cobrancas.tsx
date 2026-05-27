@@ -13,7 +13,6 @@ import { Header, Card, Button, AnimatedPopup } from '../../src/components';
 import { useFiadoStore } from '../../src/store';
 import { formatCurrency, sendWhatsappReminder } from '../../src/utils';
 import { theme } from '../../src/theme';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function CobrancasScreen() {
@@ -199,25 +198,18 @@ export default function CobrancasScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-
-      <Animated.View
-        entering={FadeInDown.duration(0)}
-        style={styles.summaryWrapper}
-      >
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Pendente</Text>
-          <Text style={styles.summaryVal}>{formatCurrency(totalEmAberto)}</Text>
+        <View style={styles.summaryWrapper}>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryLabel}>Pendente</Text>
+            <Text style={styles.summaryVal}>{formatCurrency(totalEmAberto)}</Text>
+          </View>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryLabel}>Devedores</Text>
+            <Text style={styles.summaryVal}>{totalDevedores}</Text>
+          </View>
         </View>
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Devedores</Text>
-          <Text style={styles.summaryVal}>{totalDevedores}</Text>
-        </View>
-      </Animated.View>
 
-      <Animated.View
-        entering={FadeInDown.delay(0).duration(0)}
-        style={styles.tabsRow}
-      >
+      <View style={styles.tabsRow}>
         {[
           { id: 'all', label: 'Todos', icon: 'people-outline' as const },
           { id: 'acima50', label: '> R$ 50', icon: 'cash-outline' as const },
@@ -242,12 +234,9 @@ export default function CobrancasScreen() {
             </TouchableOpacity>
           );
         })}
-      </Animated.View>
+      </View>
 
-      <Animated.View
-        entering={FadeInDown.delay(0).duration(0)}
-        style={styles.batchBox}
-      >
+      <View style={styles.batchBox}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Ionicons name="chatbubbles-outline" size={16} color="#0369a1" />
           <Text style={styles.batchTitle}>Lote ({selectedIds.size})</Text>
@@ -285,7 +274,7 @@ export default function CobrancasScreen() {
         >
           <Ionicons name="logo-whatsapp" size={16} color="#ffffff" />
         </TouchableOpacity>
-      </Animated.View>
+      </View>
 
       <View style={styles.listContent}>
         <View style={styles.listHeaderRow}>
@@ -312,10 +301,7 @@ export default function CobrancasScreen() {
             );
 
             return (
-              <Animated.View
-                key={c.id}
-                entering={FadeInDown.delay(0).duration(0)}
-              >
+              <View key={c.id}>
                 <View style={[styles.clientCard, isAtrasado && styles.clientCardAtrasado]}>
                   {/* Checkbox */}
                   <TouchableOpacity
@@ -357,7 +343,7 @@ export default function CobrancasScreen() {
                     </TouchableOpacity>
                   )}
                 </View>
-              </Animated.View>
+              </View>
             );
           })
         )}
@@ -505,12 +491,12 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flexGrow: 1,
+    paddingTop: 10,
     paddingBottom: 40,
   },
   summaryWrapper: {
     flexDirection: 'row',
-    marginHorizontal: 16,
-    marginTop: -8,
+    marginTop: -14,
     gap: 12,
     maxWidth: 300,
     width: '100%',
@@ -544,7 +530,7 @@ const styles = StyleSheet.create({
   tabsRow: {
     flexDirection: 'row',
     paddingHorizontal: 16,
-    marginTop: 20,
+    marginTop: 14,
     gap: 8,
   },
   tabBtn: {

@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Stack, useRouter, useSegments, useRootNavigationState } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Linking from 'expo-linking';
@@ -12,15 +12,14 @@ import { useFiadoStore } from '../src/store';
 import { supabase, extractUserMetadata } from '@controle-fiado/api';
 import { BillingProvider } from '../src/features/billing/providers/BillingProvider';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
+import { AppLockOverlay } from '../src/components/AppLockOverlay';
+import {
+  establishSessionFromOAuthParams,
+  isAuthCallbackUrl,
+  parseOAuthCallbackParams,
+} from '../src/core/auth/oauth-callback';
 
-LogBox.ignoreLogs([
-  'Network request failed',
-  'Failed to fetch',
-  '[TypeError: Network request failed]',
-  'TypeError: Network request failed',
-  'Invalid Refresh Token',
-  'AuthApiError'
-]);
+LogBox.ignoreLogs(['Invalid Refresh Token']);
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -37,6 +36,8 @@ export default function RootLayout() {
     setAuthChecked,
     refreshCustomerPictureUrls,
     loadSupabaseData,
+    isSystemLockEnabled,
+    setLastActiveTimestamp,
   } = useFiadoStore();
   const segments = useSegments();
   const router = useRouter();
@@ -48,6 +49,47 @@ export default function RootLayout() {
   const splashHidden = useRef(false);
   const handledAuthUrls = useRef(new Set<string>());
   const [pendingAuthNavigation, setPendingAuthNavigation] = useState(false);
+
+  const [isUnlocked, setIsUnlocked] = useState(true);
+  const lockInitialized = useRef(false);
+
+  const getLockTimeoutMs = () => {
+    const timeout = useFiadoStore.getState().autoLockTimeout;
+    return timeout > 0 ? timeout : 180_000;
+  };
+
+  const shouldRequireLock = () => {
+    const { lastActiveTimestamp } = useFiadoStore.getState();
+    if (!lastActiveTimestamp) return false;
+    return Date.now() - lastActiveTimestamp > getLockTimeoutMs();
+  };
+
+  useEffect(() => {
+    if (!isSystemLockEnabled) {
+      setIsUnlocked(true);
+      lockInitialized.current = true;
+      return;
+    }
+
+    if (!lockInitialized.current) {
+      setIsUnlocked(!shouldRequireLock());
+      lockInitialized.current = true;
+    }
+  }, [isSystemLockEnabled]);
+
+  useEffect(() => {
+    const handleStateChange = (nextState: string) => {
+      if (!useFiadoStore.getState().isSystemLockEnabled) return;
+
+      if (nextState === 'background' || nextState === 'inactive') {
+        setLastActiveTimestamp(Date.now());
+      } else if (nextState === 'active' && shouldRequireLock()) {
+        setIsUnlocked(false);
+      }
+    };
+    const sub = AppState.addEventListener('change', handleStateChange);
+    return () => sub.remove();
+  }, [setLastActiveTimestamp]);
 
   const applySessionUser = React.useCallback(
     (sess: NonNullable<Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session']>) => {
@@ -67,55 +109,22 @@ export default function RootLayout() {
       if (!url || handledAuthUrls.current.has(url)) return;
       if ((globalThis as any)[AUTH_SESSION_ACTIVE_KEY]) return;
 
-      const normalizedUrl = url.replace('#', url.includes('?') ? '&' : '?');
-      const parsed = Linking.parse(normalizedUrl);
-      const isNativeCallback = url.startsWith('controlefiado://');
-      const isExpoGoCallback =
-        parsed.path === 'auth/callback' ||
-        parsed.path === '--/auth/callback' ||
-        parsed.path?.endsWith('/--/auth/callback') ||
-        parsed.path?.endsWith('--/auth/callback');
-      if (!isNativeCallback && !isExpoGoCallback) return;
+      if (!isAuthCallbackUrl(url)) return;
 
-      const params = (parsed.queryParams || {}) as Record<string, string | string[] | undefined>;
-      const readParam = (key: string) => {
-        const value = params[key];
-        return Array.isArray(value) ? value[0] : value;
-      };
-      const code = readParam('code');
-      const accessToken = readParam('access_token');
-      const refreshToken = readParam('refresh_token');
-      const authError = readParam('error_description') || readParam('error');
-
-      if (!code && !(accessToken && refreshToken) && !authError) return;
+      const params = parseOAuthCallbackParams(url);
+      if (!params.code && !(params.accessToken && params.refreshToken) && !params.error) return;
       handledAuthUrls.current.add(url);
 
-      if (authError) {
-        console.warn('[Auth] OAuth callback returned an error:', authError);
+      if (params.error) {
+        console.warn('[Auth] OAuth callback returned an error:', params.error);
         return;
       }
 
       try {
-        if (code) {
-          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-          if (error) throw error;
-          if (data.session) {
-            applySessionUser(data.session);
-            setPendingAuthNavigation(true);
-          }
-          return;
-        }
-
-        if (accessToken && refreshToken) {
-          const { data, error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-          if (error) throw error;
-          if (data.session) {
-            applySessionUser(data.session);
-            setPendingAuthNavigation(true);
-          }
+        const session = await establishSessionFromOAuthParams(params);
+        if (session) {
+          applySessionUser(session);
+          setPendingAuthNavigation(true);
         }
       } catch (error) {
         console.warn('[Auth] Failed to complete OAuth callback:', error);
@@ -126,6 +135,16 @@ export default function RootLayout() {
 
   useEffect(() => {
     mounted.current = true;
+
+    // Validate Supabase environment variables at startup (Warning #18 Fix)
+    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error(
+        '[Startup] ERRO CRÍTICO: Variáveis de ambiente do Supabase não configuradas!\n' +
+        'Por favor, certifique-se de definir EXPO_PUBLIC_SUPABASE_URL e EXPO_PUBLIC_SUPABASE_ANON_KEY no seu arquivo .env'
+      );
+    }
 
     // Clean up invalid local image URIs (file:// or content://) from customer picture fields
     // since scoped storage permissions are revoked by the OS on cold start/app restart.
@@ -162,6 +181,8 @@ export default function RootLayout() {
   }, [refreshCustomerPictureUrls, attemptBackgroundSync]);
 
   useEffect(() => {
+    if (!authChecked) return;
+
     if (!user?.id) {
       useFiadoStore.setState({ customers: [], syncQueue: [] });
       return;
@@ -175,12 +196,20 @@ export default function RootLayout() {
       } catch (err) {
         console.warn('[Layout] Failed to restore offline user data:', err);
       }
-      refreshCustomerPictureUrls();
-      loadSupabaseData();
+      try {
+        await loadSupabaseData();
+      } catch (err) {
+        console.warn('[Layout] Failed to load Supabase data:', err);
+      }
+      try {
+        await refreshCustomerPictureUrls();
+      } catch (err) {
+        console.warn('[Layout] Failed to refresh customer picture URLs:', err);
+      }
     };
 
     void initUserData();
-  }, [user?.id, refreshCustomerPictureUrls, loadSupabaseData]);
+  }, [authChecked, user?.id, refreshCustomerPictureUrls, loadSupabaseData]);
 
   useEffect(() => {
     let active = true;
@@ -219,14 +248,15 @@ export default function RootLayout() {
         if (active) setAuthChecked(true);
       });
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_evt, sess) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((evt, sess) => {
       if (!active) return;
       if (!sess) {
-        setUser(null);
+        if (evt === 'SIGNED_OUT') {
+          setUser(null);
+        }
         return;
       }
       applySessionUser(sess);
-      // If the user just logged in (or session refreshed), immediately try to flush any pending offline writes.
       attemptBackgroundSync();
     });
 
@@ -234,7 +264,7 @@ export default function RootLayout() {
       active = false;
       sub.subscription.unsubscribe();
     };
-  }, [setUser, applySessionUser]);
+  }, [setUser, applySessionUser, attemptBackgroundSync]);
 
   useEffect(() => {
     Linking.getInitialURL().then(completeAuthFromUrl).catch(() => {});
@@ -308,6 +338,11 @@ export default function RootLayout() {
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                 <Stack.Screen name="(auth)" options={{ headerShown: false, presentation: 'modal' }} />
               </Stack>
+              {isSystemLockEnabled && !isUnlocked ? (
+                <AppLockOverlay
+                  onUnlock={() => setIsUnlocked(true)}
+                />
+              ) : null}
             </BillingProvider>
           </QueryClientProvider>
         </SafeAreaProvider>

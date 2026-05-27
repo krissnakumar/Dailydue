@@ -32,7 +32,9 @@
       "versionCode": 9,
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
-        "com.android.vending.BILLING"
+        "com.android.vending.BILLING",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT"
       ]
     },
     "web": {
@@ -42,6 +44,12 @@
     "plugins": [
       "expo-router",
       "expo-web-browser",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Permitir que o aplicativo use a biometria do seu celular para acesso rápido e seguro."
+        }
+      ],
       [
         "react-native-iap",
         {

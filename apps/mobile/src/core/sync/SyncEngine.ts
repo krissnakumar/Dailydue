@@ -9,6 +9,7 @@ import {
 import { isTempCustomerId, isTransientNetworkError, localId } from '../utils';
 import { PendingQueueItem, CustomerClient, HistoryItem } from '../../types';
 import { LocalDatabase } from '../database/LocalDatabase';
+import { syncLocalDatabaseCustomers, syncLocalDatabaseQueue } from '../database/sync-local-db';
 
 const SYNC_RETRY_BASE_MS = 15_000;
 const SYNC_RETRY_MAX_MS = 5 * 60_000;
@@ -164,6 +165,9 @@ export async function restoreOfflineUserData(getState: () => any, set: (fn: any)
           failedSyncItems: mergedFailed,
           customerIdMap: mergedMap,
         });
+
+        void syncLocalDatabaseCustomers(mergedCustomers);
+        void syncLocalDatabaseQueue(mergedQueue);
 
         await AsyncStorage.removeItem(storageKey);
         console.log(`[Restore] Dados restaurados com sucesso. Fila de sync: ${mergedQueue.length} itens.`);

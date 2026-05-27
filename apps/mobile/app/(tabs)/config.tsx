@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Alert, Image, TouchableOpacity, Platform, KeyboardAvoidingView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, Alert, Image, TouchableOpacity, Platform, KeyboardAvoidingView, ActivityIndicator, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Header, Card, Button } from '../../src/components';
 import { useFiadoStore } from '../../src/store';
 import { theme } from '../../src/theme';
-import { supabase, updateOwnerProfile, uploadOwnerProfilePicture } from '@controle-fiado/api';
+import { updateOwnerProfile, uploadOwnerProfilePicture } from '@controle-fiado/api';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useResponsive } from '../../src/utils/responsive';
+import { SecurityService } from '../../src/core/security/security-service';
+import { promptLogout } from '../../src/core/auth/logout-flow';
+import Animated, { FadeInDown, FadeOutUp, Layout } from 'react-native-reanimated';
 
 export default function ConfiguracoesScreen() {
   const router = useRouter();
@@ -24,6 +27,11 @@ export default function ConfiguracoesScreen() {
     isSyncing,
     failedSyncItems,
     retryFailedSyncItems,
+    attemptBackgroundSync,
+    isSystemLockEnabled,
+    setIsSystemLockEnabled,
+    setIsBiometricsEnabled,
+    setAutoLockTimeout,
   } = useFiadoStore();
 
   const customersCount = getActiveCustomersCount();
@@ -35,6 +43,8 @@ export default function ConfiguracoesScreen() {
   
   const [userName, setUserName] = useState(user?.full_name || '');
   const [userPic, setUserPic] = useState(user?.picture || user?.avatar_url || '');
+
+
 
   const isLocalPicture = (uri: string) =>
     uri.startsWith('file:') || uri.startsWith('content:') || uri.startsWith('blob:') || uri.startsWith('data:image/');
@@ -109,99 +119,7 @@ export default function ConfiguracoesScreen() {
   };
 
   const handleLogout = () => {
-    const pendingCount = useFiadoStore.getState().syncQueue.length;
-
-    const performSyncAndLogout = async () => {
-      try {
-        console.log('[Logout] Sincronizando dados pendentes...');
-        await useFiadoStore.getState().flushSyncQueue();
-      } catch (err) {
-        console.warn('[Logout] Falha na sincronização final:', err);
-      }
-
-      const remainingCount = useFiadoStore.getState().syncQueue.length;
-      if (remainingCount > 0) {
-        if (Platform.OS === 'web') {
-          if (window.confirm(`Atenção: Você ainda possui ${remainingCount} alterações pendentes de sincronização (talvez esteja offline). Se você sair agora, essas alterações serão perdidas. Deseja sair mesmo assim?`)) {
-            void doLogout();
-          }
-        } else {
-          Alert.alert(
-            'Dados não salvos!',
-            `Você ainda possui ${remainingCount} alterações pendentes que não foram salvas na nuvem. Se sair agora, elas serão perdidas.\n\nDeseja sair mesmo assim?`,
-            [
-              { text: 'Cancelar', style: 'cancel' },
-              {
-                text: 'Tentar Sincronizar Novamente',
-                onPress: () => {
-                  void performSyncAndLogout();
-                }
-              },
-              {
-                text: 'Sair e Perder Dados',
-                style: 'destructive',
-                onPress: () => {
-                  void doLogout();
-                }
-              }
-            ]
-          );
-        }
-      } else {
-        void doLogout();
-      }
-    };
-
-    const doLogout = async () => {
-      try {
-        const currentUser = useFiadoStore.getState().user;
-        if (currentUser?.id && currentUser.id !== 'usr_offline') {
-          console.log('[Logout] Criando backup de segurança dos dados offline...');
-          await useFiadoStore.getState().backupOfflineUserData(currentUser.id);
-        }
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        await supabase.auth.signOut();
-      } catch (error) {
-        console.warn('Erro ao desconectar', error);
-      } finally {
-        setUser(null);
-        useFiadoStore.getState().resetDemoData();
-        router.replace('/(auth)/login');
-      }
-    };
-
-    if (pendingCount > 0) {
-      if (Platform.OS === 'web') {
-        if (window.confirm(`Você possui ${pendingCount} alterações pendentes de sincronização. Deseja tentar salvá-las antes de sair?`)) {
-          void performSyncAndLogout();
-        } else {
-          void doLogout();
-        }
-      } else {
-        Alert.alert(
-          'Sincronizar antes de sair?',
-          `Você possui ${pendingCount} alterações locais que ainda não foram salvas na nuvem. Deseja sincronizá-las antes de sair?`,
-          [
-            {
-              text: 'Sincronizar e Sair',
-              onPress: () => {
-                void performSyncAndLogout();
-              }
-            },
-            {
-              text: 'Sair Sem Salvar',
-              style: 'destructive',
-              onPress: () => {
-                void doLogout();
-              }
-            },
-            { text: 'Cancelar', style: 'cancel' }
-          ]
-        );
-      }
-    } else {
-      void doLogout();
-    }
+    promptLogout(router);
   };
 
   const handleGoToLogin = () => {
@@ -217,6 +135,7 @@ export default function ConfiguracoesScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={[
           styles.scrollContent,
           {
@@ -229,71 +148,15 @@ export default function ConfiguracoesScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Status de Sincronização */}
-        <Text style={styles.sectionTitle}>Sincronização na Nuvem</Text>
-        <Card style={styles.syncCard}>
-          <View style={styles.syncContainer}>
-            {(() => {
-              if (!user || user.id === 'usr_offline') {
-                return (
-                  <>
-                    <View style={[styles.syncDot, { backgroundColor: '#eab308' }]} />
-                    <View style={{ flex: 1, marginLeft: 10 }}>
-                      <Text style={styles.syncTitle}>Modo Balcão Offline</Text>
-                      <Text style={styles.syncSubtitle}>
-                        Seus dados estão 100% seguros localmente no seu aparelho.
-                      </Text>
-                    </View>
-                  </>
-                );
-              }
 
-              if (isSyncing) {
-                return (
-                  <>
-                    <ActivityIndicator size="small" color={theme.colors.primary} style={{ marginRight: 10 }} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.syncTitle}>Sincronizando...</Text>
-                      <Text style={styles.syncSubtitle}>
-                        Enviando suas alterações recentes para a nuvem.
-                      </Text>
-                    </View>
-                  </>
-                );
-              }
-
-              if (syncQueue.length > 0) {
-                return (
-                  <>
-                    <View style={[styles.syncDot, { backgroundColor: '#f97316' }]} />
-                    <View style={{ flex: 1, marginLeft: 10 }}>
-                      <Text style={styles.syncTitle}>Alterações Pendentes ({syncQueue.length})</Text>
-                      <Text style={styles.syncSubtitle}>
-                        Há dados locais aguardando conexão com a internet para salvar na nuvem.
-                      </Text>
-                    </View>
-                  </>
-                );
-              }
-
-              return (
-                <>
-                  <View style={[styles.syncDot, { backgroundColor: '#22c55e' }]} />
-                  <View style={{ flex: 1, marginLeft: 10 }}>
-                    <Text style={styles.syncTitle}>Sincronizado</Text>
-                    <Text style={styles.syncSubtitle}>
-                      Suas alterações e dados estão atualizados na nuvem.
-                    </Text>
-                  </View>
-                </>
-              );
-            })()}
-          </View>
-        </Card>
 
         {/* Histórico de Falhas de Sincronização */}
         {failedSyncItems.length > 0 && (
-          <>
+          <Animated.View
+            entering={FadeInDown.duration(220)}
+            exiting={FadeOutUp.duration(180)}
+            layout={Layout.springify().damping(18).stiffness(180)}
+          >
             <Text style={styles.sectionTitle}>Erros de Sincronização</Text>
             <Card style={styles.errorCard}>
               <View style={styles.errorHeader}>
@@ -363,10 +226,14 @@ export default function ConfiguracoesScreen() {
                 <Text style={styles.clearErrorsBtnText}>Limpar Histórico de Erros</Text>
               </TouchableOpacity>
             </Card>
-          </>
+          </Animated.View>
         )}
 
         {/* Plano de Assinatura e Limites */}
+        <Animated.View
+          entering={FadeInDown.duration(220).delay(40)}
+          layout={Layout.springify().damping(18).stiffness(180)}
+        >
         <Text style={styles.sectionTitle}>Assinatura & Limites de Uso</Text>
         <Card style={styles.subCard}>
           <View style={styles.subHeader}>
@@ -459,8 +326,13 @@ export default function ConfiguracoesScreen() {
             style={{ marginTop: 12 }}
           />
         </Card>
+        </Animated.View>
 
         {/* Meu Perfil & Dados do Estabelecimento */}
+        <Animated.View
+          entering={FadeInDown.duration(220).delay(80)}
+          layout={Layout.springify().damping(18).stiffness(180)}
+        >
         <Text style={styles.sectionTitle}>Meu Perfil e Estabelecimento</Text>
         <Card style={styles.formCard}>
           {user ? (
@@ -542,15 +414,172 @@ export default function ConfiguracoesScreen() {
             style={{ marginTop: 8 }}
           />
         </Card>
+        </Animated.View>
+
+        {/* Segurança */}
+        <Animated.View
+          entering={FadeInDown.duration(220).delay(120)}
+          layout={Layout.springify().damping(18).stiffness(180)}
+        >
+        <Text style={styles.sectionTitle}>Segurança</Text>
+        <Card style={styles.infoCard}>
+          <View>
+            {/* App Lock Master Switch */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View style={{ flex: 1, marginRight: 10 }}>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: theme.colors.textMain }}>
+                  Bloqueio por Segurança do Sistema
+                </Text>
+                <Text style={{ fontSize: 12, color: theme.colors.textMuted, marginTop: 2, lineHeight: 16 }}>
+                  Exige biometria ou PIN do seu aparelho após 3 minutos de inatividade.
+                </Text>
+              </View>
+              <Switch
+                value={!!isSystemLockEnabled}
+                onValueChange={async (value) => {
+                  if (value) {
+                    const supported = await SecurityService.isSecuritySupportedAsync();
+                    if (!supported) {
+                      Alert.alert(
+                        'Segurança não configurada',
+                        'Seu dispositivo não possui uma tela de bloqueio segura configurada (PIN, padrão, senha ou biometria). Ative a segurança nas configurações do Android antes de habilitar esta proteção.',
+                        [{ text: 'Entendi' }]
+                      );
+                      return;
+                    }
+                    const auth = await SecurityService.authenticateAsync('Confirme sua identidade para ativar a segurança do Fiado.');
+                    if (auth.success) {
+                      setIsSystemLockEnabled(true);
+                      setIsBiometricsEnabled(true);
+                      setAutoLockTimeout(180000); // 3 minutes timeout
+                      Alert.alert('Sucesso', 'Proteção nativa ativada com sucesso!');
+                    }
+                  } else {
+                    const auth = await SecurityService.authenticateAsync('Confirme sua identidade para desativar a segurança do Fiado.');
+                    if (auth.success) {
+                      setIsSystemLockEnabled(false);
+                      setIsBiometricsEnabled(false);
+                      setAutoLockTimeout(0);
+                      Alert.alert('Sucesso', 'Proteção de segurança desativada.');
+                    }
+                  }
+                }}
+                trackColor={{ false: '#767577', true: '#10b981' }}
+                thumbColor={Platform.OS === 'android' ? '#f4f3f4' : undefined}
+              />
+            </View>
+
+            {isSystemLockEnabled && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)' }}>
+                <Ionicons name="shield-checkmark" size={16} color="#10b981" style={{ marginRight: 6 }} />
+                <Text style={{ color: '#10b981', fontSize: 11, fontWeight: '600' }}>
+                  Protegido pela segurança integrada do dispositivo
+                </Text>
+              </View>
+            )}
+          </View>
+        </Card>
+        </Animated.View>
 
         {/* Informações do Sistema */}
+        <Animated.View
+          entering={FadeInDown.duration(220).delay(160)}
+          layout={Layout.springify().damping(18).stiffness(180)}
+        >
         <Text style={styles.sectionTitle}>Informações do Aplicativo</Text>
         <Card style={styles.infoCard}>
-          <Text style={styles.infoText}>Versão do Build: <Text style={{ fontWeight: 'bold' }}>1.0.0 (Expo 51)</Text></Text>
-          <Text style={styles.infoText}>Mecanismo Offline: <Text style={{ color: theme.colors.success }}>Ativo (AsyncStorage)</Text></Text>
-          <Text style={styles.infoText}>Fila de Sincronização Local: <Text style={{ fontWeight: 'bold' }}>0 pendente(s)</Text></Text>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={async () => {
+              if (syncQueue.length === 0) {
+                Alert.alert(
+                  'Sincronização',
+                  'Excelente! Todos os seus dados locais já estão 100% atualizados na nuvem.',
+                  [{ text: 'Entendi', style: 'default' }]
+                );
+                return;
+              }
+              if (isSyncing) {
+                Alert.alert(
+                  'Sincronização em Andamento',
+                  'O aplicativo já está enviando suas alterações pendentes para a nuvem neste momento. Por favor, aguarde.',
+                  [{ text: 'Entendi', style: 'default' }]
+                );
+                return;
+              }
+              Alert.alert(
+                'Sincronizar Agora',
+                `Deseja enviar manualmente suas ${syncQueue.length} alteração(ões) pendente(s) para a nuvem agora?`,
+                [
+                  { text: 'Cancelar', style: 'cancel' },
+                  {
+                    text: 'Sincronizar',
+                    style: 'default',
+                    onPress: async () => {
+                      try {
+                        await attemptBackgroundSync();
+                      } catch (err) {
+                        Alert.alert('Erro', 'Não foi possível sincronizar no momento. Verifique sua conexão com a internet.');
+                      }
+                    }
+                  }
+                ]
+              );
+            }}
+            style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 3 }}
+          >
+            <Ionicons name="sync-outline" size={14} color={syncQueue.length > 0 ? theme.colors.primary : theme.colors.textMuted} style={{ marginRight: 6 }} />
+            <Text style={[styles.infoText, { marginVertical: 0, color: syncQueue.length > 0 ? theme.colors.primary : theme.colors.textMuted, textDecorationLine: syncQueue.length > 0 ? 'underline' : 'none' }]}>
+              Fila de Sincronização Local: <Text style={{ fontWeight: 'bold' }}>{syncQueue.length} pendente(s)</Text>
+            </Text>
+          </TouchableOpacity>
+          
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 3 }}>
+            <Ionicons name="information-circle-outline" size={14} color={theme.colors.textMuted} style={{ marginRight: 6 }} />
+            <Text style={[styles.infoText, { marginVertical: 0 }]}>
+              Versão do App: <Text style={{ fontWeight: 'bold' }}>1.0.0</Text>
+            </Text>
+          </View>
+          
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => {
+              Alert.alert(
+                'Política de Privacidade',
+                'Nós valorizamos a privacidade dos seus dados. As informações de vendas, fiados e dados de clientes cadastrados no Controle Fiado são armazenadas com segurança na nuvem (Supabase), com acesso restrito à sua conta.\n\nNenhum dado é compartilhado com terceiros. Para ver os termos completos, visite nosso site oficial.',
+                [{ text: 'Entendi', style: 'default' }]
+              );
+            }}
+            style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center' }}
+          >
+            <Ionicons name="shield-checkmark-outline" size={14} color={theme.colors.primary} style={{ marginRight: 6 }} />
+            <Text style={{ color: theme.colors.primary, fontSize: 13, fontWeight: '600', textDecorationLine: 'underline' }}>
+              Política de Privacidade
+            </Text>
+          </TouchableOpacity>
         </Card>
+        </Animated.View>
+
+        {user ? (
+          <Animated.View
+            entering={FadeInDown.duration(220).delay(200)}
+            layout={Layout.springify().damping(18).stiffness(180)}
+          >
+            <Text style={styles.sectionTitle}>Conta</Text>
+            <Card style={styles.infoCard}>
+              <Button
+                title="Sair da Conta"
+                variant="ghost"
+                leftIcon={<Ionicons name="log-out-outline" size={18} color={theme.colors.danger} style={{ marginRight: 6 }} />}
+                onPress={handleLogout}
+                style={{ borderColor: theme.colors.danger }}
+              />
+            </Card>
+          </Animated.View>
+        ) : null}
       </ScrollView>
+
+
       </KeyboardAvoidingView>
     </View>
   );
@@ -562,19 +591,19 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   scrollContent: {
-    padding: 16,
-    paddingBottom: 40,
+    padding: 12,
+    paddingBottom: 24,
   },
   sectionTitle: {
     fontSize: 13,
     fontWeight: '700',
     color: theme.colors.textMuted,
     textTransform: 'uppercase',
-    marginTop: 12,
-    marginBottom: 8,
+    marginTop: 8,
+    marginBottom: 4,
   },
   authCard: {
-    padding: 16,
+    padding: 12,
   },
   profileAvatar: {
     width: 48,
@@ -613,10 +642,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   formCard: {
-    padding: 16,
+    padding: 12,
   },
   formGroup: {
-    marginBottom: 14,
+    marginBottom: 10,
   },
   label: {
     fontSize: 13,
@@ -635,7 +664,7 @@ const styles = StyleSheet.create({
     color: theme.colors.textMain,
   },
   infoCard: {
-    padding: 16,
+    padding: 12,
   },
   infoText: {
     fontSize: 13,
@@ -643,13 +672,13 @@ const styles = StyleSheet.create({
     marginVertical: 3,
   },
   subCard: {
-    padding: 16,
+    padding: 12,
   },
   subHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 10,
   },
   subTitle: {
     fontSize: 16,
@@ -678,7 +707,7 @@ const styles = StyleSheet.create({
     color: '#a16207',
   },
   limitRow: {
-    marginBottom: 12,
+    marginBottom: 8,
   },
   limitHeader: {
     flexDirection: 'row',
@@ -794,5 +823,56 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#fff',
     marginLeft: 6,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalWrapper: {
+    width: '100%',
+    maxWidth: 320,
+  },
+  modalContent: {
+    backgroundColor: '#0c0f0d', // Deep premium dark background
+    borderRadius: 24,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.45,
+    shadowRadius: 18,
+    elevation: 8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    position: 'relative',
+    paddingRight: 32,
+  },
+  modalIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.15)',
+  },
+  modalTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  modalCloseBtn: {
+    position: 'absolute',
+    right: 0,
+    top: 6,
   },
 });

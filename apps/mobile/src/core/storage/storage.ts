@@ -1,37 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 
-const STORAGE_SALT = 'faido_secure_cache_salt_2026';
-
-function encrypt(text: string): string {
-  let result = '';
-  for (let i = 0; i < text.length; i++) {
-    const charCode = text.charCodeAt(i) ^ STORAGE_SALT.charCodeAt(i % STORAGE_SALT.length);
-    result += String.fromCharCode(charCode);
-  }
-  // Safe Base64 encoding
-  try {
-    return btoa(unescape(encodeURIComponent(result)));
-  } catch {
-    return btoa(result);
-  }
-}
-
-function decrypt(cipherText: string): string {
-  try {
-    let text = '';
-    try {
-      text = decodeURIComponent(escape(atob(cipherText)));
-    } catch {
-      text = atob(cipherText);
-    }
-    let result = '';
-    for (let i = 0; i < text.length; i++) {
-      const charCode = text.charCodeAt(i) ^ STORAGE_SALT.charCodeAt(i % STORAGE_SALT.length);
-      result += String.fromCharCode(charCode);
-    }
-    return result;
-  } catch {
-    return '';
+function warnInsecureFallback(action: string, error: unknown) {
+  console.warn(`[Storage] Secure storage unavailable during ${action}.`, error);
+  if (!__DEV__) {
+    console.error('[Storage] Refusing to store sensitive data in AsyncStorage outside development.');
   }
 }
 
@@ -49,19 +22,39 @@ export const storage = {
     return AsyncStorage.clear();
   },
 
-  // Encrypted Cache & Secure Token Storage Methods
   setSecureItem: async (key: string, value: string): Promise<void> => {
-    const encrypted = encrypt(value);
-    await AsyncStorage.setItem(`secure_${key}`, encrypted);
+    try {
+      await SecureStore.setItemAsync(key, value);
+    } catch (e) {
+      warnInsecureFallback('setSecureItem', e);
+      if (__DEV__) {
+        await AsyncStorage.setItem(`secure_${key}`, value);
+      } else {
+        throw e;
+      }
+    }
   },
   getSecureItem: async (key: string): Promise<string | null> => {
-    const encrypted = await AsyncStorage.getItem(`secure_${key}`);
-    if (!encrypted) return null;
-    return decrypt(encrypted);
+    try {
+      return await SecureStore.getItemAsync(key);
+    } catch (e) {
+      warnInsecureFallback('getSecureItem', e);
+      if (__DEV__) {
+        return AsyncStorage.getItem(`secure_${key}`);
+      }
+      return null;
+    }
   },
   removeSecureItem: async (key: string): Promise<void> => {
-    await AsyncStorage.removeItem(`secure_${key}`);
-  }
+    try {
+      await SecureStore.deleteItemAsync(key);
+    } catch (e) {
+      warnInsecureFallback('removeSecureItem', e);
+      if (__DEV__) {
+        await AsyncStorage.removeItem(`secure_${key}`);
+      }
+    }
+  },
 };
 
 export default storage;

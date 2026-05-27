@@ -1,19 +1,22 @@
 import React, { ReactNode, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, Animated, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useFiadoStore } from '../store';
 import { formatCurrency } from '../utils';
 import { theme } from '../theme';
-import { supabase } from '@controle-fiado/api';
 import { Ionicons } from '@expo/vector-icons';
 import { useNetworkStatus } from '../core/hooks/useNetworkStatus';
+import { promptLogout } from '../core/auth/logout-flow';
+import { BookWriteLogo } from './BookWriteLogo';
 
 export interface HeaderProps {
   showTotal?: boolean;
   title?: string;
   onLogoutPress?: () => void;
   leftAction?: ReactNode;
+  hideTitle?: boolean;
+  bottomContent?: ReactNode;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -21,6 +24,8 @@ export const Header: React.FC<HeaderProps> = ({
   title = 'Fiado',
   onLogoutPress,
   leftAction,
+  hideTitle = false,
+  bottomContent,
 }) => {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -28,13 +33,9 @@ export const Header: React.FC<HeaderProps> = ({
   const {
     customers,
     user,
-    setUser,
     subscription,
     syncQueue,
     isSyncing,
-    flushSyncQueue,
-    backupOfflineUserData,
-    resetDemoData,
   } = useFiadoStore();
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -89,98 +90,12 @@ export const Header: React.FC<HeaderProps> = ({
       return;
     }
 
-    const pendingCount = syncQueue.length;
-
-    const performSyncAndLogout = async () => {
-      try {
-        console.log('[Header Logout] Sincronizando dados pendentes...');
-        await flushSyncQueue();
-      } catch (err) {
-        console.warn('[Header Logout] Falha na sincronização final:', err);
-      }
-
-      const remainingCount = useFiadoStore.getState().syncQueue.length;
-      if (remainingCount > 0) {
-        if (Platform.OS === 'web') {
-          if (window.confirm(`Atenção: Você ainda possui ${remainingCount} alterações pendentes de sincronização (talvez esteja offline). Se você sair agora, essas alterações serão perdidas. Deseja sair mesmo assim?`)) {
-            void doLogout();
-          }
-        } else {
-          Alert.alert(
-            'Dados não salvos!',
-            `Você ainda possui ${remainingCount} alterações pendentes que não foram salvas na nuvem. Se sair agora, elas serão perdidas.\n\nDeseja sair mesmo assim?`,
-            [
-              { text: 'Cancelar', style: 'cancel' },
-              {
-                text: 'Tentar Sincronizar Novamente',
-                onPress: () => {
-                  void performSyncAndLogout();
-                }
-              },
-              {
-                text: 'Sair e Perder Dados',
-                style: 'destructive',
-                onPress: () => {
-                  void doLogout();
-                }
-              }
-            ]
-          );
-        }
-      } else {
-        void doLogout();
-      }
-    };
-
-    const doLogout = async () => {
-      try {
-        if (user?.id && user.id !== 'usr_offline') {
-          console.log('[Header Logout] Criando backup de segurança dos dados offline...');
-          await backupOfflineUserData(user.id);
-        }
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        await supabase.auth.signOut();
-      } catch (error) {
-        console.warn('Erro ao desconectar', error);
-      } finally {
-        setUser(null);
-        resetDemoData();
-        router.replace('/(auth)/login');
-      }
-    };
-
-    if (pendingCount > 0) {
-      if (Platform.OS === 'web') {
-        if (window.confirm(`Você possui ${pendingCount} alterações pendentes de sincronização. Deseja tentar salvá-las antes de sair?`)) {
-          void performSyncAndLogout();
-        } else {
-          void doLogout();
-        }
-      } else {
-        Alert.alert(
-          'Sincronizar antes de sair?',
-          `Você possui ${pendingCount} alterações locais que ainda não foram salvas na nuvem. Deseja sincronizá-las antes de sair?`,
-          [
-            {
-              text: 'Sincronizar e Sair',
-              onPress: () => {
-                void performSyncAndLogout();
-              }
-            },
-            {
-              text: 'Sair Sem Salvar',
-              style: 'destructive',
-              onPress: () => {
-                void doLogout();
-              }
-            },
-            { text: 'Cancelar', style: 'cancel' }
-          ]
-        );
-      }
-    } else {
-      void doLogout();
+    if (onLogoutPress) {
+      onLogoutPress();
+      return;
     }
+
+    promptLogout(router);
   };
 
   return (
@@ -189,7 +104,7 @@ export const Header: React.FC<HeaderProps> = ({
         {leftAction ? (
           <View style={styles.titleWrapper}>
             {leftAction}
-            <Text style={styles.titleText}>{title}</Text>
+            {!hideTitle && <Text style={styles.titleText}>{title}</Text>}
             <TouchableOpacity onPress={() => router.push('/subscription')} style={styles.planBadgeContainer}>
                 <Animated.View style={[styles.planBadge, subscription.is_premium ? styles.planBadgePremium : styles.planBadgeFree, subscription.is_premium && { transform: [{ scale: pulseAnim }] }]}>
                   <Ionicons name={subscription.is_premium ? "star" : "leaf"} size={10} color="#fff" />
@@ -203,9 +118,17 @@ export const Header: React.FC<HeaderProps> = ({
             activeOpacity={0.75}
             onPress={() => router.replace('/(tabs)/home')}
           >
-            {title === 'Fiado' && <Image source={require('../../assets/icon.png')} style={styles.logoImage} />}
+            {title === 'Fiado' && (
+              <BookWriteLogo
+                source={require('../../assets/logo-original.png')}
+                width={44}
+                height={44}
+                borderRadius={10}
+                style={{ marginRight: 4 }}
+              />
+            )}
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={styles.titleText}>{title}</Text>
+              {!hideTitle && <Text style={styles.titleText}>{title}</Text>}
               <View style={styles.planBadgeContainer}>
                   <Animated.View style={[styles.planBadge, subscription.is_premium ? styles.planBadgePremium : styles.planBadgeFree, subscription.is_premium && { transform: [{ scale: pulseAnim }] }]}>
                     <Ionicons name={subscription.is_premium ? "star" : "leaf"} size={10} color="#fff" />
@@ -233,6 +156,8 @@ export const Header: React.FC<HeaderProps> = ({
         </View>
       </View>
 
+      {bottomContent ? <View style={styles.bottomContent}>{bottomContent}</View> : null}
+
       {/* Active Sync Status / Offline Indicators */}
       {isSyncing ? (
         <View style={styles.syncIndicatorRow}>
@@ -251,12 +176,7 @@ export const Header: React.FC<HeaderProps> = ({
           <Ionicons name="cloud-upload-outline" size={14} color="#3b82f6" />
           <Text style={styles.syncIndicatorText}>{syncQueue.length} alteração(ões) pendente(s)</Text>
         </View>
-      ) : (
-        <View style={styles.syncIndicatorRow}>
-          <Ionicons name="checkmark-circle-outline" size={14} color="rgba(255, 255, 255, 0.6)" />
-          <Text style={[styles.syncIndicatorText, { color: 'rgba(255, 255, 255, 0.6)' }]}>Nuvem sincronizada</Text>
-        </View>
-      )}
+      ) : null}
 
       {isOffline && (
         <View style={styles.offlineBanner}>
@@ -302,13 +222,19 @@ const styles = StyleSheet.create({
   },
   titleText: {
     color: '#ffffff',
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '700',
     fontFamily: 'Outfit',
+  },
+  titleTextOverlap: {
+    marginLeft: 0,
   },
   actionsWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  bottomContent: {
+    marginTop: 12,
   },
   accountIconBtn: {
     width: 38,

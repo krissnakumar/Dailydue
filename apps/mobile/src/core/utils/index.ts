@@ -24,7 +24,10 @@ export function isTempCustomerId(val: string): boolean {
   ) {
     return true;
   }
-  return !isUuid(id);
+  if (!isUuid(id)) {
+    console.warn(`[isTempCustomerId] Warning: Non-UUID and non-prefixed customer ID encountered: "${id}". Treating as official/permanent ID.`);
+  }
+  return false;
 }
 
 export function isEmoji(str?: string): boolean {

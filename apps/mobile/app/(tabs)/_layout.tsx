@@ -1,22 +1,33 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { Redirect, Tabs, useRouter } from 'expo-router';
 import { Platform, View, Text, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { theme } from '../../src/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useFiadoStore } from '../../src/store';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AnimatedFillIonicon } from '../../src/components/AnimatedFillIonicon';
+import { AnimatedDollarMascot } from '../../src/components/AnimatedDollarMascot';
 
 export default function TabsLayout() {
   const router = useRouter();
   const { user, authChecked } = useFiadoStore();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  const [pressBump, setPressBump] = useState<Record<string, number>>({});
 
   const isSmall = width < 360;
   const isTablet = width >= 768;
   const iconSize = isSmall ? 19 : isTablet ? 23 : 21;
   const tabBarHeight = (isSmall ? 62 : isTablet ? 78 : 70) + Math.max(insets.bottom, 0);
   const tabBarPaddingBottom = Math.max(insets.bottom, isSmall ? 6 : 8);
+
+  const pressCountFor = useMemo(() => {
+    return (key: string) => pressBump[key] ?? 0;
+  }, [pressBump]);
+
+  const bump = (key: string) => {
+    setPressBump((prev) => ({ ...prev, [key]: (prev[key] ?? 0) + 1 }));
+  };
 
   if (authChecked && !user) {
     return <Redirect href="/(auth)/login" />;
@@ -48,8 +59,19 @@ export default function TabsLayout() {
           options={{
             title: 'Home',
             tabBarIcon: ({ color, focused }) => (
-              <Ionicons name={focused ? 'home' : 'home-outline'} size={iconSize} color={color} />
+              <AnimatedFillIonicon
+                focused={focused}
+                pressCount={pressCountFor('home')}
+                outlineName="home-outline"
+                filledName="home"
+                size={iconSize}
+                color={color}
+                fillColor={theme.colors.primary}
+              />
             ),
+          }}
+          listeners={{
+            tabPress: () => bump('home'),
           }}
         />
         <Tabs.Screen
@@ -63,12 +85,21 @@ export default function TabsLayout() {
           options={{
             title: 'Clientes',
             tabBarIcon: ({ color, focused }) => (
-              <Ionicons name={focused ? 'people' : 'people-outline'} size={iconSize} color={color} />
+              <AnimatedFillIonicon
+                focused={focused}
+                pressCount={pressCountFor('clientes')}
+                outlineName="people-outline"
+                filledName="people"
+                size={iconSize}
+                color={color}
+                fillColor={theme.colors.primary}
+              />
             ),
           }}
           listeners={{
             tabPress: (e) => {
               e.preventDefault();
+              bump('clientes');
               router.navigate('/clientes');
             },
           }}
@@ -94,12 +125,16 @@ export default function TabsLayout() {
                 activeOpacity={0.8}
                 onPress={(e: any) => {
                   if (e && e.preventDefault) e.preventDefault();
+                  bump('novo-fiado');
                   router.push('/novo-fiado');
                 }}
                 style={[styles.centerButtonWrapper, isSmall && styles.centerButtonWrapperSmall]}
               >
                 <View style={[styles.centerButton, isSmall && styles.centerButtonSmall, isTablet && styles.centerButtonTablet]}>
-                  <Ionicons name="add" size={isSmall ? 22 : isTablet ? 28 : 24} color={theme.colors.accent} style={{ marginTop: 1 }} />
+                  <AnimatedDollarMascot
+                    size={isSmall ? 36 : isTablet ? 48 : 42}
+                    triggerCount={pressCountFor('novo-fiado')}
+                  />
                 </View>
                 <Text style={[styles.centerText, isSmall && styles.labelSmall]}>Fiado</Text>
               </TouchableOpacity>
@@ -111,8 +146,19 @@ export default function TabsLayout() {
           options={{
             title: 'Cobranças',
             tabBarIcon: ({ color, focused }) => (
-              <Ionicons name={focused ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline'} size={iconSize} color={color} />
+              <AnimatedFillIonicon
+                focused={focused}
+                pressCount={pressCountFor('cobrancas')}
+                outlineName="chatbubble-ellipses-outline"
+                filledName="chatbubble-ellipses"
+                size={iconSize}
+                color={color}
+                fillColor={theme.colors.primary}
+              />
             ),
+          }}
+          listeners={{
+            tabPress: () => bump('cobrancas'),
           }}
         />
         <Tabs.Screen
@@ -132,8 +178,19 @@ export default function TabsLayout() {
           options={{
             title: 'Config',
             tabBarIcon: ({ color, focused }) => (
-              <Ionicons name={focused ? 'settings' : 'settings-outline'} size={iconSize} color={color} />
+              <AnimatedFillIonicon
+                focused={focused}
+                pressCount={pressCountFor('config')}
+                outlineName="settings-outline"
+                filledName="settings"
+                size={iconSize}
+                color={color}
+                fillColor={theme.colors.primary}
+              />
             ),
+          }}
+          listeners={{
+            tabPress: () => bump('config'),
           }}
         />
       </Tabs>

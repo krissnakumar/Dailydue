@@ -27,7 +27,11 @@ import { useFiadoStore } from '../../src/store';
 import { theme } from '../../src/theme';
 import { Button } from '../../src/components';
 import { supabase, extractUserMetadata } from '@controle-fiado/api';
-import { getGoogleIdTokenViaNative, isGoogleNativeEnabled } from '../../src/auth/googleNative';
+import { getGoogleIdTokenViaNative, isGoogleNativeEnabled } from '../../src/core/auth/googleNative';
+import {
+  establishSessionFromOAuthParams,
+  parseOAuthCallbackParams,
+} from '../../src/core/auth/oauth-callback';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -51,7 +55,7 @@ function replaceLocalhostForPhysicalDevice(uri: string): string {
       'Set EXPO_PUBLIC_DEV_SERVER_IP to your computer LAN IP, or use a dev build.'
   );
   throw new Error(
-    'Expo Go está gerando localhost no login. Reinicie o Expo com: EXPO_PUBLIC_DEV_SERVER_IP=192.168.1.104 npm run dev'
+    'Expo Go está gerando localhost no login. Reinicie o Expo com EXPO_PUBLIC_DEV_SERVER_IP=<seu-ip-lan> npm run dev'
   );
 }
 
@@ -156,8 +160,6 @@ export default function LoginScreen() {
   const iconScale = useSharedValue(1);
 
   useEffect(() => {
-    console.log('[Auth] Supabase URL in client:', (supabase as any).supabaseUrl);
-    // 1. Fade in the logo initially
     logoOpacity.value = withTiming(1, { duration: 600 });
     
     // 2. Pulse the logo slightly to show it's alive
@@ -202,6 +204,21 @@ export default function LoginScreen() {
   }));
 
 
+  const completeOAuthFromBrowser = async (finalUrl: string) => {
+    const params = parseOAuthCallbackParams(finalUrl);
+    const session = await establishSessionFromOAuthParams(params);
+    if (session) {
+      const meta = extractUserMetadata(session.user.user_metadata);
+      setUser({
+        id: session.user.id,
+        email: session.user.email || undefined,
+        full_name: meta.full_name,
+        picture: meta.picture,
+      });
+    }
+    router.replace('/welcome');
+  };
+
   const handleGoogleLogin = async () => {
     setBusy(true);
     setError(null);
@@ -229,6 +246,7 @@ export default function LoginScreen() {
               id: sess.user.id,
               email: sess.user.email || undefined,
               full_name: meta.full_name,
+              picture: meta.picture,
             });
             router.replace('/welcome');
           } else {
@@ -239,7 +257,6 @@ export default function LoginScreen() {
       }
 
       const redirectTo = getOAuthRedirectUri();
-      console.log('[Auth] Google RedirectTo URI:', redirectTo);
 
       if (Platform.OS === 'web') {
         await startWebOAuth('google', redirectTo);
@@ -263,82 +280,7 @@ export default function LoginScreen() {
       }
 
       const finalUrl = res.url;
-      const getParam = (urlStr: string, key: string) => {
-        if (!urlStr) return null;
-        const normalizedUrl = urlStr.replace('#', urlStr.includes('?') ? '&' : '?');
-        try {
-          const parsed = Linking.parse(normalizedUrl);
-          const qp = (parsed?.queryParams as any) || {};
-          if (typeof qp[key] === 'string') return qp[key];
-        } catch {
-          const regex = new RegExp(`[?&]${key}=([^&]*)`);
-          const match = normalizedUrl.match(regex);
-          if (match && match[1]) return decodeURIComponent(match[1]);
-        }
-        return null;
-      };
-
-      const code = getParam(finalUrl, 'code');
-      const access_token = getParam(finalUrl, 'access_token');
-      const refresh_token = getParam(finalUrl, 'refresh_token');
-      const error_desc = getParam(finalUrl, 'error_description') || getParam(finalUrl, 'error');
-
-      // Safe debug (no tokens/codes)
-      const safeUrl = String(finalUrl)
-        .replace(/code=[^&#]+/g, 'code=***')
-        .replace(/access_token=[^&#]+/g, 'access_token=***')
-        .replace(/refresh_token=[^&#]+/g, 'refresh_token=***');
-
-      console.log('[Auth] OAuth callback', {
-        hasCode: Boolean(code),
-        hasAccessToken: Boolean(access_token),
-        hasRefreshToken: Boolean(refresh_token),
-        hasError: Boolean(error_desc),
-        safeUrl,
-      });
-
-      if (error_desc) {
-        throw new Error(error_desc);
-      }
-
-      if (code) {
-        const { data: exch, error: exchErr } = await supabase.auth.exchangeCodeForSession(code);
-        if (exchErr) throw exchErr;
-        const sess = exch.session;
-        if (sess) {
-          const meta = extractUserMetadata(sess.user.user_metadata);
-          setUser({
-            id: sess.user.id,
-            email: sess.user.email || undefined,
-            full_name: meta.full_name,
-          });
-        }
-        console.log('[Auth] Google OAuth session established');
-        router.replace('/welcome');
-        return;
-      }
-
-      if (access_token && refresh_token) {
-        const { data: sessData, error: sessErr } = await supabase.auth.setSession({
-          access_token,
-          refresh_token,
-        });
-        if (sessErr) throw sessErr;
-        const sess = sessData.session;
-        if (sess) {
-          const meta = extractUserMetadata(sess.user.user_metadata);
-          setUser({
-            id: sess.user.id,
-            email: sess.user.email || undefined,
-            full_name: meta.full_name,
-          });
-        }
-        console.log('[Auth] Google OAuth session established');
-        router.replace('/welcome');
-        return;
-      }
-
-      throw new Error('OAUTH_CODE_MISSING');
+      await completeOAuthFromBrowser(finalUrl);
     } catch (e: any) {
       setError(getProviderConfigMessage('Google', e?.message));
     } finally {
@@ -351,7 +293,6 @@ export default function LoginScreen() {
     setError(null);
     try {
       const redirectTo = getOAuthRedirectUri();
-      console.log('[Auth] Facebook RedirectTo URI:', redirectTo);
 
       if (Platform.OS === 'web') {
         await startWebOAuth('facebook', redirectTo);
@@ -370,87 +311,10 @@ export default function LoginScreen() {
 
       const res = await openTrackedAuthSession(data.url, redirectTo);
       if (res.type !== 'success' || !('url' in res) || !res.url) {
-        // user cancelled / dismissed
         return;
       }
 
-      const finalUrl = res.url;
-      const getParam = (urlStr: string, key: string) => {
-        if (!urlStr) return null;
-        const normalizedUrl = urlStr.replace('#', urlStr.includes('?') ? '&' : '?');
-        try {
-          const parsed = Linking.parse(normalizedUrl);
-          const qp = (parsed?.queryParams as any) || {};
-          if (typeof qp[key] === 'string') return qp[key];
-        } catch {
-          const regex = new RegExp(`[?&]${key}=([^&]*)`);
-          const match = normalizedUrl.match(regex);
-          if (match && match[1]) return decodeURIComponent(match[1]);
-        }
-        return null;
-      };
-
-      const code = getParam(finalUrl, 'code');
-      const access_token = getParam(finalUrl, 'access_token');
-      const refresh_token = getParam(finalUrl, 'refresh_token');
-      const error_desc = getParam(finalUrl, 'error_description') || getParam(finalUrl, 'error');
-
-      // Safe debug (no tokens/codes)
-      const safeUrl = String(finalUrl)
-        .replace(/code=[^&#]+/g, 'code=***')
-        .replace(/access_token=[^&#]+/g, 'access_token=***')
-        .replace(/refresh_token=[^&#]+/g, 'refresh_token=***');
-
-      console.log('[Auth] Facebook OAuth callback', {
-        hasCode: Boolean(code),
-        hasAccessToken: Boolean(access_token),
-        hasRefreshToken: Boolean(refresh_token),
-        hasError: Boolean(error_desc),
-        safeUrl,
-      });
-
-      if (error_desc) {
-        throw new Error(error_desc);
-      }
-
-      if (code) {
-        const { data: exch, error: exchErr } = await supabase.auth.exchangeCodeForSession(code);
-        if (exchErr) throw exchErr;
-        const sess = exch.session;
-        if (sess) {
-          const meta = extractUserMetadata(sess.user.user_metadata);
-          setUser({
-            id: sess.user.id,
-            email: sess.user.email || undefined,
-            full_name: meta.full_name,
-          });
-        }
-        console.log('[Auth] Facebook OAuth session established');
-        router.replace('/welcome');
-        return;
-      }
-
-      if (access_token && refresh_token) {
-        const { data: sessData, error: sessErr } = await supabase.auth.setSession({
-          access_token,
-          refresh_token,
-        });
-        if (sessErr) throw sessErr;
-        const sess = sessData.session;
-        if (sess) {
-          const meta = extractUserMetadata(sess.user.user_metadata);
-          setUser({
-            id: sess.user.id,
-            email: sess.user.email || undefined,
-            full_name: meta.full_name,
-          });
-        }
-        console.log('[Auth] Facebook OAuth session established');
-        router.replace('/welcome');
-        return;
-      }
-
-      throw new Error('OAUTH_CODE_MISSING');
+      await completeOAuthFromBrowser(res.url);
     } catch (e: any) {
       setError(e?.message || 'Falha no login Facebook.');
     } finally {
@@ -508,6 +372,19 @@ export default function LoginScreen() {
         });
         if (signUpErr) throw signUpErr;
 
+        const sess = data.session;
+        if (sess) {
+          const meta = extractUserMetadata(sess.user.user_metadata);
+          setUser({
+            id: sess.user.id,
+            email: sess.user.email || undefined,
+            full_name: meta.full_name,
+            picture: meta.picture,
+          });
+          router.replace('/welcome');
+          return;
+        }
+
         if (Platform.OS === 'web') {
           alert('Sua conta foi criada com sucesso! Faça login para acessar o aplicativo.');
           changeMode('signin');
@@ -532,6 +409,7 @@ export default function LoginScreen() {
             id: sess.user.id,
             email: sess.user.email || undefined,
             full_name: meta.full_name,
+            picture: meta.picture,
           });
           router.replace('/welcome');
         } else {

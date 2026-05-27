@@ -133,7 +133,7 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.wrapper}>
-      <Header showTotal={true} title="Fiado" />
+      <Header showTotal={true} title="Fiado" hideTitle />
 
       <AdaptiveContainer
         safeArea={false}

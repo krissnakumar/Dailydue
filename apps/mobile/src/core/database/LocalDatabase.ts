@@ -163,10 +163,10 @@ export class LocalDatabase {
     }
   }
 
-  public async enqueueOperation(type: PendingQueueItem['type'], payload: any): Promise<PendingOperation> {
+  public async enqueueOperation(type: PendingQueueItem['type'], payload: any, customId?: string): Promise<PendingOperation> {
     const ops = await this.getPendingOperations();
     const newOp: PendingOperation = {
-      id: `op_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: customId || `op_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       type,
       payload,
       added_at: new Date().toISOString(),
