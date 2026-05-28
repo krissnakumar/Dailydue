@@ -1,78 +1,91 @@
-======================================================
-     DADOS PARA A GOOGLE PLAY STORE - CONTROLE FIADO
-======================================================
-Este arquivo contém todos os textos e informações necessárias 
-para preencher a ficha da sua loja na Google Play Console.
+================================================================================
+                    DAILYDUE GOOGLE PLAY STORE LISTING TEMPLATES
+================================================================================
+This file contains the App Store / Google Play Console metadata for DailyDue,
+fully translated and optimized for your three languages: English, Hindi, and Tamil.
 
-------------------------------------------------------
-INFORMAÇÕES PRINCIPAIS (STORE LISTING)
-------------------------------------------------------
-Nome do Aplicativo (Máx 30 caracteres):
-Controle Fiado - Gestão Simples
+Characters Limits:
+- App Name: Max 30 characters
+- Short Description: Max 80 characters
+- Full Description: Max 4000 characters
 
-Descrição Curta (Máx 80 caracteres):
-O fim do caderninho! Gerencie clientes, vendas e fiados de forma rápida e segura.
+--------------------------------------------------------------------------------
+1. ENGLISH (EN) LISTING
+--------------------------------------------------------------------------------
 
-Descrição Completa (Máx 4000 caracteres):
-Diga adeus ao caderninho de papel! O Controle Fiado é a ferramenta definitiva para pequenos negócios, mercadinhos, padarias e autônomos que precisam gerenciar vendas a prazo de forma organizada, segura e moderna.
+[App Name - Max 30 chars]:
+DailyDue Ledger - Simple Book
 
-Principais Funcionalidades:
-- Cadastro rápido de clientes com opção de foto.
-- Registro de vendas e pagamentos em poucos cliques.
-- Histórico completo de transações (entradas e saídas).
-- Envio automático de cobranças e recibos pelo WhatsApp.
-- Funcionamento offline (suas anotações são salvas no celular e sincronizadas na nuvem).
-- Limites mensais e controle de dívida por cliente.
-- Interface amigável e direto ao ponto!
+[Short Description - Max 80 chars]:
+Ditch the paper ledger! Manage clients, sales, debts, and payments securely.
 
-Feito para facilitar a sua vida no balcão e garantir que você nunca mais perca o controle de quem te deve. Baixe agora e profissionalize as cobranças do seu negócio!
+[Full Description - Max 4000 chars]:
+Say goodbye to paper ledger notebooks and diary entries! DailyDue Ledger is the ultimate, offline-first digital ledger app designed for small businesses, local shop owners, vendors, and freelancers who need to manage customer credit, transactions, and outstanding dues simply, securely, and instantly.
 
-------------------------------------------------------
-DETALHES DO APLICATIVO
-------------------------------------------------------
-Package Name (ID do Pacote):
-br.com.controlefiado.app
+Whether you run a local grocery store, bakery, clothing shop, pharmacy, tea stall, or work as an independent contractor, DailyDue makes it extremely easy to keep track of who owes you, record cash transactions, and collect payments on time.
 
-Categoria Principal:
-Negócios (Business) ou Finanças (Finance)
+✨ KEY FEATURES:
+- 👥 Quick Client Setup: Create customer profiles in 2 clicks, complete with optional profile pictures.
+- 💸 Transaction History: Easily record credit sales (debt) and payments with high-fidelity transaction logs.
+- 🔄 Real-time Cloud Sync: Works perfectly offline. Your data is automatically backed up and synced to the secure cloud once connection is restored.
+- 📲 Instant WhatsApp Dues Reminders: Send polite, professional payment reminder messages and receipts directly via WhatsApp.
+- 🇮🇳 Multilingual Support: Built natively for English, Hindi (हिंदी), and Tamil (தமிழ்).
+- 🔒 Premium Security: Secure your accounts and client logs with robust PIN and biometric (fingerprint) protection.
+- 🚀 Clean & Modern Interface: Stunning glassmorphism dashboard and smooth micro-animations made for quick interactions behind the counter.
 
-Tags / Palavras-chave sugeridas:
-Vendas, Fiado, Gestão de Negócios, Caderninho, Finanças, Cobrança, Autônomo, Pequenas Empresas, Controle de Caixa.
+Get premium control over your cash flow and ensure you never lose a single entry again. Download DailyDue today and professionalize your business ledger!
 
-Classificação Indicativa (Content Rating):
-Livre (Todas as idades) - O aplicativo não contém violência, linguagem inadequada ou compras integradas perigosas.
+[Suggested Search Keywords / Tags]:
+Ledger, Khata Book, Udhar Book, Credit Manager, Daily Sales, Business Ledger, Debt Tracker, Customer Ledger, Cash Book, India Retail.
 
-------------------------------------------------------
-DADOS DE CONTATO DO DESENVOLVEDOR
-------------------------------------------------------
-E-mail de Contato: 
-[INSERIR SEU E-MAIL DE SUPORTE]
+--------------------------------------------------------------------------------
+2. HINDI / हिंदी (HI) LISTING
+--------------------------------------------------------------------------------
 
-Site Oficial: 
-[INSERIR SEU SITE OU DEIXAR EM BRANCO]
+[App Name - Max 30 chars]:
+DailyDue - आसान डिजिटल बहीखाता
 
-------------------------------------------------------
-POLÍTICA DE PRIVACIDADE (PRIVACY POLICY)
-------------------------------------------------------
-Para publicar na Play Store, a Google exige um link válido para uma Política de Privacidade.
-Se você não tem um site, pode gerar uma política gratuita em sites como "privacypolicies.com" ou usar o Google Docs/Notion e deixar o link público.
+[Short Description - Max 80 chars]:
+कागज़ का बहीखाता छोड़ें! ग्राहकों, उधारी, और भुगतानों को सुरक्षित प्रबंधित करें।
 
-Abaixo está um modelo básico do texto para a sua Política de Privacidade:
+[Full Description - Max 4000 chars]:
+कागज़ के बहीखाता और डायरी के पुराने पन्नों को अलविदा कहें! DailyDue डिजिटल बहीखाता ऐप है, जिसे छोटे व्यवसायों, स्थानीय दुकानदारों, विक्रेताओं और फ्रीलांसरों के लिए बनाया गया है। इसके जरिए आप ग्राहकों की उधारी (खता), लेनदेन और बकाया भुगतानों को आसान, सुरक्षित और तुरंत प्रबंधित कर सकते हैं।
 
-"A sua privacidade é importante para nós. O aplicativo Controle Fiado solicita permissões apenas para o funcionamento essencial de seus recursos, como:
-1. Armazenamento/Câmera: Para adicionar a foto de perfil dos seus clientes.
-2. Contatos: (Opcional) Para vincular um cliente rapidamente.
-3. Internet: Para salvar o backup seguro das suas contas na nuvem.
+चाहे आपका किराना स्टोर हो, बेकरी, कपड़ों की दुकान, चाय की दुकान हो, या आप एक स्वतंत्र ठेकेदार के रूप में काम करते हों, DailyDue यह ट्रैक करना बेहद आसान बनाता है कि किस पर कितना बकाया है।
 
-Não compartilhamos as informações dos seus clientes ou as suas informações financeiras com terceiros sob nenhuma circunstância. Todos os dados são criptografados e atrelados estritamente à sua conta pessoal logada."
+✨ मुख्य विशेषताएं:
+- 👥 त्वरित ग्राहक सेटअप: प्रोफ़ाइल फ़ोटो के साथ सिर्फ 2 क्लिक में ग्राहक प्रोफ़ाइल बनाएं।
+- 💸 लेनदेन इतिहास: उच्च-सटीकता के साथ उधारी बिक्री (ऋण) और भुगतानों को आसानी से रिकॉर्ड करें।
+- 🔄 रीयल-टाइम क्लाउड सिंक: ऑफ़लाइन भी पूरी तरह काम करता है। आपका डेटा सुरक्षित रूप से बैकअप लिया जाता है और इंटरनेट आने पर क्लाउड से सिंक हो जाता है।
+- 📲 व्हाट्सएप रिमाइंडर: सीधे व्हाट्सएप के माध्यम से शिष्टतापूर्ण भुगतान अनुस्मारक (रिमाइंडर) और रसीदें भेजें।
+- 🇮🇳 बहुभाषी समर्थन: अंग्रेजी, हिंदी (हिंदी) और तमिल (தமிழ்) भाषाओं का पूरा समर्थन।
+- 🔒 प्रीमियम सुरक्षा: पिन और बायोमेट्रिक (फ़िंगरप्रिंट) लॉक से अपने बहीखाता को सुरक्षित रखें।
+- 🚀 साफ और आधुनिक इंटरफ़ेस: प्रीमियम ग्लासमोर्फिज़्म डिज़ाइन जो काम को आसान और तेज़ बनाता है।
 
-URL da Política de Privacidade (Cole o link na Play Console):
-[COLE O LINK AQUI]
+अपने कैश फ्लो पर प्रीमियम नियंत्रण प्राप्त करें। आज ही DailyDue डाउनलोड करें और अपने व्यवसाय को डिजिटल बनाएं!
 
-------------------------------------------------------
-RECURSOS GRÁFICOS NECESSÁRIOS PARA O UPLOAD
-------------------------------------------------------
-- Ícone do App: 512px por 512px (formato PNG ou JPEG, máx 1MB).
-- Gráfico de Recursos (Feature Graphic): 1024px por 500px (PNG ou JPEG).
-- Capturas de Tela do Celular (Screenshots): Mínimo de 2 capturas de tela (recomenda-se de 4 a 6 mostrando as principais telas).
-- (Opcional) Capturas de Tela de Tablet.
+--------------------------------------------------------------------------------
+3. TAMIL / தமிழ் (TA) LISTING
+--------------------------------------------------------------------------------
+
+[App Name - Max 30 chars]:
+DailyDue - எளிய டிஜிட்டல் கணக்கு
+
+[Short Description - Max 80 chars]:
+காகிதப் பேரேட்டைத் தவிர்க்கவும்! வாடிக்கையாளர் உத்தரிப்புகளை எளிதாக நிர்வகிக்கவும்.
+
+[Full Description - Max 4000 chars]:
+காகித கணக்கு புத்தகங்கள் மற்றும் டைரி பதிவுகளுக்கு விடைபெறுங்கள்! DailyDue என்பது சிறு வணிகங்கள், உள்ளூர் கடைக்காரர்கள் மற்றும் சுயதொழில் செய்பவர்களுக்காக வடிவமைக்கப்பட்ட இறுதி டிஜிட்டல் பேரேடு பயன்பாடாகும். வாடிக்கையாளர் கடன், பரிவர்த்தனைகள் மற்றும் நிலுவைத் தொகைகளை நீங்கள் எளிமையாகவும், பாதுகாப்பாகவும் மற்றும் உடனடியாகவும் நிர்வகிக்கலாம்.
+
+உள்ளூர் மளிகைக் கடை, பேக்கரி, துணிக்கடை, தேநீர் கடை என எதுவாக இருந்தாலும், யார் உங்களுக்கு பணம் செலுத்த வேண்டும் என்பதை எளிதாகக் கண்காணிக்கலாம்.
+
+✨ முக்கிய அம்சங்கள்:
+- 👥 விரைவான வாடிக்கையாளர் அமைப்பு: வாடிக்கையாளர் சுயவிவரங்களை 2 கிளிக்குகளில் உருவாக்கவும்.
+- 💸 பரிவர்த்தனை வரலாறு: கடன் விற்பனை மற்றும் கொடுப்பனவுகளை எளிதாக பதிவு செய்யுங்கள்.
+- 🔄 ஆஃப்லைன் ஆதரவு & கிளவுட் ஒத்திசைவு: இணையம் இல்லாதபோதும் கணக்குகளைப் பதிவு செய்யலாம், இணையம் வந்தவுடன் கிளவுட்டில் தானாகவே பாதுகாப்பாக சேமிக்கப்படும்.
+- 📲 வாட்ஸ்அப் நினைவூட்டல்: வாட்ஸ்அப் மூலம் வாடிக்கையாளர்களுக்கு கட்டண நினைவூட்டல் செய்திகள் மற்றும் ரசீதுகளை நேரடியாக அனுப்பலாம்.
+- 🇮🇳 மூன்று மொழி ஆதரவு: ஆங்கிலம், இந்தி (हिंदी) மற்றும் தமிழ் (தமிழ்) மொழிகளில் பயன்படுத்தலாம்.
+- 🔒 பிரீமியம் பாதுகாப்பு: PIN மற்றும் கைரேகை லாக் மூலம் உங்கள் கணக்குகளைப் பாதுகாக்கவும்.
+- 🚀 எளிய மற்றும் நவீன வடிவமைப்பு: அதிநவீன மற்றும் எளிமையான இடைமுகம் உங்கள் வணிகத்தை வேகப்படுத்தும்.
+
+இன்றே DailyDue-ஐ பதிவிறக்கம் செய்து உங்கள் வணிகத்தை அடுத்த நிலைக்கு கொண்டு செல்லுங்கள்!
