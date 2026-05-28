@@ -112,7 +112,7 @@ export async function backupOfflineUserData(getState: () => any) {
       };
       const storageKey = `dailydue_offline_data_${userId}`;
       await EncryptedStorage.setItem(storageKey, JSON.stringify(dataToSave));
-      console.log(`[Backup] Dados locais do usuário ${userId} salvos em backup offline.`);
+      console.log(`[Backup] Offline backup saved for user ${userId}.`);
     }
   } catch (err) {
     console.warn('[Backup] Failed to create offline user-data backup:', err);

@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "DailyDue",
-    "slug": "controle-fiado-mobile",
+    "slug": "dailydue",
     "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -69,8 +69,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "0858551f-f285-4f83-836b-24e93779140a"
+        "projectId": "3953e829-bdad-4b81-a902-9ec3d699c666"
       }
-    }
+    },
+    "owner": "krishzy"
   }
 }

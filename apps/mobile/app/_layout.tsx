@@ -54,7 +54,7 @@ export default function RootLayout() {
     setLastActiveTimestamp,
     hasBootstrappedProfile,
   } = useDailyDueStore();
-  const segments = useSegments();
+    const segments = useSegments() as string[];
   const router = useRouter();
   const navigationState = useRootNavigationState();
   // Track whether the root layout has completed its first render.

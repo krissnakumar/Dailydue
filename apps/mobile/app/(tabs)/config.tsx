@@ -183,7 +183,7 @@ export default function ConfiguracoesScreen() {
       >
 
 
-        {/* Histórico de Falhas de Sincronização */}
+        {/* Sync Failure History */}
         {failedSyncItems.length > 0 && (
           <Animated.View
             entering={FadeInDown.duration(220)}
@@ -361,7 +361,7 @@ export default function ConfiguracoesScreen() {
         </Card>
         </Animated.View>
 
-        {/* Meu Perfil & Dados do Estabelecimento */}
+        {/* Profile & Establishment Data */}
         <Animated.View
           entering={FadeInDown.duration(220).delay(80)}
           layout={Layout.springify().damping(18).stiffness(180)}
@@ -531,7 +531,7 @@ export default function ConfiguracoesScreen() {
         </Card>
         </Animated.View>
 
-        {/* Segurança */}
+        {/* Security */}
         <Animated.View
           entering={FadeInDown.duration(220).delay(120)}
           layout={Layout.springify().damping(18).stiffness(180)}
@@ -590,7 +590,7 @@ export default function ConfiguracoesScreen() {
         </Card>
         </Animated.View>
 
-        {/* Aparência (Tema) */}
+        {/* Appearance (Theme) */}
         <Animated.View
           entering={FadeInDown.duration(220).delay(140)}
           layout={Layout.springify().damping(18).stiffness(180)}
@@ -754,7 +754,7 @@ export default function ConfiguracoesScreen() {
         </Card>
         </Animated.View>
 
-        {/* Informações do Sistema */}
+        {/* System Information */}
         <Animated.View
           entering={FadeInDown.duration(220).delay(180)}
           layout={Layout.springify().damping(18).stiffness(180)}

@@ -84,7 +84,7 @@ export const Header: React.FC<HeaderProps> = ({
   });
 
   // Calcula total geral a receber
-  const totalRecebiveis = customers.reduce((acc, curr) => acc + (curr.total_debt || 0), 0);
+  const totalReceivables = customers.reduce((acc, curr) => acc + (curr.total_debt || 0), 0);
 
   const handleAccountAction = () => {
     if (!user || user.id === 'usr_offline') {
@@ -120,7 +120,7 @@ export const Header: React.FC<HeaderProps> = ({
             activeOpacity={0.75}
             onPress={() => router.replace('/(tabs)/home')}
           >
-            {(title === 'Fiado' || title === 'DailyDue') && (
+            {(title === 'Fiado' || title === 'DailyDue' || !title?.trim()) && (
               <BookWriteLogo
                 source={require('../../assets/logo-original.png')}
                 width={44}

@@ -7,6 +7,7 @@ import { formatCurrency } from '../../src/utils';
 import { theme } from '../../src/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { getDateLocale } from '../../src/core/i18n';
 
 const isEmoji = (str?: string) => {
   if (!str) return false;
@@ -27,16 +28,16 @@ export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = React.useState('');
 
   // Summary Metrics
-  let totalReceber = 0;
-  let recebidoHoje = 0;
-  let clientesDevendo = 0;
-  let clientesAtrasados = 0;
+  let totalReceivable = 0;
+  let receivedToday = 0;
+  let clientsOwing = 0;
+  let clientsOverdue = 0;
 
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
 
-  // Lista de atividades recentes
-  const todasAtividades: Array<{
+  // Recent activities list
+  const allActivities: Array<{
     id: string;
     description: string;
     amount: number;
@@ -50,17 +51,17 @@ export default function HomeScreen() {
 
   customers.forEach((c) => {
     if (c.total_debt > 0) {
-      totalReceber += c.total_debt;
-      clientesDevendo += 1;
+      totalReceivable += c.total_debt;
+      clientsOwing += 1;
 
-      const temAtraso = c.history.some(
+      const hasOverdue = c.history.some(
         (h) => h.type === 'debt' && (Date.now() - new Date(h.created_at).getTime()) / 86400000 > overdueDays
       );
-      if (temAtraso) clientesAtrasados += 1;
+      if (hasOverdue) clientsOverdue += 1;
     }
 
     c.history.forEach((h) => {
-      todasAtividades.push({
+      allActivities.push({
         ...h,
         customerName: c.full_name,
         customerId: c.id,
@@ -69,15 +70,15 @@ export default function HomeScreen() {
 
       if (h.type === 'payment') {
         if (new Date(h.created_at) >= startOfToday) {
-          recebidoHoje += h.amount;
+          receivedToday += h.amount;
         }
       }
     });
   });
 
-  // Ordena feed decrescente
-  todasAtividades.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  const atividadesRecentes = todasAtividades.slice(0, 6);
+  // Sort feed descending
+  allActivities.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  const recentActivities = allActivities.slice(0, 6);
 
   const MetricTile = ({
     title,
@@ -142,7 +143,7 @@ export default function HomeScreen() {
   const dashboardRightPanel = (
     <View style={styles.rightPanelContent}>
       <Text style={styles.panelTitle}>{t('home.panelTitle')}</Text>
-      <Text style={styles.panelValue}>{clientesAtrasados}</Text>
+      <Text style={styles.panelValue}>{clientsOverdue}</Text>
       <Text style={styles.panelMuted}>{t('home.panelMuted', { days: overdueDays })}</Text>
     </View>
   );
@@ -160,7 +161,7 @@ export default function HomeScreen() {
         <AdaptiveGrid minItemWidth={160} maxColumns={4} style={styles.metricsContainer}>
           <MetricTile
             title={t('home.receivedToday')}
-            value={formatCurrency(recebidoHoje)}
+            value={formatCurrency(receivedToday)}
             statusColor="#3b82f6"
             valueStyle={styles.valBlue}
             onPress={() => router.push('/home-details?kind=todayCollections')}
@@ -168,7 +169,7 @@ export default function HomeScreen() {
           />
           <MetricTile
             title={t('home.toReceiveShort')}
-            value={formatCurrency(totalReceber)}
+            value={formatCurrency(totalReceivable)}
             statusColor={theme.colors.primary}
             valueStyle={styles.valGreen}
             onPress={() => router.push('/home-details?kind=balanceFiado')}
@@ -176,7 +177,7 @@ export default function HomeScreen() {
           />
           <MetricTile
             title={t('home.debtorsShort')}
-            value={String(clientesDevendo)}
+            value={String(clientsOwing)}
             statusColor="#eab308"
             valueStyle={styles.valAmber}
             onPress={() => router.push('/home-details?kind=pendingClients')}
@@ -192,7 +193,7 @@ export default function HomeScreen() {
           />
         </AdaptiveGrid>
 
-        {/* Ações Rápidas - Clientes & Busca */}
+        {/* Quick Actions - Clients & Search */}
         <View style={styles.searchSection}>
           <View style={styles.searchBarContainer}>
             <Ionicons name="search" size={15} color={theme.colors.textMuted} style={{ marginRight: 6 }} />
@@ -220,11 +221,11 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Resultados de Busca */}
+        {/* Search Results */}
         {searchQuery.trim().length > 0 && (
           <Card style={styles.searchResultsCard}>
             <Text style={styles.searchResultHeader}>
-              Resultados ({filteredCustomers.length})
+              {t('home.searchResults', { count: filteredCustomers.length })}
             </Text>
             {filteredCustomers.length === 0 ? (
               <Text style={styles.noResultsText}>{t('home.noResults')}</Text>
@@ -267,7 +268,7 @@ export default function HomeScreen() {
           </Card>
         )}
 
-        {/* Linha do Tempo de Atividades Recentes */}
+        {/* Recent Activity Timeline */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{t('home.recentMovements')}</Text>
           <TouchableOpacity onPress={() => router.push('/relatorios')}>
@@ -276,13 +277,13 @@ export default function HomeScreen() {
         </View>
 
         <Card style={styles.feedCard}>
-          {atividadesRecentes.length === 0 ? (
+          {recentActivities.length === 0 ? (
             <Text style={styles.emptyFeed}>{t('home.noMovements')}</Text>
           ) : (
-            atividadesRecentes.map((tx, idx) => {
+            recentActivities.map((tx, idx) => {
               const isDebt = tx.type === 'debt';
               const isPay = tx.type === 'payment';
-              const timeStr = new Date(tx.created_at).toLocaleTimeString('pt-BR', {
+              const timeStr = new Date(tx.created_at).toLocaleTimeString(getDateLocale(), {
                 hour: '2-digit',
                 minute: '2-digit',
               });
@@ -294,7 +295,7 @@ export default function HomeScreen() {
               return (
                 <View key={tx.id || String(idx)}>
                   <TouchableOpacity
-                    style={[styles.feedItem, idx === atividadesRecentes.length - 1 && { borderBottomWidth: 0 }]}
+                    style={[styles.feedItem, idx === recentActivities.length - 1 && { borderBottomWidth: 0 }]}
                     activeOpacity={0.7}
                     onPress={() => router.push(`/clientes/${tx.customerId}`)}
                   >

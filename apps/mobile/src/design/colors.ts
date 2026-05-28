@@ -8,7 +8,7 @@ export const colors = {
   payment: '#2563eb',
   whatsapp: '#25d366',
   
-  // Fundos e Superfícies
+  // Backgrounds & Surfaces
   background: '#f8fafc',
   card: '#ffffff',
   textMain: '#0f172a',
@@ -16,7 +16,7 @@ export const colors = {
   border: '#e2e8f0',
   inputBg: '#f1f5f9',
 
-  // Cores de Status
+  // Status Colors
   success: '#10b981',
   successBg: '#d1fae5',
   successText: '#065f46',

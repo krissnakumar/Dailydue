@@ -9,7 +9,7 @@ import { useTheme } from '../../src/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
-type Kind = 'todayCollections' | 'balanceFiado' | 'pendingClients' | 'totalClients';
+type Kind = 'todayCollections' | 'balanceFiado' | 'pendingClients' | 'totalClients'; // balanceFiado kept for backward compat
 
 function normalizeKind(input: unknown): Kind {
   const raw = String(input || '').trim();

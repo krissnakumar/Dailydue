@@ -825,7 +825,7 @@
   "cobrancas.detailedReminder": "Hello {{name}}! How are you? Just sending the summary of your tab at our Credit Ledger. Total owed: {{value}}",
   "reports.storeBalanceSheet": "Store Balance Sheet",
   "reports.exportDialogTitle": "Export Report",
-  "reports.dateFormat": "pt-BR",
+  "reports.dateFormat": "en-US",
   "lock.title": "DailyDue Protected",
   "lock.unlockTitle": "FIADO Protected",
   "lock.subtitle": "Access protected by your device's security credentials.",

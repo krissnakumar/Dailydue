@@ -84,7 +84,7 @@ export function CustomerDetailContent({
     }
   }, [id, customer, customerIdMap, router]);
 
-  // Modal Edição Perfil
+  // Profile Edit Modal
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
@@ -98,7 +98,7 @@ export function CustomerDetailContent({
   const [cepStatus, setCepStatus] = useState<'idle' | 'valid' | 'invalid'>('idle');
   const [docStatus, setDocStatus] = useState<'idle' | 'valid' | 'invalid'>('idle');
 
-  // Modal Edição Item Histórico
+  // History Item Edit Modal
   const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
   const [itemDesc, setItemDesc] = useState('');
   const [itemAmt, setItemAmt] = useState('');
@@ -171,7 +171,7 @@ export function CustomerDetailContent({
 
   const isZero = customer ? customer.total_debt === 0 : true;
   const overdueDays = businessConfig.overdueDays || 15;
-  const isAtrasado = customer ? customer.history.some(
+  const isOverdue = customer ? customer.history.some(
     (h) => h.type === 'debt' && (Date.now() - new Date(h.created_at).getTime()) / 86400000 > overdueDays
   ) : false;
   const canEditProfilePicture = true;
@@ -374,7 +374,7 @@ export function CustomerDetailContent({
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
-      {/* Cabeçalho da Visão Interna */}
+      {/* Internal View Header */}
       <Animated.View
         entering={FadeInDown.duration(0)}
         style={[styles.headerContainer, { paddingTop: showBackButton ? Math.max(insets.top, 16) : 16 }]}
@@ -457,21 +457,21 @@ export function CustomerDetailContent({
         <View
           style={[
             styles.badge,
-            { backgroundColor: isZero ? '#d1fae5' : isAtrasado ? '#fee2e2' : '#fef9c3' },
+            { backgroundColor: isZero ? '#d1fae5' : isOverdue ? '#fee2e2' : '#fef9c3' },
           ]}
         >
           <Text
             style={[
               styles.badgeText,
-              { color: isZero ? '#065f46' : isAtrasado ? '#991b1b' : '#854d0e' },
+              { color: isZero ? '#065f46' : isOverdue ? '#991b1b' : '#854d0e' },
             ]}
           >
-            {isZero ? t('customerDetail.paid') : isAtrasado ? t('customerDetail.overdue') : t('customerDetail.pending')}
+            {isZero ? t('customerDetail.paid') : isOverdue ? t('customerDetail.overdue') : t('customerDetail.pending')}
           </Text>
         </View>
       </Animated.View>
 
-      {/* Cartão de Dívida Total Destacada */}
+      {/* Total Debt Highlight Card */}
       <Animated.View
         entering={FadeInDown.delay(0).duration(0)}
         style={styles.summaryBoxWrapper}
@@ -683,13 +683,13 @@ export function CustomerDetailContent({
           )}
         </View>
 
-        {/* Botão Inferior de Remoção Permanente */}
+        {/* Bottom Permanent Delete Button */}
         <TouchableOpacity style={styles.deleteProfileWrapper} onPress={handleDeleteProfile}>
           <Text style={styles.deleteProfileText}>{t('customerDetail.deleteProfile')}</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Modal Edição do Cliente */}
+      {/* Customer Edit Modal */}
       <Modal
         visible={isEditProfileOpen}
         animationType="fade"
@@ -860,7 +860,7 @@ export function CustomerDetailContent({
         </View>
       </Modal>
 
-      {/* Modal Ajustar Lançamento */}
+      {/* Adjust Entry Modal */}
       <Modal
         visible={!!selectedItem}
         animationType="fade"

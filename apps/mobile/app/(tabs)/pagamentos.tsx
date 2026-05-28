@@ -35,12 +35,12 @@ export default function PagamentosModal() {
   const [sendReceipt, setSendReceipt] = useState(false);
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
 
-  // Seleciona o primeiro cliente devedor se não vier preenchido
+  // Selects first debtor client if not pre-filled
   useEffect(() => {
     if (!selectedCustId) {
-      const devedores = customers.filter((c) => c.total_debt > 0);
-      if (devedores.length > 0) {
-        setSelectedCustId(devedores[0].id);
+      const debtors = customers.filter((c) => c.total_debt > 0);
+      if (debtors.length > 0) {
+        setSelectedCustId(debtors[0].id);
       } else if (customers.length > 0) {
         setSelectedCustId(customers[0].id);
       }
@@ -296,7 +296,7 @@ export default function PagamentosModal() {
             placeholderTextColor={theme.colors.textMuted}
           />
 
-          {/* Opções de Preenchimento Automático */}
+          {/* Auto-fill Options */}
           <View style={styles.shortcutsRow}>
             <TouchableOpacity style={styles.shortcutBtn} onPress={applyFullPayment}>
               <Text style={styles.shortcutText}>{t('payments.fullAmount')}</Text>
@@ -307,7 +307,7 @@ export default function PagamentosModal() {
           </View>
         </View>
 
-        {/* Opção Enviar Comprovante */}
+        {/* Send Receipt Option */}
         {targetCust?.phone ? (
           <TouchableOpacity
             style={styles.checkboxRow}

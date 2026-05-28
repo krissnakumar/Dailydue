@@ -13,6 +13,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
+import { getDateLocale } from '../../src/core/i18n';
 
 export default function RelatoriosScreen() {
   const { t } = useTranslation();
@@ -22,7 +23,7 @@ export default function RelatoriosScreen() {
 
   let totalDebts = 0;
   let totalPayments = 0;
-  let totalDevendo = 0;
+  let totalOutstanding = 0;
 
   const historyFlat: Array<{
     customerId: string;
@@ -35,7 +36,7 @@ export default function RelatoriosScreen() {
 
   customers.forEach((c) => {
     if (c.total_debt > 0) {
-      totalDevendo += c.total_debt;
+      totalOutstanding += c.total_debt;
     }
 
     c.history.forEach((h) => {
@@ -56,20 +57,20 @@ export default function RelatoriosScreen() {
   historyFlat.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   const handleExportPDF = () => {
-    generateStatementPDF(t('reports.storeBalanceSheet'), totalDevendo, historyFlat);
+    generateStatementPDF(t('reports.storeBalanceSheet'), totalOutstanding, historyFlat);
   };
 
   const handleExportExcel = async () => {
     try {
       const header = t('reports.csvHeader') + '\n';
       const rows = historyFlat.map(item => {
-        const dt = new Date(item.created_at).toLocaleDateString('pt-BR');
+        const dt = new Date(item.created_at).toLocaleDateString(getDateLocale());
         const typeStr = item.type === 'debt' ? t('reports.csvDebt') : t('reports.csvPayment');
         return `${dt};${item.customerName};${item.description};${typeStr};${item.amount}`;
       }).join('\n');
 
       const csvContent = header + rows;
-      const fileName = `Relatorio_Fiado_${new Date().toISOString().split('T')[0]}.csv`;
+      const fileName = `Ledger_Report_${new Date().toISOString().split('T')[0]}.csv`;
       const fileUri = FileSystem.cacheDirectory + fileName;
 
       await FileSystem.writeAsStringAsync(fileUri, csvContent, { encoding: FileSystem.EncodingType.UTF8 });
@@ -132,7 +133,7 @@ export default function RelatoriosScreen() {
 
             <View style={[styles.rowItem, styles.rowLast]}>
               <Text style={styles.rowLabelBold}>{t('reports.outstandingBalance')}</Text>
-              <Text style={styles.rowValNet}>{formatCurrency(totalDevendo)}</Text>
+              <Text style={styles.rowValNet}>{formatCurrency(totalOutstanding)}</Text>
             </View>
           </Card>
         </Animated.View>
@@ -165,7 +166,7 @@ export default function RelatoriosScreen() {
               <Text style={styles.emptyText}>{t('reports.noRecords')}</Text>
             ) : (
               historyFlat.map((item, idx) => {
-                const dt = new Date(item.created_at).toLocaleDateString('pt-BR');
+                const dt = new Date(item.created_at).toLocaleDateString(getDateLocale());
                 const isDebt = item.type === 'debt';
                 return (
                   <TouchableOpacity

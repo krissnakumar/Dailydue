@@ -44,9 +44,9 @@ export const CustomerRow: React.FC<CustomerRowProps> = ({
     q => String(q.payload?.customer_id || q.payload?.customerId || q.payload?.client_id || q.payload?.clientId || q.payload?.id || '') === customer.id
   );
 
-  // Verifica atraso crítico (> overdueDays)
+  // Checks critical overdue (> overdueDays)
   const overdueDays = businessConfig.overdueDays || 15;
-  const isAtrasado = customer.history.some(
+  const isOverdue = customer.history.some(
     (h: HistoryItem) => h.type === 'debt' && (Date.now() - new Date(h.created_at).getTime()) / 86400000 > overdueDays
   );
 
@@ -178,7 +178,7 @@ export const CustomerRow: React.FC<CustomerRowProps> = ({
             <View
               style={[
                 styles.statusAvatar,
-                { backgroundColor: isZero ? '#d1fae5' : isAtrasado ? '#fee2e2' : '#fef9c3' },
+                { backgroundColor: isZero ? '#d1fae5' : isOverdue ? '#fee2e2' : '#fef9c3' },
               ]}
             >
               {customer.picture ? (
@@ -191,7 +191,7 @@ export const CustomerRow: React.FC<CustomerRowProps> = ({
                 <Ionicons
                   name="person"
                   size={16}
-                  color={isZero ? '#065f46' : isAtrasado ? '#991b1b' : '#854d0e'}
+                  color={isZero ? '#065f46' : isOverdue ? '#991b1b' : '#854d0e'}
                 />
               )}
             </View>
@@ -250,22 +250,22 @@ export const CustomerRow: React.FC<CustomerRowProps> = ({
             <View
               style={[
                 styles.badge,
-                { backgroundColor: isZero ? '#d1fae5' : isAtrasado ? '#fee2e2' : '#ffedd5' },
+                { backgroundColor: isZero ? '#d1fae5' : isOverdue ? '#fee2e2' : '#ffedd5' },
               ]}
             >
               <Text
                 style={[
                   styles.badgeText,
-                  { color: isZero ? '#065f46' : isAtrasado ? '#991b1b' : '#c2410c' },
+                  { color: isZero ? '#065f46' : isOverdue ? '#991b1b' : '#c2410c' },
                 ]}
               >
-                {isZero ? t('customerDetail.paid') : isAtrasado ? t('customerDetail.overdue') : t('customerDetail.pending')}
+                {isZero ? t('customerDetail.paid') : isOverdue ? t('customerDetail.overdue') : t('customerDetail.pending')}
               </Text>
             </View>
           </View>
         </TouchableOpacity>
 
-        {/* Botoes de Ação Direta no Card mantendo o spacing rhythm e hierarchy original */}
+        {/* Direct Action Buttons in Card */}
         <View style={styles.actionsRow}>
           <TouchableOpacity style={styles.btnCardAdd} onPress={onSwipeRight} activeOpacity={0.7}>
             <Ionicons name="add" size={14} color={theme.colors.accent} />

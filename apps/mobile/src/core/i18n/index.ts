@@ -38,6 +38,16 @@ export const changeLanguage = async (lng: 'en' | 'hi' | 'ta'): Promise<void> => 
 
 export const getCurrentLanguage = (): string => i18n.language;
 
+export const getDateLocale = (): string => {
+  const lang = i18n.language || 'en';
+  const map: Record<string, string> = {
+    en: 'en-US',
+    hi: 'hi-IN',
+    ta: 'ta-IN',
+  };
+  return map[lang] || 'en-US';
+};
+
 // Initialize asynchronously
 let initPromise: ReturnType<typeof i18n.init> | null = null;
 

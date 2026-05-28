@@ -18,6 +18,7 @@ import { useDailyDueStore } from '../../src/store';
 import { useAdaptiveColors, useResponsive } from '../../src/utils/responsive';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import { getDateLocale } from '../../src/core/i18n';
 import { formatCurrency } from '../../src/utils';
 import nativeNotifications from '../../src/core/native/notifications';
 
@@ -102,7 +103,7 @@ export default function NovoFiadoPage() {
     if (reminderDays !== null) {
       const futureDate = new Date();
       futureDate.setDate(futureDate.getDate() + reminderDays);
-      const dateStr = futureDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+      const dateStr = futureDate.toLocaleDateString(getDateLocale(), { day: '2-digit', month: '2-digit' });
       finalDesc += ` (Cobrar dia ${dateStr})`;
     }
 
@@ -344,7 +345,7 @@ export default function NovoFiadoPage() {
                   {(() => {
                     const d = new Date();
                     d.setDate(d.getDate() + reminderDays);
-                    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    return d.toLocaleDateString(getDateLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' });
                   })()}
                 </Text>
               </Text>

@@ -81,7 +81,7 @@ serve(async (req) => {
 
     // Simple currency formatting in Deno
     const formatBRL = (val: number) => `R$ ${Number(val).toFixed(2).replace('.', ',')}`;
-    const firstName = customerName ? customerName.split(' ')[0] : 'Cliente';
+    const firstName = customerName ? customerName.split(' ')[0] : 'Customer';
     let messageBody = '';
 
     // Template messages in English (localized, friendly tone)

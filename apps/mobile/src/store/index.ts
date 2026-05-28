@@ -29,7 +29,7 @@ import {
 } from '../types';
 
 export { isTempCustomerId } from '../core/utils';
-export {
+export type {
   CustomerClient,
   HistoryItem,
   PendingQueueItem,
@@ -41,59 +41,59 @@ export {
 export const PICTURE_URL_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
 export const PICTURE_URL_REFRESH_THRESHOLD_MS = (PICTURE_URL_TTL_SECONDS - 60 * 60 * 24) * 1000; // 6 days
 
-// Fallback Portuguese suggestions list (Warning #15 Fix)
+// Fallback suggestions list (Warning #15 Fix)
 const nowIso = () => new Date().toISOString();
 
 export const FALLBACK_QUICK_ITEMS_BY_BUSINESS: Record<string, QuickItemClient[]> = {
   mercado: [
-    { name: 'Pão', price: 5, count: 1, lastUsed: nowIso() },
-    { name: 'Leite', price: 6.5, count: 1, lastUsed: nowIso() },
-    { name: 'Arroz 1kg', price: 8.5, count: 1, lastUsed: nowIso() },
-    { name: 'Feijão 1kg', price: 9, count: 1, lastUsed: nowIso() },
-    { name: 'Óleo', price: 7.5, count: 1, lastUsed: nowIso() },
+    { name: 'Bread', price: 5, count: 1, lastUsed: nowIso() },
+    { name: 'Milk', price: 6.5, count: 1, lastUsed: nowIso() },
+    { name: 'Rice 1kg', price: 8.5, count: 1, lastUsed: nowIso() },
+    { name: 'Beans 1kg', price: 9, count: 1, lastUsed: nowIso() },
+    { name: 'Oil', price: 7.5, count: 1, lastUsed: nowIso() },
     { name: 'Coca-cola 2L', price: 10, count: 1, lastUsed: nowIso() },
-    { name: 'Salgado', price: 7, count: 1, lastUsed: nowIso() },
-    { name: 'Doces', price: 3, count: 1, lastUsed: nowIso() },
+    { name: 'Pastry', price: 7, count: 1, lastUsed: nowIso() },
+    { name: 'Candies', price: 3, count: 1, lastUsed: nowIso() },
   ],
   padaria: [
-    { name: 'Pão Francês', price: 4.5, count: 1, lastUsed: nowIso() },
-    { name: 'Pão de Queijo', price: 6, count: 1, lastUsed: nowIso() },
-    { name: 'Café', price: 4, count: 1, lastUsed: nowIso() },
-    { name: 'Bolo Fatia', price: 8, count: 1, lastUsed: nowIso() },
-    { name: 'Salgado Assado', price: 7, count: 1, lastUsed: nowIso() },
-    { name: 'Misto Quente', price: 9, count: 1, lastUsed: nowIso() },
-    { name: 'Suco', price: 6.5, count: 1, lastUsed: nowIso() },
-    { name: 'Refrigerante Lata', price: 5.5, count: 1, lastUsed: nowIso() },
+    { name: 'French Bread', price: 4.5, count: 1, lastUsed: nowIso() },
+    { name: 'Cheese Bread', price: 6, count: 1, lastUsed: nowIso() },
+    { name: 'Coffee', price: 4, count: 1, lastUsed: nowIso() },
+    { name: 'Cake Slice', price: 8, count: 1, lastUsed: nowIso() },
+    { name: 'Baked Pastry', price: 7, count: 1, lastUsed: nowIso() },
+    { name: 'Grilled Sandwich', price: 9, count: 1, lastUsed: nowIso() },
+    { name: 'Juice', price: 6.5, count: 1, lastUsed: nowIso() },
+    { name: 'Soda Can', price: 5.5, count: 1, lastUsed: nowIso() },
   ],
   bar: [
-    { name: 'Cerveja', price: 7, count: 1, lastUsed: nowIso() },
-    { name: 'Refrigerante', price: 6, count: 1, lastUsed: nowIso() },
-    { name: 'Água', price: 3.5, count: 1, lastUsed: nowIso() },
-    { name: 'Porção Batata', price: 22, count: 1, lastUsed: nowIso() },
-    { name: 'Espetinho', price: 9, count: 1, lastUsed: nowIso() },
-    { name: 'Hambúrguer', price: 18, count: 1, lastUsed: nowIso() },
-    { name: 'Marmita', price: 20, count: 1, lastUsed: nowIso() },
-    { name: 'Suco Natural', price: 8, count: 1, lastUsed: nowIso() },
+    { name: 'Beer', price: 7, count: 1, lastUsed: nowIso() },
+    { name: 'Soda', price: 6, count: 1, lastUsed: nowIso() },
+    { name: 'Water', price: 3.5, count: 1, lastUsed: nowIso() },
+    { name: 'French Fries', price: 22, count: 1, lastUsed: nowIso() },
+    { name: 'Skewer', price: 9, count: 1, lastUsed: nowIso() },
+    { name: 'Burger', price: 18, count: 1, lastUsed: nowIso() },
+    { name: 'Meal Box', price: 20, count: 1, lastUsed: nowIso() },
+    { name: 'Fresh Juice', price: 8, count: 1, lastUsed: nowIso() },
   ],
   petshop: [
-    { name: 'Ração 1kg', price: 18, count: 1, lastUsed: nowIso() },
-    { name: 'Sachê', price: 4.5, count: 1, lastUsed: nowIso() },
-    { name: 'Areia Higiênica', price: 16, count: 1, lastUsed: nowIso() },
-    { name: 'Shampoo Pet', price: 22, count: 1, lastUsed: nowIso() },
-    { name: 'Coleira', price: 25, count: 1, lastUsed: nowIso() },
-    { name: 'Antipulgas', price: 38, count: 1, lastUsed: nowIso() },
-    { name: 'Petisco', price: 9, count: 1, lastUsed: nowIso() },
-    { name: 'Banho', price: 35, count: 1, lastUsed: nowIso() },
+    { name: 'Pet Food 1kg', price: 18, count: 1, lastUsed: nowIso() },
+    { name: 'Pouch', price: 4.5, count: 1, lastUsed: nowIso() },
+    { name: 'Litter Sand', price: 16, count: 1, lastUsed: nowIso() },
+    { name: 'Pet Shampoo', price: 22, count: 1, lastUsed: nowIso() },
+    { name: 'Collar', price: 25, count: 1, lastUsed: nowIso() },
+    { name: 'Flea Treatment', price: 38, count: 1, lastUsed: nowIso() },
+    { name: 'Treat', price: 9, count: 1, lastUsed: nowIso() },
+    { name: 'Bath', price: 35, count: 1, lastUsed: nowIso() },
   ],
   outro: [
-    { name: 'Produto 1', price: 10, count: 1, lastUsed: nowIso() },
-    { name: 'Produto 2', price: 15, count: 1, lastUsed: nowIso() },
-    { name: 'Serviço 1', price: 20, count: 1, lastUsed: nowIso() },
-    { name: 'Serviço 2', price: 30, count: 1, lastUsed: nowIso() },
-    { name: 'Item Avulso', price: 8, count: 1, lastUsed: nowIso() },
-    { name: 'Pacote Básico', price: 25, count: 1, lastUsed: nowIso() },
-    { name: 'Complemento', price: 6, count: 1, lastUsed: nowIso() },
-    { name: 'Taxa Entrega', price: 5, count: 1, lastUsed: nowIso() },
+    { name: 'Product 1', price: 10, count: 1, lastUsed: nowIso() },
+    { name: 'Product 2', price: 15, count: 1, lastUsed: nowIso() },
+    { name: 'Service 1', price: 20, count: 1, lastUsed: nowIso() },
+    { name: 'Service 2', price: 30, count: 1, lastUsed: nowIso() },
+    { name: 'Misc Item', price: 8, count: 1, lastUsed: nowIso() },
+    { name: 'Basic Package', price: 25, count: 1, lastUsed: nowIso() },
+    { name: 'Add-on', price: 6, count: 1, lastUsed: nowIso() },
+    { name: 'Delivery Fee', price: 5, count: 1, lastUsed: nowIso() },
   ],
 };
 
@@ -818,7 +818,7 @@ export const useDailyDueStore = create<DailyDueMobileState>()(
 
               const auditLog: HistoryItem = {
                 id: localId('hist'),
-                description: `Auditoria: Edição do item`,
+                description: `Audit: Item edit`,
                 amount: 0,
                 created_at: new Date().toISOString(),
                 type: 'system',

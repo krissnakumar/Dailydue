@@ -1,5 +1,5 @@
 /**
- * Constantes Globais - Controle de Fiado Mobile
+ * Global Constants - Fiado Mobile Control
  */
 
 export const STORAGE_KEYS = {

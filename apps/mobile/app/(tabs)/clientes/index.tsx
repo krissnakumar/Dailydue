@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatCurrency } from '../../../src/utils';
 import { useTranslation } from 'react-i18next';
+import { getDateLocale } from '../../../src/core/i18n';
 
 const isEmoji = (str?: string) => {
   if (!str) return false;
@@ -41,7 +42,7 @@ interface CustomerTableRowProps {
 
 const CustomerTableRow = React.memo(({ item, isSelected, isPendingSync, onPress }: CustomerTableRowProps) => {
   const isZero = item.total_debt === 0;
-  const isAtrasado = item.total_debt > 0 && item.history.some(
+  const isOverdue = item.total_debt > 0 && item.history.some(
     (h: any) => h.type === 'debt' && (Date.now() - new Date(h.created_at).getTime()) / 86400000 > 15
   );
 
@@ -56,7 +57,7 @@ const CustomerTableRow = React.memo(({ item, isSelected, isPendingSync, onPress 
     >
       {/* Column 1: Client info */}
       <View style={[styles.tdCell, { flex: 1, flexDirection: 'row', alignItems: 'center' }]}>
-        <View style={[styles.avatarMicro, { backgroundColor: isZero ? '#e6f4ea' : isAtrasado ? '#fce8e6' : '#fef7e0' }]}>
+        <View style={[styles.avatarMicro, { backgroundColor: isZero ? '#e6f4ea' : isOverdue ? '#fce8e6' : '#fef7e0' }]}>
           {item.picture ? (
             isEmoji(item.picture) ? (
               <Text style={styles.avatarMicroEmoji}>{item.picture}</Text>
@@ -67,14 +68,14 @@ const CustomerTableRow = React.memo(({ item, isSelected, isPendingSync, onPress 
             <Ionicons
               name="person"
               size={12}
-              color={isZero ? '#137333' : isAtrasado ? '#c5221f' : '#b06000'}
+              color={isZero ? '#137333' : isOverdue ? '#c5221f' : '#b06000'}
             />
           )}
         </View>
         <View style={{ flex: 1, marginLeft: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Text style={styles.clientNameText} numberOfLines={1}>{item.full_name}</Text>
-            <View style={[styles.statusDot, { backgroundColor: isZero ? '#22c55e' : isAtrasado ? '#ef4444' : '#f59e0b' }]} />
+            <View style={[styles.statusDot, { backgroundColor: isZero ? '#22c55e' : isOverdue ? '#ef4444' : '#f59e0b' }]} />
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
             {isPendingSync ? (
@@ -149,11 +150,11 @@ export default function ClientesScreen() {
   }, [navigation]);
 
   // General Summary Metrics
-  const totalReceber = customers.reduce((sum, c) => sum + c.total_debt, 0);
-  const clientesDevendo = customers.filter((c) => c.total_debt > 0).length;
-  const clientesEmDia = customers.filter((c) => c.total_debt === 0).length;
+  const totalReceivable = customers.reduce((sum, c) => sum + c.total_debt, 0);
+  const clientsOwing = customers.filter((c) => c.total_debt > 0).length;
+  const clientsUpToDate = customers.filter((c) => c.total_debt === 0).length;
   
-  const clientesAtrasados = customers.filter((c) => {
+  const clientsOverdue = customers.filter((c) => {
     if (c.total_debt <= 0) return false;
     return c.history.some(
       (h) => h.type === 'debt' && (Date.now() - new Date(h.created_at).getTime()) / 86400000 > 15
@@ -226,25 +227,25 @@ export default function ClientesScreen() {
           <View style={[styles.metricCard, { borderLeftColor: theme.colors.accent }]}>
             <Ionicons name="cash-outline" size={20} color={theme.colors.accent} style={{ marginBottom: 6 }} />
             <Text style={styles.metricLabel}>{t('clients.totalOwed')}</Text>
-            <Text style={[styles.metricValue, { color: theme.colors.accent }]}>{formatCurrency(totalReceber)}</Text>
+            <Text style={[styles.metricValue, { color: theme.colors.accent }]}>{formatCurrency(totalReceivable)}</Text>
           </View>
 
           <View style={[styles.metricCard, { borderLeftColor: '#eab308' }]}>
             <Ionicons name="people-outline" size={20} color="#eab308" style={{ marginBottom: 6 }} />
             <Text style={styles.metricLabel}>{t('clients.debtors')}</Text>
-            <Text style={styles.metricValue}>{clientesDevendo}</Text>
+            <Text style={styles.metricValue}>{clientsOwing}</Text>
           </View>
 
           <View style={[styles.metricCard, { borderLeftColor: '#ef4444' }]}>
             <Ionicons name="alert-circle-outline" size={20} color="#ef4444" style={{ marginBottom: 6 }} />
             <Text style={styles.metricLabel}>{t('clients.overdue', { days: 15 })}</Text>
-            <Text style={[styles.metricValue, { color: '#ef4444' }]}>{clientesAtrasados}</Text>
+            <Text style={[styles.metricValue, { color: '#ef4444' }]}>{clientsOverdue}</Text>
           </View>
 
           <View style={[styles.metricCard, { borderLeftColor: '#22c55e' }]}>
             <Ionicons name="checkmark-circle-outline" size={20} color="#22c55e" style={{ marginBottom: 6 }} />
             <Text style={styles.metricLabel}>{t('clients.upToDate')}</Text>
-            <Text style={[styles.metricValue, { color: '#22c55e' }]}>{clientesEmDia}</Text>
+            <Text style={[styles.metricValue, { color: '#22c55e' }]}>{clientsUpToDate}</Text>
           </View>
         </View>
 
@@ -255,7 +256,7 @@ export default function ClientesScreen() {
           ) : (
             recentActivities.map((item, index) => {
               const isDebt = item.type === 'debt';
-              const dtStr = new Date(item.created_at).toLocaleDateString('pt-BR', {
+              const dtStr = new Date(item.created_at).toLocaleDateString(getDateLocale(), {
                 day: '2-digit',
                 month: '2-digit',
                 hour: '2-digit',

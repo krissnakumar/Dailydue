@@ -65,10 +65,10 @@ export default function CobrancasScreen() {
     });
   };
 
-  const totalEmAberto = customers.reduce((acc, curr) => acc + curr.total_debt, 0);
-  const totalDevedores = customers.filter((c) => c.total_debt > 0).length;
+  const totalOutstanding = customers.reduce((acc, curr) => acc + curr.total_debt, 0);
+  const totalDebtors = customers.filter((c) => c.total_debt > 0).length;
 
-  const devedores = customers.filter((c) => {
+  const debtors = customers.filter((c) => {
     if (c.total_debt <= 0) return false;
     if (activeFilter === 'acima50') return c.total_debt >= 50;
     if (activeFilter === 'atrasados') {
@@ -81,7 +81,7 @@ export default function CobrancasScreen() {
 
   // Automatically select clients with valid phone numbers when filter or list updates
   useEffect(() => {
-    const validPhones = devedores
+    const validPhones = debtors
       .filter((c) => c.phone && c.phone.length >= 10)
       .map((c) => c.id);
     setSelectedIds(new Set(validPhones));
@@ -100,11 +100,11 @@ export default function CobrancasScreen() {
   };
 
   const toggleSelectAll = () => {
-    const allSelected = devedores.every((d) => selectedIds.has(d.id));
+    const allSelected = debtors.every((d) => selectedIds.has(d.id));
     if (allSelected) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(devedores.map((d) => d.id)));
+      setSelectedIds(new Set(debtors.map((d) => d.id)));
     }
   };
 
@@ -122,7 +122,7 @@ export default function CobrancasScreen() {
   };
 
   const handleSendBatch = () => {
-    const selectedList = devedores.filter((c) => selectedIds.has(c.id));
+    const selectedList = debtors.filter((c) => selectedIds.has(c.id));
     const comCelular = selectedList.filter((c) => c.phone && c.phone.length >= 10);
     if (comCelular.length === 0) {
       showAlert(
@@ -238,11 +238,11 @@ export default function CobrancasScreen() {
         <View style={styles.summaryWrapper}>
           <View style={styles.summaryCard}>
             <Text style={styles.summaryLabel}>{t('collections.pending')}</Text>
-            <Text style={styles.summaryVal}>{formatCurrency(totalEmAberto)}</Text>
+            <Text style={styles.summaryVal}>{formatCurrency(totalOutstanding)}</Text>
           </View>
           <View style={styles.summaryCard}>
             <Text style={styles.summaryLabel}>{t('collections.debtors')}</Text>
-            <Text style={styles.summaryVal}>{totalDevedores}</Text>
+            <Text style={styles.summaryVal}>{totalDebtors}</Text>
           </View>
         </View>
 
@@ -315,17 +315,17 @@ export default function CobrancasScreen() {
 
       <View style={styles.listContent}>
         <View style={styles.listHeaderRow}>
-          <Text style={styles.listTitle}>{t('collections.contactList', { count: devedores.length })}</Text>
-          {devedores.length > 0 && (
+          <Text style={styles.listTitle}>{t('collections.contactList', { count: debtors.length })}</Text>
+          {debtors.length > 0 && (
             <TouchableOpacity onPress={toggleSelectAll} activeOpacity={0.7} style={styles.selectAllBtn}>
               <Text style={styles.selectAllText}>
-                {devedores.every((d) => selectedIds.has(d.id)) ? t('collections.deselectAll') : t('collections.selectAll')}
+                {debtors.every((d) => selectedIds.has(d.id)) ? t('collections.deselectAll') : t('collections.selectAll')}
               </Text>
             </TouchableOpacity>
           )}
         </View>
 
-        {devedores.length === 0 ? (
+        {debtors.length === 0 ? (
           <View style={styles.emptyState}>
             <View style={styles.emptyIconWrap}>
               <View style={styles.emptyIconDotTop} />
@@ -335,15 +335,15 @@ export default function CobrancasScreen() {
             <Text style={styles.emptyText}>{t('collections.emptyState')}</Text>
           </View>
         ) : (
-          devedores.map((c, idx) => {
+          debtors.map((c, idx) => {
             const hasPhone = c.phone && c.phone.length >= 10;
-            const isAtrasado = c.history.some(
+            const isOverdue = c.history.some(
               (h) => h.type === 'debt' && (Date.now() - new Date(h.created_at).getTime()) / 86400000 > 15
             );
 
             return (
               <View key={c.id}>
-                <View style={[styles.clientCard, isAtrasado && styles.clientCardAtrasado]}>
+                <View style={[styles.clientCard, isOverdue && styles.clientCardOverdue]}>
                   {/* Checkbox */}
                   <TouchableOpacity
                     style={styles.checkboxContainer}
@@ -395,7 +395,7 @@ export default function CobrancasScreen() {
 
       </ScrollView>
 
-      {/* Popup de Confirmação de Envio */}
+      {/* Send Confirmation Popup */}
       <AnimatedPopup visible={!!selectedForNotice} onClose={() => setSelectedForNotice(null)}>
         {selectedForNotice && (
           <View style={styles.popupContent}>
@@ -700,7 +700,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     ...theme.shadows.sm,
   },
-  clientCardAtrasado: {
+  clientCardOverdue: {
     borderColor: theme.colors.danger,
     backgroundColor: '#fffafb',
   },
