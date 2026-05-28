@@ -1,8 +1,8 @@
 {
   "expo": {
     "name": "DailyDue",
-    "slug": "dailyduemobile",
-    "version": "1.0.0",
+    "slug": "controle-fiado-mobile",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "dailydue",
