@@ -47,9 +47,20 @@ function replaceLocalhostForPhysicalDevice(uri: string): string {
     return uri;
   }
 
+  // 1. Manual environment override
   const devServerIp = process.env.EXPO_PUBLIC_DEV_SERVER_IP;
   if (devServerIp) {
     return uri.replace('localhost', devServerIp);
+  }
+
+  // 2. Automated detection from Expo debugger host
+  const hostUri = Constants.expoConfig?.hostUri || (Constants.manifest as any)?.debuggerHost || (Constants.manifest2 as any)?.extra?.expoGo?.debuggerHost;
+  if (hostUri) {
+    const ip = hostUri.split(':')[0];
+    if (ip && ip !== 'localhost' && ip !== '127.0.0.1') {
+      console.log('[Auth] Auto-detected development server LAN IP:', ip);
+      return uri.replace('localhost', ip);
+    }
   }
 
   const devMsg = i18n.t('login.localhostDevWarning');
