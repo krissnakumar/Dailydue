@@ -22,7 +22,7 @@ function scheduleSyncRetry(reason: string, retryFn: () => void) {
   } catch {}
 
   const delay = Math.min(syncRetryDelayMs, SYNC_RETRY_MAX_MS);
-  if (__DEV__) console.log(`[Sync] Agendando retentativa em ${Math.round(delay / 1000)}s. reason=${reason}`);
+  if (__DEV__) console.log(`[Sync] Scheduling sync retry in ${Math.round(delay / 1000)}s. reason=${reason}`);
   syncRetryTimer = setTimeout(() => {
     try {
       retryFn();
@@ -129,7 +129,7 @@ export async function restoreOfflineUserData(getState: () => any, set: (fn: any)
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed) {
-        console.log(`[Restore] Restaurando dados offline para o usuário ${activeUserId}...`);
+        console.log(`[Restore] Restoring offline data for user ${activeUserId}...`);
         
         const currentStore = getState();
         
@@ -170,7 +170,7 @@ export async function restoreOfflineUserData(getState: () => any, set: (fn: any)
         void syncLocalDatabaseQueue(mergedQueue);
 
         await EncryptedStorage.removeItem(storageKey);
-        console.log(`[Restore] Dados restaurados com sucesso. Fila de sync: ${mergedQueue.length} itens.`);
+        console.log(`[Restore] Data successfully restored. Sync queue: ${mergedQueue.length} items.`);
         
         if (mergedQueue.length > 0) {
           currentStore.attemptBackgroundSync();
@@ -193,7 +193,7 @@ export async function attemptBackgroundSync(getState: () => any, set: (fn: any) 
     const { data } = await supabase.auth.getSession();
     sessionData = data;
   } catch (e) {
-    console.log('[Sync] Banco offline ou erro de rede. Sincronização pausada.');
+    console.log('[Sync] Database offline or network error. Sync paused.');
     set({ isSyncing: false });
     scheduleSyncRetry('SESSION_FETCH_FAILED', () => {
       getState().attemptBackgroundSync();
@@ -202,7 +202,7 @@ export async function attemptBackgroundSync(getState: () => any, set: (fn: any) 
   }
 
   if (!sessionData?.session) {
-    console.log('[Sync] Usuário não autenticado. Sincronização pausada.');
+    console.log('[Sync] User not authenticated. Sync paused.');
     set({ isSyncing: false });
     return;
   }
@@ -228,19 +228,19 @@ export async function attemptBackgroundSync(getState: () => any, set: (fn: any) 
         console.log('[Sync] Failed to refresh session:', err?.message || err);
       }
     } else {
-      console.log('[Sync] Não foi possível validar business_id:', msg);
+      console.log('[Sync] Could not validate business_id:', msg);
     }
   }
 
   if (!bizId) {
-    console.log('[Sync] business_id ausente no servidor. Tentando inicializar perfil/loja...');
+    console.log('[Sync] business_id missing on server. Trying to bootstrap profile/shop...');
     try {
       const phone = (businessConfig.phone || (user as any)?.phone || '').replace(/\D/g, '');
       let newBizId: string | null = null;
       try {
         newBizId = await bootstrapOwnerProfile({
-          business_name: businessConfig.businessName || 'Meu Estabelecimento',
-          owner_name: user?.full_name || user?.email?.split('@')[0] || 'Dono',
+          business_name: businessConfig.businessName || 'My Shop',
+          owner_name: user?.full_name || user?.email?.split('@')[0] || 'Owner',
           phone: phone || undefined,
         });
       } catch (err: any) {
@@ -249,8 +249,8 @@ export async function attemptBackgroundSync(getState: () => any, set: (fn: any) 
           const { data: refreshData, error: refreshErr } = await supabase.auth.refreshSession();
           if (!refreshErr && refreshData?.session) {
             newBizId = String(await bootstrapOwnerProfile({
-              business_name: businessConfig.businessName || 'Meu Estabelecimento',
-              owner_name: user?.full_name || user?.email?.split('@')[0] || 'Dono',
+              business_name: businessConfig.businessName || 'My Shop',
+              owner_name: user?.full_name || user?.email?.split('@')[0] || 'Owner',
               phone: phone || undefined,
             }));
           } else {
@@ -272,7 +272,7 @@ export async function attemptBackgroundSync(getState: () => any, set: (fn: any) 
   }
 
   if (!bizId) {
-    console.log('[Sync] business_id ausente. Sincronização pausada.');
+    console.log('[Sync] business_id missing. Sync paused.');
     set({ isSyncing: false });
     return;
   }
