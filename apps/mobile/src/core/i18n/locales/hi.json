@@ -850,5 +850,7 @@
   "customerDetail.addressPlaceholder": "सड़क, नंबर, पड़ोस, शहर - राज्य",
   "customerDetail.auditItemEdit": "आइटम संपादित करें",
   "customerDetail.invalidAmountDesc": "मान्य संख्यात्मक मान दर्ज करें।",
-  "customerDetail.deleteItemConfirm": "\"{{description}}\" को {{value}} में हटाएं?"
+  "customerDetail.deleteItemConfirm": "\"{{description}}\" को {{value}} में हटाएं?",
+  "notification.collectionTitle": "आज भुगतान वसूली है",
+  "notification.collectionBody": "आज {{name}} से {{amount}} वसूलना याद रखें।"
 }

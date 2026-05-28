@@ -115,7 +115,7 @@ export async function backupOfflineUserData(getState: () => any) {
       console.log(`[Backup] Dados locais do usuário ${userId} salvos em backup offline.`);
     }
   } catch (err) {
-    console.warn('[Backup] Falha ao criar backup offline dos dados do usuário:', err);
+    console.warn('[Backup] Failed to create offline user-data backup:', err);
   }
 }
 
@@ -178,7 +178,7 @@ export async function restoreOfflineUserData(getState: () => any, set: (fn: any)
       }
     }
   } catch (err) {
-    console.warn('[Restore] Falha ao restaurar backup offline dos dados:', err);
+    console.warn('[Restore] Failed to restore offline backup:', err);
   }
 }
 
@@ -216,7 +216,7 @@ export async function attemptBackgroundSync(getState: () => any, set: (fn: any) 
   } catch (e: any) {
     const msg = e?.message || String(e || '');
     if (msg.includes('JWT') || msg.includes('authenticated') || msg.includes('auth')) {
-      console.log('[Sync] Falha de autenticação ao buscar business_id. Tentando refresh...');
+      console.log('[Sync] Authentication failed while fetching business_id. Trying refresh....');
       try {
         const { data: refreshData, error: refreshErr } = await supabase.auth.refreshSession();
         if (!refreshErr && refreshData?.session) {
@@ -225,7 +225,7 @@ export async function attemptBackgroundSync(getState: () => any, set: (fn: any) 
           if (bizId) set({ currentBusinessId: String(bizId) });
         }
       } catch (err: any) {
-        console.log('[Sync] Falha ao atualizar sessão:', err?.message || err);
+        console.log('[Sync] Failed to refresh session:', err?.message || err);
       }
     } else {
       console.log('[Sync] Não foi possível validar business_id:', msg);
@@ -264,10 +264,10 @@ export async function attemptBackgroundSync(getState: () => any, set: (fn: any) 
       if (newBizId) {
         bizId = newBizId;
         set({ hasBootstrappedProfile: true, currentBusinessId: String(newBizId) });
-        console.log('[Sync] Perfil/loja inicializado com sucesso. business_id:', bizId);
+        console.log('[Sync] Profile/business initialized successfully. business_id:', bizId);
       }
     } catch (e: any) {
-      console.log('[Sync] Falha ao inicializar perfil/loja:', e?.message || e);
+      console.log('[Sync] Failed to initialize profile/business:', e?.message || e);
     }
   }
 
@@ -277,7 +277,7 @@ export async function attemptBackgroundSync(getState: () => any, set: (fn: any) 
     return;
   }
 
-  console.log(`[Sync] Iniciando sincronização em lote de ${syncQueue.length} itens...`);
+  console.log(`[Sync] Starting batch sync of ${syncQueue.length} items...`);
   
   let remainingQueue = [...syncQueue].sort((a, b) => {
     const weight = (t: PendingQueueItem['type']) =>
@@ -369,7 +369,7 @@ export async function attemptBackgroundSync(getState: () => any, set: (fn: any) 
             const customerId = String(item.payload.id || '');
             const resolvedId = getState().customerIdMap[customerId] || customerId;
             if (isTempCustomerId(resolvedId)) {
-              console.log(`[Sync] Update cliente pendente aguardando mapeamento. item=${item.id}`);
+              console.log(`[Sync] Pending customer update waiting for id mapping. item=${item.id}`);
             } else {
               const normalized = normalizeCustomerForSupabase(item.payload);
               if (!normalized.full_name) {
@@ -586,7 +586,7 @@ export async function attemptBackgroundSync(getState: () => any, set: (fn: any) 
             status: e?.status || null,
           };
 
-          console.warn(`[Sync] Erro persistente no item ${item.id} (${item.type}). Removendo da fila.`, errorDetails);
+          console.warn(`[Sync] Persistent error on item ${item.id} (${item.type}). Removing from queue.`, errorDetails);
 
           // CASCADING FAILURE CORRECTION FOR DEPT QUEUE ITEMS (Bug #1 Fix)
           let dependentIdsToRemove: string[] = [];
@@ -658,10 +658,10 @@ export async function attemptBackgroundSync(getState: () => any, set: (fn: any) 
 
     resetSyncRetryBackoff();
     if (processedIds.length > 0) {
-      console.log(`[Sync] Lote finalizado. ${processedIds.length} itens processados.`);
+      console.log(`[Sync] Batch finished. ${processedIds.length} items processed.`);
     }
   } catch (globalError) {
-    console.error('[Sync] Falha crítica no processamento em lote', globalError);
+    console.error('[Sync] Critical batch processing failure', globalError);
     set({ isSyncing: false });
   }
 }

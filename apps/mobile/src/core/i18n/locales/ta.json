@@ -850,5 +850,7 @@
   "customerDetail.addressPlaceholder": "தெரு, எண், அக்கம், நகரம் - மாநிலம்",
   "customerDetail.auditItemEdit": "பொருளைத் திருத்து",
   "customerDetail.invalidAmountDesc": "செல்லுபடியாகும் எண் மதிப்பை உள்ளிடவும்.",
-  "customerDetail.deleteItemConfirm": "\"{{description}}\" இன் {{value}} ஐ அகற்றவா?"
+  "customerDetail.deleteItemConfirm": "\"{{description}}\" இன் {{value}} ஐ அகற்றவா?",
+  "notification.collectionTitle": "இன்று வசூல் செய்ய வேண்டிய நாள்",
+  "notification.collectionBody": "இன்று {{name}} என்பவரிடமிருந்து {{amount}} வசூலிக்க நினைவில் கொள்ளுங்கள்."
 }

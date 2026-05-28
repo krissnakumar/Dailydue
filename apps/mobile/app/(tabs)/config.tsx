@@ -65,6 +65,8 @@ export default function ConfiguracoesScreen() {
       t('config.whatsappDefaultTemplate')
   );
   const [showOnboardingDetails, setShowOnboardingDetails] = useState(false);
+  const [showThemeDropdown, setShowThemeDropdown] = useState(false);
+  const [showLangDropdown, setShowLangDropdown] = useState(false);
   
   const [userName, setUserName] = useState(user?.full_name || '');
   const [userPic, setUserPic] = useState(user?.picture || user?.avatar_url || '');
@@ -596,37 +598,81 @@ export default function ConfiguracoesScreen() {
         <Text style={styles.sectionTitle}>{t('config.theme')}</Text>
         <Card style={styles.infoCard}>
           <Text style={{ fontSize: 12, color: theme.colors.textMuted, marginBottom: 10 }}>{t('config.theme.desc')}</Text>
-          <View style={styles.langPillsWrap}>
-            {[
-              { id: 'system', label: t('config.theme.system'), icon: 'phone-portrait-outline' as const },
-              { id: 'light', label: t('config.theme.light'), icon: 'sunny-outline' as const },
-              { id: 'dark', label: t('config.theme.dark'), icon: 'moon-outline' as const },
-            ].map((opt) => (
-              <TouchableOpacity
-                key={opt.id}
-                style={[
-                  styles.langPill,
-                  colorScheme === opt.id && styles.langPillActive,
-                ]}
-                onPress={() => setColorScheme(opt.id as 'system' | 'light' | 'dark')}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name={opt.icon}
-                  size={18}
-                  color={colorScheme === opt.id ? theme.colors.primary : theme.colors.textMuted}
-                />
-                <Text
+          <TouchableOpacity
+            style={[styles.dropdownSelector, { backgroundColor: theme.colors.inputBg, borderColor: theme.colors.border }]}
+            onPress={() => setShowThemeDropdown(!showThemeDropdown)}
+            activeOpacity={0.8}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Ionicons
+                name={
+                  colorScheme === 'system'
+                    ? 'phone-portrait-outline'
+                    : colorScheme === 'light'
+                    ? 'sunny-outline'
+                    : 'moon-outline'
+                }
+                size={18}
+                color={theme.colors.primary}
+              />
+              <Text style={[styles.dropdownSelectorText, { color: theme.colors.textMain }]}>
+                {colorScheme === 'system'
+                  ? t('config.theme.system')
+                  : colorScheme === 'light'
+                  ? t('config.theme.light')
+                  : t('config.theme.dark')}
+              </Text>
+            </View>
+            <Ionicons
+              name={showThemeDropdown ? 'chevron-up' : 'chevron-down'}
+              size={18}
+              color={theme.colors.textMuted}
+            />
+          </TouchableOpacity>
+
+          {showThemeDropdown && (
+            <View style={[styles.dropdownList, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, marginTop: 4 }]}>
+              {[
+                { id: 'system', label: t('config.theme.system'), icon: 'phone-portrait-outline' as const },
+                { id: 'light', label: t('config.theme.light'), icon: 'sunny-outline' as const },
+                { id: 'dark', label: t('config.theme.dark'), icon: 'moon-outline' as const },
+              ].map((opt) => (
+                <TouchableOpacity
+                  key={opt.id}
                   style={[
-                    styles.langPillText,
-                    colorScheme === opt.id && styles.langPillTextActive,
+                    styles.dropdownItem,
+                    { borderBottomColor: theme.colors.border },
+                    colorScheme === opt.id && styles.dropdownItemActive,
                   ]}
+                  onPress={() => {
+                    setColorScheme(opt.id as 'system' | 'light' | 'dark');
+                    setShowThemeDropdown(false);
+                  }}
+                  activeOpacity={0.7}
                 >
-                  {opt.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Ionicons
+                      name={opt.icon}
+                      size={18}
+                      color={colorScheme === opt.id ? theme.colors.primary : theme.colors.textMuted}
+                    />
+                    <Text
+                      style={[
+                        styles.dropdownItemText,
+                        { color: theme.colors.textMain },
+                        colorScheme === opt.id && styles.dropdownItemTextActive,
+                      ]}
+                    >
+                      {opt.label}
+                    </Text>
+                  </View>
+                  {colorScheme === opt.id && (
+                    <Ionicons name="checkmark" size={18} color={theme.colors.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </Card>
         </Animated.View>
 
@@ -637,40 +683,74 @@ export default function ConfiguracoesScreen() {
         >
         <Text style={styles.sectionTitle}>{t('config.language')}</Text>
         <Card style={styles.infoCard}>
-          <View style={styles.langPillsWrap}>
-            {[
-              { id: 'en', label: t('config.language.en'), flag: '🇺🇸' },
-              { id: 'hi', label: t('config.language.hi'), flag: '🇮🇳' },
-              { id: 'ta', label: t('config.language.ta'), flag: '📖' },
-            ].map((lang) => (
-              <TouchableOpacity
-                key={lang.id}
-                style={[
-                  styles.langPill,
-                  currentLang === lang.id && styles.langPillActive,
-                ]}
-                onPress={async () => {
-                  await changeLanguage(lang.id as 'en' | 'hi' | 'ta');
-                  setCurrentLang(lang.id);
-                  Alert.alert(
-                    t('config.languageSelected'),
-                    t('config.languageChangedTo', { language: lang.label })
-                  );
-                }}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.langPillFlag}>{lang.flag}</Text>
-                <Text
+          <TouchableOpacity
+            style={[styles.dropdownSelector, { backgroundColor: theme.colors.inputBg, borderColor: theme.colors.border }]}
+            onPress={() => setShowLangDropdown(!showLangDropdown)}
+            activeOpacity={0.8}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text style={{ fontSize: 16 }}>
+                {currentLang === 'en' ? '🇺🇸' : currentLang === 'hi' ? '🇮🇳' : '📖'}
+              </Text>
+              <Text style={[styles.dropdownSelectorText, { color: theme.colors.textMain }]}>
+                {currentLang === 'en'
+                  ? t('config.language.en')
+                  : currentLang === 'hi'
+                  ? t('config.language.hi')
+                  : t('config.language.ta')}
+              </Text>
+            </View>
+            <Ionicons
+              name={showLangDropdown ? 'chevron-up' : 'chevron-down'}
+              size={18}
+              color={theme.colors.textMuted}
+            />
+          </TouchableOpacity>
+
+          {showLangDropdown && (
+            <View style={[styles.dropdownList, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, marginTop: 4 }]}>
+              {[
+                { id: 'en', label: t('config.language.en'), flag: '🇺🇸' },
+                { id: 'hi', label: t('config.language.hi'), flag: '🇮🇳' },
+                { id: 'ta', label: t('config.language.ta'), flag: '📖' },
+              ].map((lang) => (
+                <TouchableOpacity
+                  key={lang.id}
                   style={[
-                    styles.langPillText,
-                    currentLang === lang.id && styles.langPillTextActive,
+                    styles.dropdownItem,
+                    { borderBottomColor: theme.colors.border },
+                    currentLang === lang.id && styles.dropdownItemActive,
                   ]}
+                  onPress={async () => {
+                    await changeLanguage(lang.id as 'en' | 'hi' | 'ta');
+                    setCurrentLang(lang.id);
+                    setShowLangDropdown(false);
+                    Alert.alert(
+                      t('config.languageSelected'),
+                      t('config.languageChangedTo', { language: lang.label })
+                    );
+                  }}
+                  activeOpacity={0.7}
                 >
-                  {lang.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Text style={{ fontSize: 16 }}>{lang.flag}</Text>
+                    <Text
+                      style={[
+                        styles.dropdownItemText,
+                        { color: theme.colors.textMain },
+                        currentLang === lang.id && styles.dropdownItemTextActive,
+                      ]}
+                    >
+                      {lang.label}
+                    </Text>
+                  </View>
+                  {currentLang === lang.id && (
+                    <Ionicons name="checkmark" size={18} color={theme.colors.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </Card>
         </Animated.View>
 
@@ -1181,6 +1261,52 @@ const createStyles = (theme: ReturnType<typeof useTheme>['theme']) => StyleSheet
   },
   langPillTextActive: {
     fontWeight: '800',
+    color: theme.colors.primary,
+  },
+  dropdownSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: theme.colors.inputBg,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    paddingHorizontal: 16,
+    minHeight: 46,
+    borderRadius: theme.borderRadius.sm,
+  },
+  dropdownSelectorText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.textMain,
+    flex: 1,
+    marginRight: 8,
+  },
+  dropdownList: {
+    backgroundColor: theme.colors.card,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.borderRadius.sm,
+    marginTop: 4,
+    ...theme.shadows.sm,
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.inputBg,
+  },
+  dropdownItemActive: {
+    backgroundColor: theme.colors.primaryLight,
+  },
+  dropdownItemText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: theme.colors.textMain,
+  },
+  dropdownItemTextActive: {
+    fontWeight: '700',
     color: theme.colors.primary,
   },
 });

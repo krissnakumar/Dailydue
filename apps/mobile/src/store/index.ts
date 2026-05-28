@@ -281,9 +281,9 @@ export const useDailyDueStore = create<DailyDueMobileState>()(
             subscription: nextSubscription,
             // Reset to default demo values on logout
             businessConfig: {
-              businessName: 'Meu Mercadinho',
+              businessName: 'My Store',
               pixKey: 'shop@upi',
-              phone: '11999999999',
+              phone: '919999999999',
               overdueDays: 15,
               acceptedPaymentMethods: ['cash', 'upi', 'card'],
               whatsappTemplate: 'Hello {client}, just reminding you about your open balance of {value}. You can pay via UPI or in person. Thanks!',
@@ -341,7 +341,7 @@ export const useDailyDueStore = create<DailyDueMobileState>()(
             await syncSubscriptionRenewalReminders(nextSubscription);
           }
         } catch (err) {
-          console.warn('[Store] Falha ao buscar assinatura da nuvem:', err);
+          console.warn('[Store] Failed to fetch subscription from cloud:', err);
         }
       },
 
@@ -614,11 +614,11 @@ export const useDailyDueStore = create<DailyDueMobileState>()(
               const cleanPhone = phone.replace(/\D/g, '');
               const auditLog = {
                 id: localId('hist'),
-                description: 'Perfil Atualizado',
+                description: 'Profile Updated',
                 amount: 0,
                 created_at: new Date().toISOString(),
                 type: 'system' as const,
-                created_by: state.user?.full_name || 'Dono',
+                created_by: state.user?.full_name || 'Owner',
               };
               const fullHistory = [auditLog, ...c.history];
               let systemCount = 0;
@@ -696,7 +696,7 @@ export const useDailyDueStore = create<DailyDueMobileState>()(
         }
       },
 
-      addDebt: (customerId, amount, description = 'Fiado') => {
+      addDebt: (customerId, amount, description = 'Credit') => {
         const sub = get().subscription;
         if (!sub.is_premium && sub.max_transactions_per_month !== null) {
           const txCount = get().getCurrentMonthTransactionsCount();
@@ -708,11 +708,11 @@ export const useDailyDueStore = create<DailyDueMobileState>()(
         const localTxId = localId('hist');
         const newHistoryItem: HistoryItem = {
           id: localTxId,
-          description: description.trim() || 'Fiado',
+          description: description.trim() || 'Credit',
           amount,
           created_at: new Date().toISOString(),
           type: 'debt',
-          created_by: get().user?.full_name || 'Dono',
+          created_by: get().user?.full_name || 'Owner',
         };
 
         set((state) => {
@@ -736,7 +736,7 @@ export const useDailyDueStore = create<DailyDueMobileState>()(
         get().enqueueSync('debt', { customer_id: customerId, amount, description, local_id: localTxId });
       },
 
-      receivePayment: (customerId, amount, method = 'Dinheiro') => {
+      receivePayment: (customerId, amount, method = 'Cash') => {
         const sub = get().subscription;
         if (!sub.is_premium && sub.max_transactions_per_month !== null) {
           const txCount = get().getCurrentMonthTransactionsCount();
@@ -746,14 +746,14 @@ export const useDailyDueStore = create<DailyDueMobileState>()(
         }
 
         const localTxId = localId('hist');
-        const methodLabel = method ? `Pago via ${method}` : 'Pagamento';
+        const methodLabel = method ? `Paid via ${method}` : 'Payment';
         const newHistoryItem: HistoryItem = {
           id: localTxId,
           description: methodLabel,
           amount,
           created_at: new Date().toISOString(),
           type: 'payment',
-          created_by: get().user?.full_name || 'Dono',
+          created_by: get().user?.full_name || 'Owner',
         };
 
         set((state) => {
@@ -821,7 +821,7 @@ export const useDailyDueStore = create<DailyDueMobileState>()(
                 amount: 0,
                 created_at: new Date().toISOString(),
                 type: 'system',
-                created_by: state.user?.full_name || 'Dono',
+                created_by: state.user?.full_name || 'Owner',
               };
 
               const fullHistory = [auditLog, ...history];
@@ -914,7 +914,7 @@ export const useDailyDueStore = create<DailyDueMobileState>()(
                 amount: 0,
                 created_at: new Date().toISOString(),
                 type: 'system',
-                created_by: state.user?.full_name || 'Dono',
+                created_by: state.user?.full_name || 'Owner',
               };
 
               const fullHistory = [auditLog, ...history];
@@ -1014,7 +1014,7 @@ export const useDailyDueStore = create<DailyDueMobileState>()(
         }
 
         if (get().isSyncing) {
-          console.log('[Sync] Já sincronizando. Aguardando conclusão para logout...');
+          console.log('[Sync] Already syncing. Waiting for completion before logout...');
           let retries = 50;
           while (get().isSyncing && retries > 0) {
             await new Promise((resolve) => setTimeout(resolve, 100));
@@ -1025,11 +1025,11 @@ export const useDailyDueStore = create<DailyDueMobileState>()(
 
         const { data } = await supabase.auth.getSession();
         if (!data?.session) {
-          console.log('[Sync] Não há sessão ativa para esvaziar fila.');
+          console.log('[Sync] No active session to flush queue.');
           return;
         }
 
-        console.log('[Sync] Forçando sincronização imediata de toda a fila...');
+        console.log('[Sync] Forcing immediate full queue sync...');
         await get().attemptBackgroundSync();
 
         let retries = 50;
@@ -1139,7 +1139,7 @@ export const useDailyDueStore = create<DailyDueMobileState>()(
                amount: t.amount,
                created_at: t.transaction_date || t.created_at,
                type: (t.type || t.transaction_type) as 'debt' | 'payment' | 'system',
-               created_by: t.created_by_name || 'Dono',
+               created_by: t.created_by_name || 'Owner',
             }));
 
             const pendingTxItems = get().syncQueue.filter(q => 
@@ -1149,11 +1149,11 @@ export const useDailyDueStore = create<DailyDueMobileState>()(
 
             const pendingHistory: HistoryItem[] = pendingTxItems.map(q => ({
               id: q.payload?.local_id || q.id,
-              description: q.payload?.description || (q.type === 'payment' ? 'Pagamento Recebido' : 'Compra adicionada'),
+              description: q.payload?.description || (q.type === 'payment' ? 'Payment received' : 'Credit entry added'),
               amount: Number(q.payload?.amount || 0),
               created_at: q.added_at || new Date().toISOString(),
               type: q.type as 'debt' | 'payment',
-              created_by: 'Dono',
+              created_by: 'Owner',
             }));
 
             const combinedHistory = [...serverHistory];
@@ -1216,7 +1216,7 @@ export const useDailyDueStore = create<DailyDueMobileState>()(
           
           await get().refreshCustomerPictureUrls();
         } catch (error) {
-          console.error('[loadSupabaseData] Erro ao carregar do Supabase:', error);
+          console.error('[loadSupabaseData] Error loading from Supabase:', error);
         }
       },
 

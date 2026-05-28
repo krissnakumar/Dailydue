@@ -95,203 +95,58 @@ export function CustomerDetailContent({
   const [editPicture, setEditPicture] = useState('');
   const [editNotes, setEditNotes] = useState('');
 
-  const [cepStatus, setCepStatus] = useState<'idle' | 'loading' | 'valid' | 'invalid'>('idle');
-  const [docStatus, setDocStatus] = useState<'idle' | 'loading' | 'valid' | 'invalid'>('idle');
+  const [cepStatus, setCepStatus] = useState<'idle' | 'valid' | 'invalid'>('idle');
+  const [docStatus, setDocStatus] = useState<'idle' | 'valid' | 'invalid'>('idle');
 
   // Modal Edição Item Histórico
   const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
   const [itemDesc, setItemDesc] = useState('');
   const [itemAmt, setItemAmt] = useState('');
 
-  // Helpers de Auto-busca de PIN e PAN
-  const handleFetchCep = async (cep: string) => {
-    const cleanCep = cep.replace(/\D/g, '');
-    if (cleanCep.length !== 8) {
-      setCepStatus('idle');
-      return;
-    }
-    setCepStatus('loading');
-    try {
-      const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
-      const data = await res.json();
-      if (data && !data.erro) {
-        const fullAddr = [
-          data.logradouro,
-          data.bairro,
-          data.localidade,
-          data.uf
-        ].filter(Boolean).join(', ');
-        setEditAddress(fullAddr);
-        setCepStatus('valid');
-      } else {
-        setCepStatus('invalid');
-      }
-    } catch (e) {
-      console.error(e);
-      setCepStatus('invalid');
-    }
+  const isValidAadhaar = (value: string) => {
+    const digits = value.replace(/\D/g, '');
+    return digits.length === 12 && !/^(\d)\1+$/.test(digits);
   };
 
-  const handleFetchCnpj = async (cnpj: string) => {
-    const cleanCnpj = cnpj.replace(/\D/g, '');
-    if (cleanCnpj.length !== 14) {
-      setDocStatus('idle');
-      return;
-    }
-    setDocStatus('loading');
-    try {
-      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanCnpj}`);
-      if (!res.ok) {
-        if (isValidPAN(cleanCnpj)) {
-          setDocStatus('valid');
-        } else {
-          setDocStatus('invalid');
-        }
-        return;
-      }
-      const data = await res.json();
-      if (data) {
-        const name = data.nome_fantasia || data.razao_social || '';
-        const phone = `${data.ddd_telefone_1 || ''}${data.telefone || ''}`.replace(/\D/g, '');
-        const cep = (data.cep || '').replace(/\D/g, '');
-        const fullAddr = [
-          data.logradouro,
-          data.numero && data.numero !== 'S/N' ? `Nº ${data.numero}` : 'S/N',
-          data.bairro,
-          data.municipio,
-          data.uf
-        ].filter(Boolean).join(', ');
-
-        if (name) setEditName(name);
-        if (phone) setEditPhone(phone);
-        if (cep) {
-          setEditCep(cep);
-          handleFetchCep(cep);
-        }
-        if (fullAddr) setEditAddress(fullAddr);
-        setDocStatus('valid');
-      } else {
-        setDocStatus('invalid');
-      }
-    } catch (e) {
-      console.error(e);
-      if (isValidPAN(cleanCnpj)) {
-        setDocStatus('valid');
-      } else {
-        setDocStatus('invalid');
-      }
-    }
-  };
-
-  const isValidAADHAAR = (cpf: string) => {
-    cpf = cpf.replace(/[^\d]+/g, '');
-    if (cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) return false;
-    let soma = 0;
-    for (let i = 0; i < 9; i++) soma += parseInt(cpf.charAt(i)) * (10 - i);
-    let rev = 11 - (soma % 11);
-    if (rev === 10 || rev === 11) rev = 0;
-    if (rev !== parseInt(cpf.charAt(9))) return false;
-    soma = 0;
-    for (let i = 0; i < 10; i++) soma += parseInt(cpf.charAt(i)) * (11 - i);
-    rev = 11 - (soma % 11);
-    if (rev === 10 || rev === 11) rev = 0;
-    if (rev !== parseInt(cpf.charAt(10))) return false;
-    return true;
-  };
-
-  const isValidPAN = (cnpj: string) => {
-    cnpj = cnpj.replace(/[^\d]+/g, '');
-    if (cnpj.length !== 14 || /^(\d)\1+$/.test(cnpj)) return false;
-    let tamanho = cnpj.length - 2;
-    let numeros = cnpj.substring(0, tamanho);
-    let digitos = cnpj.substring(tamanho);
-    let soma = 0;
-    let pos = tamanho - 7;
-    for (let i = tamanho; i >= 1; i--) {
-      soma += parseInt(numeros.charAt(tamanho - i)) * pos--;
-      if (pos < 2) pos = 9;
-    }
-    let resultado = soma % 11 < 2 ? 0 : 11 - (soma % 11);
-    if (resultado !== parseInt(digitos.charAt(0))) return false;
-    tamanho = tamanho + 1;
-    numeros = cnpj.substring(0, tamanho);
-    soma = 0;
-    pos = tamanho - 7;
-    for (let i = tamanho; i >= 1; i--) {
-      soma += parseInt(numeros.charAt(tamanho - i)) * pos--;
-      if (pos < 2) pos = 9;
-    }
-    resultado = soma % 11 < 2 ? 0 : 11 - (soma % 11);
-    if (resultado !== parseInt(digitos.charAt(1))) return false;
-    return true;
+  const isValidPan = (value: string) => {
+    const normalized = value.toUpperCase().replace(/\s+/g, '');
+    return /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(normalized);
   };
 
   const formatDocValue = (val: string) => {
-    const clean = val.replace(/\D/g, '');
+    const clean = val.toUpperCase().replace(/[^A-Z0-9]/g, '');
     if (editDocType === 'aadhaar') {
       return clean
-        .replace(/^(\d{3})(\d)/, '$1.$2')
-        .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
-        .replace(/^(\d{3})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3-$4')
+        .replace(/\D/g, '')
+        .replace(/^(\d{4})(\d)/, '$1 $2')
+        .replace(/^(\d{4})\s(\d{4})(\d)/, '$1 $2 $3')
         .substring(0, 14);
     } else {
-      return clean
-        .replace(/^(\d{2})(\d)/, '$1.$2')
-        .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
-        .replace(/^(\d{2})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3/$4')
-        .replace(/^(\d{2})\.(\d{3})\.(\d{3})\/(\d{4})(\d)/, '$1.$2.$3/$4-$5')
-        .substring(0, 18);
-    }
-  };
-
-  const handleFetchCpf = async (cpf: string) => {
-    const cleanCpf = cpf.replace(/\D/g, '');
-    if (cleanCpf.length !== 11) {
-      setDocStatus('idle');
-      return;
-    }
-    setDocStatus('loading');
-    try {
-      const res = await fetch(`https://api.mix-br.com/cpf/${cleanCpf}`);
-      if (!res.ok) throw new Error("API Offline");
-      const data = await res.json();
-      if (data && data.status === false) {
-        setDocStatus('invalid');
-        Alert.alert(t('customerDetail.ops'), t('customerDetail.cpfInvalidApi'), [{ text: t('common.ok') }]);
-      } else {
-        setDocStatus('valid');
-      }
-    } catch {
-      if (isValidAADHAAR(cleanCpf)) {
-        setDocStatus('valid');
-      } else {
-        setDocStatus('invalid');
-        Alert.alert(t('customerDetail.ops'), t('customerDetail.cpfInvalid'), [{ text: t('common.ok') }]);
-      }
+      return clean.substring(0, 10);
     }
   };
 
   const handleDocChange = (val: string) => {
     const formatted = formatDocValue(val);
     setEditDocValue(formatted);
-    const clean = formatted.replace(/\D/g, '');
-    if (editDocType === 'pan' && clean.length === 14) {
-      handleFetchCnpj(clean);
-    } else if (editDocType === 'aadhaar' && clean.length === 11) {
-      handleFetchCpf(clean);
+    if (editDocType === 'aadhaar') {
+      const clean = formatted.replace(/\D/g, '');
+      if (!clean) setDocStatus('idle');
+      else if (clean.length === 12) setDocStatus(isValidAadhaar(clean) ? 'valid' : 'invalid');
+      else setDocStatus('invalid');
     } else {
-      setDocStatus('idle');
+      if (!formatted) setDocStatus('idle');
+      else if (formatted.length === 10) setDocStatus(isValidPan(formatted) ? 'valid' : 'invalid');
+      else setDocStatus('invalid');
     }
   };
 
   const handleCepChange = (val: string) => {
     const formatted = val.replace(/\D/g, '').substring(0, 6);
     setEditCep(formatted);
-    if (formatted.length === 8) {
-      handleFetchCep(formatted);
-    } else {
-      setCepStatus('idle');
-    }
+    if (!formatted.length) setCepStatus('idle');
+    else if (formatted.length === 6) setCepStatus('valid');
+    else setCepStatus('invalid');
   };
 
   const handlePrintStatement = async () => {
@@ -348,7 +203,7 @@ export function CustomerDetailContent({
       Alert.alert(t('customerDetail.ops'), t('customerDetail.checkPhone'));
       return;
     }
-    if (cepDigits && cepDigits.length !== 8) {
+    if (cepDigits && cepDigits.length !== 6) {
       Alert.alert(t('customerDetail.ops'), t('customerDetail.checkPin'));
       return;
     }
@@ -536,7 +391,7 @@ export function CustomerDetailContent({
             activeOpacity={0.8}
             onPress={pickAndSaveProfilePhoto}
             accessibilityRole="button"
-            accessibilityLabel={canEditProfilePicture ? 'Editar foto do cliente' : 'Foto premium do cliente'}
+            accessibilityLabel={canEditProfilePicture ? 'Edit customer photo' : 'Premium customer photo'}
           >
             {customer.picture ? (
               isEmoji(customer.picture) ? (
@@ -703,7 +558,7 @@ export function CustomerDetailContent({
               </Text>
             </View>
             <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>{t('clients.cep')}</Text>
+              <Text style={styles.detailLabel}>PIN</Text>
               <Text style={styles.detailValue}>{customer.cep || t('customerDetail.notInformed')}</Text>
             </View>
             <View style={[styles.detailItem, styles.detailItemFull]}>
@@ -890,7 +745,6 @@ export function CustomerDetailContent({
               <View style={styles.formGroup}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Text style={styles.formLabel}>{t('customerDetail.document')} ({editDocType.toUpperCase()})</Text>
-                  {docStatus === 'loading' && <Text style={{ fontSize: 11, color: '#64748b', fontWeight: '500', marginBottom: 8 }}>{t('clients.statusValidating')} ⏳</Text>}
                   {docStatus === 'valid' && <Text style={{ fontSize: 11, color: '#059669', fontWeight: '500', marginBottom: 8 }}>{t('clients.statusValid')} ✓</Text>}
                   {docStatus === 'invalid' && <Text style={{ fontSize: 11, color: '#dc2626', fontWeight: '500', marginBottom: 8 }}>{t('clients.statusInvalid')} ✗</Text>}
                 </View>
@@ -905,15 +759,14 @@ export function CustomerDetailContent({
 
               <View style={styles.formGroup}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Text style={styles.formLabel}>{t('clients.cep')}</Text>
-                  {cepStatus === 'loading' && <Text style={{ fontSize: 11, color: '#64748b', fontWeight: '500', marginBottom: 8 }}>{t('clients.statusSearching')} ⏳</Text>}
+                  <Text style={styles.formLabel}>PIN Code</Text>
                   {cepStatus === 'valid' && <Text style={{ fontSize: 11, color: '#059669', fontWeight: '500', marginBottom: 8 }}>{t('clients.statusValid')} ✓</Text>}
                   {cepStatus === 'invalid' && <Text style={{ fontSize: 11, color: '#dc2626', fontWeight: '500', marginBottom: 8 }}>{t('clients.statusInvalid')} ✗</Text>}
                 </View>
                 <TextInput
                   style={styles.formInput}
                   keyboardType="numeric"
-                  placeholder="00000-000"
+                  placeholder="560001"
                   value={editCep}
                   onChangeText={handleCepChange}
                 />
@@ -924,7 +777,7 @@ export function CustomerDetailContent({
                 <TextInput
                   style={[styles.formInput, { height: 75, textAlignVertical: 'top' }]}
                   multiline
-                  placeholder="Rua, Número, Bairro, Cidade - UF"
+                  placeholder="Street, Area, City, State"
                   value={editAddress}
                   onChangeText={setEditAddress}
                 />
@@ -956,7 +809,7 @@ export function CustomerDetailContent({
                   <View style={{ flex: 1 }}>
                     <View style={styles.photoActions}>
                       <TouchableOpacity style={styles.photoBtn} onPress={pickEditPhoto} activeOpacity={0.8}>
-                        <Text style={styles.photoBtnText}>{editPicture && !isEmoji(editPicture) ? t('customerDetail.trocar') : t('customerDetail.escolher')}</Text>
+                        <Text style={styles.photoBtnText}>{editPicture && !isEmoji(editPicture) ? 'Change' : 'Choose'}</Text>
                       </TouchableOpacity>
                       {editPicture ? (
                         <TouchableOpacity
@@ -964,7 +817,7 @@ export function CustomerDetailContent({
                           onPress={() => setEditPicture('')}
                           activeOpacity={0.8}
                         >
-                          <Text style={[styles.photoBtnText, styles.photoBtnTextDanger]}>{t('customerDetail.remover')}</Text>
+                          <Text style={[styles.photoBtnText, styles.photoBtnTextDanger]}>Remove</Text>
                         </TouchableOpacity>
                       ) : null}
                     </View>

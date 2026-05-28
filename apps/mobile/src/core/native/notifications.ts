@@ -14,6 +14,15 @@ try {
   // Expo Go on Android (SDK 53+) does not support remote push notifications.
   if (!(Platform.OS === 'android' && isExpoGo)) {
     NotificationsModule = require('expo-notifications');
+    if (NotificationsModule) {
+      NotificationsModule.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowAlert: true,
+          shouldPlaySound: true,
+          shouldSetBadge: false,
+        }),
+      });
+    }
   }
 } catch (e) {
   console.warn('[Native Notifications] Failed to import expo-notifications module:', e);

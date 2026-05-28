@@ -30,7 +30,7 @@ export class LocalDatabase {
       const data = await EncryptedStorage.getItem(CUSTOMERS_TABLE_KEY);
       return data ? JSON.parse(data) : [];
     } catch (e) {
-      console.error('[LocalDB] Erro ao buscar clientes:', e);
+      console.error('[LocalDB] Failed to load customers:', e);
       return [];
     }
   }
@@ -39,7 +39,7 @@ export class LocalDatabase {
     try {
       await EncryptedStorage.setItem(CUSTOMERS_TABLE_KEY, JSON.stringify(customers));
     } catch (e) {
-      console.error('[LocalDB] Erro ao salvar clientes:', e);
+      console.error('[LocalDB] Failed to save customers:', e);
     }
   }
 
@@ -150,7 +150,7 @@ export class LocalDatabase {
       const data = await EncryptedStorage.getItem(PENDING_OPERATIONS_KEY);
       return data ? JSON.parse(data) : [];
     } catch (e) {
-      console.error('[LocalDB] Erro ao buscar fila de operações:', e);
+      console.error('[LocalDB] Failed to load operation queue:', e);
       return [];
     }
   }
@@ -159,7 +159,7 @@ export class LocalDatabase {
     try {
       await EncryptedStorage.setItem(PENDING_OPERATIONS_KEY, JSON.stringify(ops));
     } catch (e) {
-      console.error('[LocalDB] Erro ao salvar fila de operações:', e);
+      console.error('[LocalDB] Failed to save operation queue:', e);
     }
   }
 

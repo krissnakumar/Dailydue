@@ -120,7 +120,7 @@ export const Header: React.FC<HeaderProps> = ({
             activeOpacity={0.75}
             onPress={() => router.replace('/(tabs)/home')}
           >
-            {title === 'Fiado' && (
+            {(title === 'Fiado' || title === 'DailyDue') && (
               <BookWriteLogo
                 source={require('../../assets/logo-original.png')}
                 width={44}

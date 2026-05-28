@@ -850,5 +850,7 @@
   "customerDetail.addressPlaceholder": "Street, Number, Neighborhood, City - State",
   "customerDetail.auditItemEdit": "Edit Item",
   "customerDetail.invalidAmountDesc": "Enter a valid numeric value.",
-  "customerDetail.deleteItemConfirm": "Remove \"{{description}}\" of {{value}}?"
+  "customerDetail.deleteItemConfirm": "Remove \"{{description}}\" of {{value}}?",
+  "notification.collectionTitle": "Collection Due Today",
+  "notification.collectionBody": "Remember to collect {{amount}} from {{name}} today."
 }

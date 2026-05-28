@@ -23,7 +23,7 @@ export const HashingService = {
       );
       return hashed;
     } catch (error) {
-      console.error('[HashingService] Erro ao gerar hash:', error);
+      console.error('[HashingService] Failed to generate hash:', error);
       throw new Error('Security PIN encryption failed.');
     }
   },

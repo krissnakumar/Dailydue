@@ -18,6 +18,8 @@ import { useDailyDueStore } from '../../src/store';
 import { useAdaptiveColors, useResponsive } from '../../src/utils/responsive';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import { formatCurrency } from '../../src/utils';
+import nativeNotifications from '../../src/core/native/notifications';
 
 export default function NovoFiadoPage() {
   const { t } = useTranslation();
@@ -106,6 +108,38 @@ export default function NovoFiadoPage() {
 
     try {
       addDebt(selectedCustId, amt, finalDesc);
+
+      if (reminderDays !== null && reminderDays > 0) {
+        void (async () => {
+          try {
+            const { status } = await nativeNotifications.requestPermissions();
+            if (status === 'granted') {
+              const targetDate = new Date();
+              targetDate.setDate(targetDate.getDate() + reminderDays);
+              targetDate.setHours(9, 0, 0, 0); // 9:00 AM on target day
+              
+              let triggerSeconds = Math.floor((targetDate.getTime() - Date.now()) / 1000);
+              if (triggerSeconds <= 0) {
+                triggerSeconds = reminderDays * 24 * 60 * 60; // Fallback
+              }
+
+              const title = t('notification.collectionTitle');
+              const body = t('notification.collectionBody', {
+                amount: formatCurrency(amt),
+                name: targetCust?.full_name || 'Client',
+              });
+
+              await nativeNotifications.scheduleNotification(title, body, triggerSeconds, {
+                tag: 'collection_reminder',
+                customerId: selectedCustId,
+                amount: amt,
+              });
+            }
+          } catch (notifErr) {
+            console.warn('[Notifications] Failed to schedule collection reminder:', notifErr);
+          }
+        })();
+      }
 
       Alert.alert(
         t('newFiado.successTitle'),
