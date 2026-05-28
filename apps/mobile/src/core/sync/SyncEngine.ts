@@ -327,40 +327,43 @@ export async function attemptBackgroundSync(getState: () => any, set: (fn: any) 
             });
             if (createErr) throw createErr;
 
-            if (oldId && isTempCustomerId(oldId) && created?.id) {
-              const realBizId = (created as any).business_id;
+            const createdObj = Array.isArray(created) ? created[0] : created;
+            const createdId = createdObj?.id;
+
+            if (oldId && isTempCustomerId(oldId) && createdId) {
+              const realBizId = createdObj.business_id;
               set((state: any) => ({
                 currentBusinessId: realBizId || state.currentBusinessId,
-                customerIdMap: { ...state.customerIdMap, [oldId]: String(created.id) },
+                customerIdMap: { ...state.customerIdMap, [oldId]: String(createdId) },
                 customers: state.customers.map((c: any) =>
                   c.id === oldId
                     ? {
                         ...c,
-                        id: String(created.id),
+                        id: String(createdId),
                         business_id: realBizId || c.business_id,
-                        full_name: (created as any).full_name || c.full_name,
-                        phone: (created as any).phone || c.phone,
-                        picture_storage_path: (created as any).picture_storage_path ?? c.picture_storage_path ?? null,
-                        picture_mime_type: (created as any).picture_mime_type ?? c.picture_mime_type ?? null,
+                        full_name: createdObj.full_name || c.full_name,
+                        phone: createdObj.phone || c.phone,
+                        picture_storage_path: createdObj.picture_storage_path ?? c.picture_storage_path ?? null,
+                        picture_mime_type: createdObj.picture_mime_type ?? c.picture_mime_type ?? null,
                       }
                     : c
                 ),
                 syncQueue: state.syncQueue.map((q: any) => {
-                  if (q.payload?.customer_id === oldId) return { ...q, payload: { ...q.payload, customer_id: String(created.id) } };
-                  if (q.payload?.customerId === oldId) return { ...q, payload: { ...q.payload, customerId: String(created.id) } };
-                  if (q.payload?.client_id === oldId) return { ...q, payload: { ...q.payload, client_id: String(created.id) } };
-                  if (q.payload?.clientId === oldId) return { ...q, payload: { ...q.payload, clientId: String(created.id) } };
-                  if (q.type === 'update_customer' && q.payload?.id === oldId) return { ...q, payload: { ...q.payload, id: String(created.id) } };
+                  if (q.payload?.customer_id === oldId) return { ...q, payload: { ...q.payload, customer_id: String(createdId) } };
+                  if (q.payload?.customerId === oldId) return { ...q, payload: { ...q.payload, customerId: String(createdId) } };
+                  if (q.payload?.client_id === oldId) return { ...q, payload: { ...q.payload, client_id: String(createdId) } };
+                  if (q.payload?.clientId === oldId) return { ...q, payload: { ...q.payload, clientId: String(createdId) } };
+                  if (q.type === 'update_customer' && q.payload?.id === oldId) return { ...q, payload: { ...q.payload, id: String(createdId) } };
                   return q;
                 }),
               }));
 
               remainingQueue = remainingQueue.map((q) => {
-                if (q.payload?.customer_id === oldId) return { ...q, payload: { ...q.payload, customer_id: String(created.id) } };
-                if (q.payload?.customerId === oldId) return { ...q, payload: { ...q.payload, customerId: String(created.id) } };
-                if (q.payload?.client_id === oldId) return { ...q, payload: { ...q.payload, client_id: String(created.id) } };
-                if (q.payload?.clientId === oldId) return { ...q, payload: { ...q.payload, clientId: String(created.id) } };
-                if (q.type === 'update_customer' && q.payload?.id === oldId) return { ...q, payload: { ...q.payload, id: String(created.id) } };
+                if (q.payload?.customer_id === oldId) return { ...q, payload: { ...q.payload, customer_id: String(createdId) } };
+                if (q.payload?.customerId === oldId) return { ...q, payload: { ...q.payload, customerId: String(createdId) } };
+                if (q.payload?.client_id === oldId) return { ...q, payload: { ...q.payload, client_id: String(createdId) } };
+                if (q.payload?.clientId === oldId) return { ...q, payload: { ...q.payload, clientId: String(createdId) } };
+                if (q.type === 'update_customer' && q.payload?.id === oldId) return { ...q, payload: { ...q.payload, id: String(createdId) } };
                 return q;
               });
             }
@@ -515,15 +518,16 @@ export async function attemptBackgroundSync(getState: () => any, set: (fn: any) 
                 createdTx = retryData;
               }
 
+              const createdTxObj = Array.isArray(createdTx) ? createdTx[0] : createdTx;
               const localTxId = item.payload.local_id;
-              if (localTxId && createdTx?.id) {
+              if (localTxId && createdTxObj?.id) {
                 set((state: any) => ({
                   customers: state.customers.map((c: any) => {
                     if (c.id === resolvedCustomerId) {
                       return {
                         ...c,
                         history: c.history.map((h: any) =>
-                          h.id === localTxId ? { ...h, id: String(createdTx.id) } : h
+                          h.id === localTxId ? { ...h, id: String(createdTxObj.id) } : h
                         ),
                       };
                     }
