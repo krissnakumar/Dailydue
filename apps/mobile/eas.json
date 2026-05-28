@@ -21,7 +21,8 @@
         "NODE_OPTIONS": "--max-old-space-size=4096",
         "EXPO_PUBLIC_SUPABASE_URL": "https://gmjdsxqhvuxyfnaaxcgk.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdtamRzeHFodnV4eWZuYWF4Y2drIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzNjExNjAsImV4cCI6MjA5NDkzNzE2MH0.SBXpJu_61Xt2-jwuc2IfbBCDH3bUAczMFZgw65swTM0",
-        "EXPO_PUBLIC_GOOGLE_PLAY_PREMIUM_SUB_ID": "dailydue_premium"
+        "EXPO_PUBLIC_GOOGLE_PLAY_PREMIUM_SUB_ID": "dailydue_premium",
+        "EAS_NO_DOCTOR": "1"
       }
     }
   },
