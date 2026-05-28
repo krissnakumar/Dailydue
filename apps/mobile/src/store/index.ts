@@ -183,7 +183,7 @@ export interface DailyDueMobileState {
     notes?: string
   ) => void;
   deleteCustomer: (id: string) => void;
-  addDebt: (customerId: string, amount: number, description?: string) => void;
+  addDebt: (customerId: string, amount: number, description?: string, dueDate?: string) => void;
   receivePayment: (customerId: string, amount: number, method?: string) => void;
   editHistoryItem: (customerId: string, itemId: string, newDesc: string, newAmount: number) => void;
   deleteHistoryItem: (customerId: string, itemId: string) => void;
@@ -696,7 +696,7 @@ export const useDailyDueStore = create<DailyDueMobileState>()(
         }
       },
 
-      addDebt: (customerId, amount, description = 'Credit') => {
+      addDebt: (customerId, amount, description = 'Credit', dueDate) => {
         const sub = get().subscription;
         if (!sub.is_premium && sub.max_transactions_per_month !== null) {
           const txCount = get().getCurrentMonthTransactionsCount();
@@ -713,6 +713,7 @@ export const useDailyDueStore = create<DailyDueMobileState>()(
           created_at: new Date().toISOString(),
           type: 'debt',
           created_by: get().user?.full_name || 'Owner',
+          due_date: dueDate,
         };
 
         set((state) => {

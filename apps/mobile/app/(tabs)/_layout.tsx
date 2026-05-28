@@ -153,11 +153,24 @@ function OutlineGlowIcon({
 export default function TabsLayout() {
   const { t } = useTranslation();
   const router = useRouter();
-  const { user, authChecked } = useDailyDueStore();
+  const { user, authChecked, customers } = useDailyDueStore();
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const [pressBump, setPressBump] = useState<Record<string, number>>({});
+
+  const totalDueToday = useMemo(() => {
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    return customers.filter((c) => {
+      if (c.total_debt <= 0) return false;
+      return c.history.some((h) => {
+        if (h.type !== 'debt' || !h.due_date) return false;
+        return new Date(h.due_date) <= todayEnd;
+      });
+    }).length;
+  }, [customers]);
 
   const isSmall = width < 360;
   const isTablet = width >= 768;
@@ -361,6 +374,7 @@ export default function TabsLayout() {
           name="cobrancas"
           options={{
             title: t('tabs.collections'),
+            tabBarBadge: totalDueToday > 0 ? totalDueToday : undefined,
             tabBarIcon: ({ color, focused }) => (
               <OutlineGlowIcon
                 focused={focused}

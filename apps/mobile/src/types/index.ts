@@ -5,6 +5,7 @@ export interface HistoryItem {
   created_at: string;
   type: 'debt' | 'payment' | 'system';
   created_by?: string;
+  due_date?: string;
 }
 
 export interface CustomerClient {

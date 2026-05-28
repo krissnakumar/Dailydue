@@ -106,8 +106,16 @@ export default function NovoFiadoPage() {
       finalDesc += ` (Cobrar dia ${dateStr})`;
     }
 
+    let dueDateStr: string | undefined = undefined;
+    if (reminderDays !== null && reminderDays > 0) {
+      const targetDate = new Date();
+      targetDate.setDate(targetDate.getDate() + reminderDays);
+      targetDate.setHours(9, 0, 0, 0);
+      dueDateStr = targetDate.toISOString();
+    }
+
     try {
-      addDebt(selectedCustId, amt, finalDesc);
+      addDebt(selectedCustId, amt, finalDesc, dueDateStr);
 
       if (reminderDays !== null && reminderDays > 0) {
         void (async () => {
