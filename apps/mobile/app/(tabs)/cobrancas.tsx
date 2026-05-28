@@ -189,6 +189,42 @@ export default function CobrancasScreen() {
     );
   };
 
+  const renderDueDays = (customer: any) => {
+    const dueItems = customer.history.filter((h: any) => h.type === 'debt' && h.due_date);
+    if (dueItems.length === 0) return null;
+
+    const dates = dueItems.map((h: any) => new Date(h.due_date!).getTime());
+    const oldestDueDate = new Date(Math.min(...dates));
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const due = new Date(oldestDueDate);
+    due.setHours(0, 0, 0, 0);
+
+    const diffTime = due.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) {
+      return (
+        <Text style={[styles.dueDaysText, styles.dueDaysToday]}>
+          {t('collections.dueToday')}
+        </Text>
+      );
+    } else if (diffDays < 0) {
+      return (
+        <Text style={[styles.dueDaysText, styles.dueDaysOverdue]}>
+          {t('collections.overdueDays', { days: Math.abs(diffDays) })}
+        </Text>
+      );
+    } else {
+      return (
+        <Text style={[styles.dueDaysText, styles.dueDaysFuture]}>
+          {t('collections.dueInDays', { days: diffDays })}
+        </Text>
+      );
+    }
+  };
+
   return (
     <View style={styles.wrapper}>
       <Header showTotal={false} title={t('collections.panelTitle')} />
@@ -328,9 +364,12 @@ export default function CobrancasScreen() {
                     onPress={() => router.push(`/clientes/${c.id}`)}
                   >
                     <View style={styles.clientInfo}>
-                      <Text style={styles.clientName} numberOfLines={1}>
-                        {c.full_name}
-                      </Text>
+                      <View style={{ flex: 1, marginRight: 8 }}>
+                        <Text style={styles.clientName} numberOfLines={1}>
+                          {c.full_name}
+                        </Text>
+                        {renderDueDays(c)}
+                      </View>
                       <Text style={styles.debtValue}>
                         {formatCurrency(c.total_debt)}
                       </Text>
@@ -843,5 +882,19 @@ const styles = StyleSheet.create({
   },
   customPopupBtnTextSecondary: {
     color: '#475569',
+  },
+  dueDaysText: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  dueDaysToday: {
+    color: '#eab308',
+  },
+  dueDaysOverdue: {
+    color: '#ef4444',
+  },
+  dueDaysFuture: {
+    color: theme.colors.primary,
   },
 });
