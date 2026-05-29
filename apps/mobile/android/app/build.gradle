@@ -92,8 +92,8 @@ android {
         applicationId 'com.dailydue.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 9
-        versionName "1.0.3"
+        versionCode 6
+        versionName "1.0.6"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }
@@ -109,7 +109,7 @@ android {
             //   keytool -genkey -v -keystore release.keystore -alias fiado-release -keyalg RSA -keysize 2048 -validity 10000
             // Then update storeFile, storePassword, keyAlias, keyPassword below.
             // NEVER commit these credentials to version control.
-            storeFile file('release.keystore')
+            storeFile file(System.getenv('ANDROID_KEYSTORE_FILE') ?: 'release.keystore')
             storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD') ?: ''
             keyAlias System.getenv('ANDROID_KEY_ALIAS') ?: 'dailydue-release'
             keyPassword System.getenv('ANDROID_KEY_PASSWORD') ?: ''

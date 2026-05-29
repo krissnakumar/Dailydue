@@ -46,9 +46,10 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   });
 
   const fetchProducts = async (skus: string[]) => {
-    if (iap.connected) {
-      await iap.fetchProducts({ skus, type: 'subs' });
+    if (!iap.connected) {
+      await iap.reconnect?.();
     }
+    if (iap.connected) await iap.fetchProducts({ skus, type: 'subs' });
   };
 
   const handleUpgrade = async (premiumSubId: string, androidPackageName: string): Promise<boolean> => {
@@ -57,8 +58,22 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
     setLoading(true);
     try {
-      if (!iap.connected) throw new Error('IAP_NOT_CONNECTED');
-      const offerToken = iap.subscriptions?.[0]?.subscriptionOffers?.[0]?.offerTokenAndroid || '';
+      if (!iap.connected) {
+        const reconnected = await iap.reconnect?.();
+        if (!reconnected) throw new Error('IAP_NOT_CONNECTED');
+      }
+
+      if (!iap.subscriptions?.length) {
+        await iap.fetchProducts({ skus: [premiumSubId], type: 'subs' });
+      }
+
+      const sub =
+        (iap.subscriptions || []).find(
+          (s: any) => s?.id === premiumSubId || s?.productId === premiumSubId,
+        ) || (iap.subscriptions || [])[0];
+
+      const offerToken = sub?.subscriptionOffers?.[0]?.offerTokenAndroid || '';
+      if (!offerToken) throw new Error('IAP_OFFER_NOT_FOUND');
       await iap.requestPurchase({
         type: 'subs',
         request: {
@@ -67,7 +82,8 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       });
       return true;
     } catch (e: any) {
-      console.error('[IAP] Upgrade failed:', e);
+      // console.error triggers a dev redbox; these failures are often expected (device not eligible / store not ready).
+      console.warn('[IAP] Upgrade failed:', e);
       tracker.trackBillingFailure(premiumSubId, e?.message || String(e));
       return false;
     } finally {
@@ -78,6 +94,9 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const handleRestore = async (premiumSubId: string, androidPackageName: string): Promise<boolean> => {
     setLoading(true);
     try {
+      if (!iap.connected) {
+        await iap.reconnect?.();
+      }
       await iap.restorePurchases({ includeSuspendedAndroid: true });
       const purchases = await iap.getAvailablePurchases({ onlyIncludeActiveItemsAndroid: true });
       const prem = (purchases || []).find((p: any) => p?.productId === premiumSubId);
@@ -89,7 +108,7 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       await fetchSubscription();
       return false;
     } catch (e: any) {
-      console.error('[IAP] Restore failed:', e);
+      console.warn('[IAP] Restore failed:', e);
       tracker.trackBillingFailure(premiumSubId, e?.message || String(e));
       return false;
     } finally {

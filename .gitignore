@@ -54,6 +54,8 @@ pnpm-debug.log*
 *.sln
 *.swp
 *.keystore
+*.jks
+*.log
 
 # Temporary and Scratch Directories
 .temp/

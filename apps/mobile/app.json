@@ -2,7 +2,7 @@
   "expo": {
     "name": "DailyDue",
     "slug": "dailydue",
-    "version": "1.0.3",
+    "version": "1.0.6",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "dailydue",
@@ -33,7 +33,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.dailydue.app",
-      "versionCode": 9,
+      "versionCode": 6,
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "com.android.vending.BILLING",
