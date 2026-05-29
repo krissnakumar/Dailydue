@@ -31,9 +31,14 @@ jobs:
         run: npm install --legacy-peer-deps
 
       - name: Decode Keystore
-        if: ${{ secrets.KEYSTORE_FILE != '' }}
+        env:
+          KEYSTORE_FILE: ${{ secrets.KEYSTORE_FILE }}
         run: |
-          echo "${{ secrets.KEYSTORE_FILE }}" | base64 --decode > apps/mobile/android/app/release.keystore
+          if [ ! -z "$KEYSTORE_FILE" ]; then
+            echo "$KEYSTORE_FILE" | base64 --decode > apps/mobile/android/app/release.keystore
+          else
+            echo "KEYSTORE_FILE secret is not set, skipping decoding."
+          fi
 
       - name: Build Android Release APK
         env:
