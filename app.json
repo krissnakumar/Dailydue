@@ -1,8 +1,10 @@
 {
   "expo": {
+    "name": "DailyDue",
+    "slug": "dailydue",
     "extra": {
       "eas": {
-        "projectId": "4cc35103-03b2-432d-a64b-006665aedf96"
+        "projectId": "3953e829-bdad-4b81-a902-9ec3d699c666"
       }
     },
     "owner": "krishzy"
