@@ -30,7 +30,17 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
+      - name: Decode Keystore
+        if: ${{ secrets.KEYSTORE_FILE != '' }}
+        run: |
+          echo "${{ secrets.KEYSTORE_FILE }}" | base64 --decode > apps/mobile/android/app/release.keystore
+
       - name: Build Android Release APK
+        env:
+          ANDROID_KEYSTORE_FILE: 'release.keystore'
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           cd apps/mobile/android
           chmod +x gradlew

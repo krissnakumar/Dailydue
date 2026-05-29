@@ -109,10 +109,19 @@ android {
             //   keytool -genkey -v -keystore release.keystore -alias fiado-release -keyalg RSA -keysize 2048 -validity 10000
             // Then update storeFile, storePassword, keyAlias, keyPassword below.
             // NEVER commit these credentials to version control.
-            storeFile file(System.getenv('ANDROID_KEYSTORE_FILE') ?: 'release.keystore')
-            storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD') ?: ''
-            keyAlias System.getenv('ANDROID_KEY_ALIAS') ?: 'dailydue-release'
-            keyPassword System.getenv('ANDROID_KEY_PASSWORD') ?: ''
+            def keystoreFile = file(System.getenv('ANDROID_KEYSTORE_FILE') ?: 'release.keystore')
+            if (keystoreFile.exists()) {
+                storeFile keystoreFile
+                storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD') ?: ''
+                keyAlias System.getenv('ANDROID_KEY_ALIAS') ?: 'dailydue-release'
+                keyPassword System.getenv('ANDROID_KEY_PASSWORD') ?: ''
+            } else {
+                println "release.keystore not found, falling back to debug signing config."
+                storeFile file('debug.keystore')
+                storePassword 'android'
+                keyAlias 'androiddebugkey'
+                keyPassword 'android'
+            }
         }
     }
     buildTypes {
